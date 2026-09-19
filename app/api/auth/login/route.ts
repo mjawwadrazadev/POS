@@ -25,22 +25,45 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get branch details
-    let branchName = "Main Branch";
-    if (user.branchId) {
-      const branch = await Branch.findById(user.branchId);
-      if (branch) branchName = `${branch.name} (${branch.code})`;
-    }
-
-    // Get Organization details
+    // Get Organization & check subscription expiry (Skip check for Super Admin)
     let organizationName = "Master Organization";
     let businessType: any = "bakery";
+
     if (user.organizationId) {
       const org = await Organization.findById(user.organizationId);
       if (org) {
         organizationName = org.name;
         businessType = org.businessType;
+
+        // Check subscription status for regular tenants
+        if (user.role !== "super_admin") {
+          const now = new Date();
+          const isExpired = org.expiryDate && new Date(org.expiryDate) < now;
+          const isSuspended = org.subscriptionStatus === "suspended";
+
+          if (isSuspended || isExpired) {
+            // Auto update status if expired
+            if (isExpired && org.subscriptionStatus !== "expired") {
+              org.subscriptionStatus = "expired";
+              await org.save();
+            }
+            return NextResponse.json(
+              {
+                error: `Access Blocked — ${org.name}'s subscription has expired. Please contact Super Admin to renew your access fee.`,
+                isSubscriptionExpired: true,
+              },
+              { status: 403 }
+            );
+          }
+        }
       }
+    }
+
+    // Get branch details
+    let branchName = "Main Branch";
+    if (user.branchId) {
+      const branch = await Branch.findById(user.branchId);
+      if (branch) branchName = `${branch.name} (${branch.code})`;
     }
 
     const payload: SessionPayload = {

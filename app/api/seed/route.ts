@@ -17,6 +17,8 @@ export async function GET() {
     await Product.deleteMany({});
     await Order.deleteMany({});
 
+    const now = new Date();
+
     // ─── 1. SUPER ADMIN SYSTEM ORGANISATION ───
     const masterOrg = await Organization.create({
       name: "RST POS Platform HQ",
@@ -27,6 +29,11 @@ export async function GET() {
       phone: "+92 42 111 000 000",
       email: "superadmin@rstpos.com",
       address: "NIB IT Solutions Tower, Gulberg, Lahore",
+      subscriptionPlan: "custom",
+      subscriptionFee: 0,
+      subscriptionStatus: "active",
+      startDate: now,
+      expiryDate: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
     });
 
     const masterBranch = await Branch.create({
@@ -39,7 +46,7 @@ export async function GET() {
       isMain: true,
     });
 
-    const superAdminUser = await User.create({
+    await User.create({
       organizationId: masterOrg._id,
       branchId: masterBranch._id,
       fullName: "System Super Admin",
@@ -49,7 +56,7 @@ export async function GET() {
       isActive: true,
     });
 
-    // ─── 2. TENANT 1: BAKERY ───
+    // ─── 2. TENANT 1: BAKERY (ACTIVE — Fee: 5,000/mo, Expiry: +25 days) ───
     const bakeryOrg = await Organization.create({
       name: "RST Bakers & Confectionery Chain",
       code: "rst-bakery",
@@ -59,6 +66,20 @@ export async function GET() {
       phone: "+92 42 111 778 778",
       email: "bakers@rstpos.com",
       address: "Main Boulevard, Gulberg III, Lahore, Pakistan",
+      subscriptionPlan: "monthly",
+      subscriptionFee: 5000,
+      subscriptionStatus: "active",
+      startDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      expiryDate: new Date(now.getTime() + 25 * 24 * 60 * 60 * 1000),
+      lastPaymentDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      paymentHistory: [
+        {
+          amount: 5000,
+          paymentDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+          monthsAdded: 1,
+          notes: "Monthly Subscription Fee",
+        },
+      ],
     });
 
     const bakeryBranchLhr = await Branch.create({
@@ -81,7 +102,7 @@ export async function GET() {
       isActive: true,
     });
 
-    const bakeryProducts = await Product.insertMany([
+    await Product.insertMany([
       {
         organizationId: bakeryOrg._id,
         name: "Red Velvet Cream Fudge Cake (2 Pound)",
@@ -110,31 +131,32 @@ export async function GET() {
         expiryTime: "24 Hours",
         isPerishable: true,
       },
-      {
-        organizationId: bakeryOrg._id,
-        name: "Pineapple Fresh Cream Pastry",
-        sku: "BAK-103",
-        barcode: "8901234567003",
-        category: "Pastries & Breads",
-        price: 280,
-        costPrice: 150,
-        stock: 30,
-        unit: "Pcs",
-        expiryTime: "36 Hours",
-        isPerishable: true,
-      },
     ]);
 
-    // ─── 3. TENANT 2: RESTAURANT ───
+    // ─── 3. TENANT 2: RESTAURANT (EXPIRING SOON — Fee: 10,000/mo, Expiry: +3 days) ───
     const restOrg = await Organization.create({
       name: "Royal Spice Grill & Restaurant",
       code: "royal-spice",
       businessType: "restaurant",
       currency: "PKR",
       taxRate: 16.0,
-      phone: "+92 42 35889900",
+      phone: "+92 300 9876543",
       email: "restaurant@rstpos.com",
       address: "MM Alam Road, Gulberg, Lahore",
+      subscriptionPlan: "monthly",
+      subscriptionFee: 10000,
+      subscriptionStatus: "expiring_soon",
+      startDate: new Date(now.getTime() - 27 * 24 * 60 * 60 * 1000),
+      expiryDate: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000), // Expiring in 3 days!
+      lastPaymentDate: new Date(now.getTime() - 27 * 24 * 60 * 60 * 1000),
+      paymentHistory: [
+        {
+          amount: 10000,
+          paymentDate: new Date(now.getTime() - 27 * 24 * 60 * 60 * 1000),
+          monthsAdded: 1,
+          notes: "Monthly Subscription Fee",
+        },
+      ],
     });
 
     const restBranch = await Branch.create({
@@ -143,14 +165,14 @@ export async function GET() {
       code: "REST-01",
       city: "Lahore",
       address: "MM Alam Road, Lahore",
-      phone: "+92 42 35889900",
+      phone: "+92 300 9876543",
       isMain: true,
     });
 
     const restAdmin = await User.create({
       organizationId: restOrg._id,
       branchId: restBranch._id,
-      fullName: "Tariq Mahmood (Restaurant Admin)",
+      fullName: "Tariq Mahmood (Restaurant Owner)",
       email: "restaurant@rstpos.com",
       pin: "2222",
       role: "admin",
@@ -170,33 +192,9 @@ export async function GET() {
         unit: "KG",
         preparationTime: 25,
       },
-      {
-        organizationId: restOrg._id,
-        name: "Beef Nihari (Large Bowl)",
-        sku: "FD-102",
-        barcode: "8901234567102",
-        category: "Main Course",
-        price: 1400,
-        costPrice: 900,
-        stock: 30,
-        unit: "Bowl",
-        preparationTime: 40,
-      },
-      {
-        organizationId: restOrg._id,
-        name: "Mutton Live BBQ Karahi",
-        sku: "FD-103",
-        barcode: "8901234567103",
-        category: "Main Course",
-        price: 3200,
-        costPrice: 2200,
-        stock: 20,
-        unit: "KG",
-        preparationTime: 35,
-      },
     ]);
 
-    // ─── 4. TENANT 3: PHARMACY ───
+    // ─── 4. TENANT 3: PHARMACY (ACTIVE — Fee: 6,000/mo, Expiry: +18 days) ───
     const pharmOrg = await Organization.create({
       name: "HealthPlus Medico & Pharmacy",
       code: "health-plus",
@@ -206,6 +204,20 @@ export async function GET() {
       phone: "+92 42 37778899",
       email: "pharmacy@rstpos.com",
       address: "Jail Road, Medical Zone, Lahore",
+      subscriptionPlan: "monthly",
+      subscriptionFee: 6000,
+      subscriptionStatus: "active",
+      startDate: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000),
+      expiryDate: new Date(now.getTime() + 18 * 24 * 60 * 60 * 1000),
+      lastPaymentDate: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000),
+      paymentHistory: [
+        {
+          amount: 6000,
+          paymentDate: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000),
+          monthsAdded: 1,
+          notes: "Monthly Subscription Fee",
+        },
+      ],
     });
 
     const pharmBranch = await Branch.create({
@@ -228,46 +240,62 @@ export async function GET() {
       isActive: true,
     });
 
-    await Product.insertMany([
-      {
-        organizationId: pharmOrg._id,
-        name: "Paracetamol 500mg Extra",
-        sku: "MED-001",
-        barcode: "8901234567891",
-        category: "Medicines",
-        price: 150,
-        costPrice: 110,
-        stock: 120,
-        unit: "Pcs",
-        batchNumber: "BCH-9921",
-        expiryDate: new Date("2027-08-15"),
-        genericName: "Acetaminophen",
-      },
-      {
-        organizationId: pharmOrg._id,
-        name: "Amoxicillin 250mg Antibiotic",
-        sku: "MED-002",
-        barcode: "8901234567892",
-        category: "Medicines",
-        price: 450,
-        costPrice: 340,
-        stock: 45,
-        unit: "Box",
-        batchNumber: "BCH-8810",
-        expiryDate: new Date("2026-11-20"),
-        genericName: "Amoxicillin Trihydrate",
-      },
-    ]);
+    // ─── 5. TENANT 4: EXPIRED TENANT (EXPIRED — Fee: 8,000/mo, Expired 2 days ago!) ───
+    const expiredOrg = await Organization.create({
+      name: "Al-Madina Sweets & Bakery",
+      code: "al-madina",
+      businessType: "bakery",
+      currency: "PKR",
+      taxRate: 16.0,
+      phone: "+92 321 5554433",
+      email: "expired@rstpos.com",
+      address: "Johar Town, Lahore",
+      subscriptionPlan: "monthly",
+      subscriptionFee: 8000,
+      subscriptionStatus: "expired",
+      startDate: new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000),
+      expiryDate: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // Expired 2 days ago!
+      lastPaymentDate: new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000),
+      paymentHistory: [
+        {
+          amount: 8000,
+          paymentDate: new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000),
+          monthsAdded: 1,
+          notes: "Monthly Subscription Fee (Overdue)",
+        },
+      ],
+    });
+
+    const expiredBranch = await Branch.create({
+      organizationId: expiredOrg._id,
+      name: "Johar Town Branch",
+      code: "MAD-01",
+      city: "Lahore",
+      address: "Johar Town, Lahore",
+      phone: "+92 321 5554433",
+      isMain: true,
+    });
+
+    await User.create({
+      organizationId: expiredOrg._id,
+      branchId: expiredBranch._id,
+      fullName: "Zubair Ahmad (Owner)",
+      email: "expired@rstpos.com",
+      pin: "4444",
+      role: "admin",
+      isActive: true,
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Multi-tenant database seeded successfully with Super Admin & 3 distinct vertical tenants!",
+      message: "Database seeded with Super Admin & 4 Subscription Tenants (Active, Expiring Soon, and Expired)! ",
       data: {
         superAdmin: "superadmin@rstpos.com (PIN: 9999)",
         tenants: [
-          { name: bakeryOrg.name, email: bakeryAdmin.email, pin: "1234", type: "bakery" },
-          { name: restOrg.name, email: restAdmin.email, pin: "2222", type: "restaurant" },
-          { name: pharmOrg.name, email: "pharmacy@rstpos.com", pin: "3333", type: "pharmacy" },
+          { name: bakeryOrg.name, email: bakeryAdmin.email, pin: "1234", fee: "5,000/mo", status: "Active (+25 days)" },
+          { name: restOrg.name, email: restAdmin.email, pin: "2222", fee: "10,000/mo", status: "Expiring Soon (+3 days alert!)" },
+          { name: pharmOrg.name, email: "pharmacy@rstpos.com", pin: "3333", fee: "6,000/mo", status: "Active (+18 days)" },
+          { name: expiredOrg.name, email: "expired@rstpos.com", pin: "4444", fee: "8,000/mo", status: "EXPIRED (Access Blocked)" },
         ],
       },
     });

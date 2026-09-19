@@ -1,6 +1,13 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { BusinessType } from "@/lib/config/verticals";
 
+export interface IPaymentRecord {
+  amount: number;
+  paymentDate: Date;
+  monthsAdded: number;
+  notes?: string;
+}
+
 export interface IOrganization extends Document {
   name: string;
   code: string;
@@ -10,6 +17,14 @@ export interface IOrganization extends Document {
   phone?: string;
   email?: string;
   address?: string;
+  // Subscription & Expiry Fields
+  subscriptionPlan: "monthly" | "yearly" | "custom";
+  subscriptionFee: number; // e.g. 5000 per month
+  subscriptionStatus: "active" | "expiring_soon" | "expired" | "suspended";
+  startDate: Date;
+  expiryDate: Date;
+  lastPaymentDate?: Date;
+  paymentHistory: IPaymentRecord[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +43,32 @@ const OrganizationSchema: Schema<IOrganization> = new Schema(
     phone: { type: String },
     email: { type: String },
     address: { type: String },
+    // Subscription & Expiry
+    subscriptionPlan: {
+      type: String,
+      enum: ["monthly", "yearly", "custom"],
+      default: "monthly",
+    },
+    subscriptionFee: { type: Number, default: 5000 },
+    subscriptionStatus: {
+      type: String,
+      enum: ["active", "expiring_soon", "expired", "suspended"],
+      default: "active",
+    },
+    startDate: { type: Date, default: Date.now },
+    expiryDate: {
+      type: Date,
+      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days access
+    },
+    lastPaymentDate: { type: Date, default: Date.now },
+    paymentHistory: [
+      {
+        amount: { type: Number, required: true },
+        paymentDate: { type: Date, default: Date.now },
+        monthsAdded: { type: Number, required: true, default: 1 },
+        notes: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );

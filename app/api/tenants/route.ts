@@ -6,19 +6,36 @@ import { User } from "@/models/User";
 import { Product } from "@/models/Product";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
 
-// GET: Fetch all tenant organizations with their stats
+// GET: Fetch all tenant organizations with subscription details and stats
 export async function GET() {
   try {
     await dbConnect();
 
     const orgs = await Organization.find({}).sort({ createdAt: -1 }).lean();
+    const now = new Date();
 
     const tenants = await Promise.all(
-      orgs.map(async (org) => {
+      orgs.map(async (org: any) => {
         const branchCount = await Branch.countDocuments({ organizationId: org._id });
         const userCount = await User.countDocuments({ organizationId: org._id });
         const productCount = await Product.countDocuments({ organizationId: org._id });
         const adminUser = await User.findOne({ organizationId: org._id, role: "admin" }).lean();
+
+        // Compute subscription status & days remaining
+        const expiryDate = org.expiryDate ? new Date(org.expiryDate) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const diffMs = expiryDate.getTime() - now.getTime();
+        const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        let computedStatus = org.subscriptionStatus || "active";
+        if (computedStatus !== "suspended") {
+          if (daysRemaining <= 0) {
+            computedStatus = "expired";
+          } else if (daysRemaining <= 7) {
+            computedStatus = "expiring_soon";
+          } else {
+            computedStatus = "active";
+          }
+        }
 
         return {
           id: org._id.toString(),
@@ -33,6 +50,15 @@ export async function GET() {
           adminName: adminUser?.fullName || "Not Set",
           adminEmail: adminUser?.email || "Not Set",
           adminPin: adminUser?.pin || "1234",
+          // Subscription & Fee Data
+          subscriptionPlan: org.subscriptionPlan || "monthly",
+          subscriptionFee: org.subscriptionFee || 5000,
+          subscriptionStatus: computedStatus,
+          startDate: org.startDate || org.createdAt,
+          expiryDate: expiryDate.toISOString(),
+          lastPaymentDate: org.lastPaymentDate || org.createdAt,
+          daysRemaining,
+          paymentHistory: org.paymentHistory || [],
           branchCount,
           userCount,
           productCount,
@@ -41,7 +67,27 @@ export async function GET() {
       })
     );
 
-    return NextResponse.json({ success: true, tenants });
+    // Calculate MRR (Monthly Recurring Revenue)
+    const totalMRR = tenants.reduce((sum, t) => {
+      if (t.code === "rst-hq") return sum; // Skip HQ master org
+      const monthlyEquiv = t.subscriptionPlan === "yearly" ? t.subscriptionFee / 12 : t.subscriptionFee;
+      return sum + monthlyEquiv;
+    }, 0);
+
+    const activeCount = tenants.filter((t) => t.subscriptionStatus === "active" && t.code !== "rst-hq").length;
+    const expiringSoonCount = tenants.filter((t) => t.subscriptionStatus === "expiring_soon" && t.code !== "rst-hq").length;
+    const expiredCount = tenants.filter((t) => (t.subscriptionStatus === "expired" || t.subscriptionStatus === "suspended") && t.code !== "rst-hq").length;
+
+    return NextResponse.json({
+      success: true,
+      tenants,
+      stats: {
+        totalMRR,
+        activeCount,
+        expiringSoonCount,
+        expiredCount,
+      },
+    });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to fetch tenants" },
@@ -50,7 +96,7 @@ export async function GET() {
   }
 }
 
-// POST: Provision a new tenant organization + branch + admin user + sample menu
+// POST: Provision a new tenant organization with subscription fee
 export async function POST(req: Request) {
   try {
     await dbConnect();
@@ -65,6 +111,9 @@ export async function POST(req: Request) {
       phone,
       address,
       taxRate = 16.0,
+      subscriptionPlan = "monthly",
+      subscriptionFee = 5000,
+      durationMonths = 1,
       createSampleMenu = true,
     } = body;
 
@@ -87,7 +136,11 @@ export async function POST(req: Request) {
     // Generate unique code
     const code = name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-") + "-" + Date.now().toString().slice(-4);
 
-    // 1. Create Organization
+    // Calculate Expiry Date based on durationMonths
+    const now = new Date();
+    const expiryDate = new Date(now.getTime() + Number(durationMonths) * 30 * 24 * 60 * 60 * 1000);
+
+    // 1. Create Organization with Subscription Info
     const org = await Organization.create({
       name,
       code,
@@ -97,6 +150,20 @@ export async function POST(req: Request) {
       phone,
       email: adminEmail,
       address,
+      subscriptionPlan,
+      subscriptionFee: Number(subscriptionFee),
+      subscriptionStatus: "active",
+      startDate: now,
+      expiryDate,
+      lastPaymentDate: now,
+      paymentHistory: [
+        {
+          amount: Number(subscriptionFee),
+          paymentDate: now,
+          monthsAdded: Number(durationMonths),
+          notes: `Initial Signup (${durationMonths} month access)`,
+        },
+      ],
     });
 
     // 2. Create Main Branch
@@ -185,6 +252,8 @@ export async function POST(req: Request) {
         businessType: org.businessType,
         adminEmail: adminUser.email,
         adminPin: adminUser.pin,
+        subscriptionFee,
+        expiryDate: expiryDate.toISOString(),
         sampleProductsCount,
       },
     });
