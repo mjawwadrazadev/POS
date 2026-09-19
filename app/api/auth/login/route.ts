@@ -8,7 +8,7 @@ import { signToken, SessionPayload } from "@/lib/auth/session";
 export async function POST(req: Request) {
   try {
     await dbConnect();
-    const { email, password, pin } = await req.json();
+    const { email, password, pin, isSuperAdminPortal } = await req.json();
 
     // Check user by email or pin
     let user = null;
@@ -22,6 +22,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Invalid credentials or inactive user account" },
         { status: 401 }
+      );
+    }
+
+    // Super Admin Portal restriction check
+    if (isSuperAdminPortal && user.role !== "super_admin") {
+      return NextResponse.json(
+        { error: "Access Denied — This portal is strictly for Super Admin accounts. Regular tenants please log in at /login" },
+        { status: 403 }
       );
     }
 

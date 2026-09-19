@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ShieldCheck,
   Lock,
   User,
   ArrowRight,
-  Building2,
   Cake,
   Utensils,
   Pill,
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"pin" | "admin">("pin");
   const [pin, setPin] = useState("");
-  const [email, setEmail] = useState("superadmin@rstpos.com");
+  const [email, setEmail] = useState("admin@rstpos.com");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -122,15 +122,6 @@ export default function LoginPage() {
             <div className="grid grid-cols-2 gap-3 text-[1.2rem] font-accent">
               <button
                 type="button"
-                onClick={() => quickFill("superadmin@rstpos.com", "9999")}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
-              >
-                <ShieldCheck className="w-4 h-4 text-amber-300 flex-shrink-0" />
-                <span className="truncate">Super Admin (9999)</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => quickFill("admin@rstpos.com", "1234")}
                 className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
               >
@@ -155,6 +146,14 @@ export default function LoginPage() {
                 <Pill className="w-4 h-4 text-rose-300 flex-shrink-0" />
                 <span className="truncate">Pharmacy (3333)</span>
               </button>
+
+              <Link
+                href="/super-admin/login"
+                className="bg-[#002bba]/40 hover:bg-[#002bba]/60 border border-amber-400/40 text-amber-300 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2 font-bold"
+              >
+                <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">Super Admin Login →</span>
+              </Link>
             </div>
           </div>
         </div>
@@ -296,9 +295,14 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="font-accent text-[1.2rem] uppercase text-[rgba(255,255,255,0.7)] mb-2 block font-semibold">
-                  Password
-                </label>
+                <div className="flex justify-between mb-2">
+                  <label className="font-accent text-[1.2rem] uppercase text-[rgba(255,255,255,0.7)] font-semibold">
+                    Password
+                  </label>
+                  <Link href="/forgot-password" className="font-accent text-[1.2rem] text-accent hover:underline">
+                    Forgot Password?
+                  </Link>
+                </div>
                 <div className="flex items-center gap-3 bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] px-4 py-3.5 focus-within:border-[#002bba]">
                   <Lock className="w-5 h-5 text-[rgba(255,255,255,0.4)] flex-shrink-0" />
                   <input
@@ -322,6 +326,16 @@ export default function LoginPage() {
               </button>
             </form>
           )}
+
+          <div className="pt-4 border-t border-[rgba(255,255,255,0.08)] text-center">
+            <Link
+              href="/super-admin/login"
+              className="font-accent text-[1.2rem] text-amber-300 hover:underline inline-flex items-center gap-1.5"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Looking for Platform Super Admin Portal? <b>Click here →</b></span>
+            </Link>
+          </div>
 
         </div>
       </div>
