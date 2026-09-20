@@ -25,6 +25,12 @@ export interface IOrder extends Document {
   discountTotal: number;
   grandTotal: number;
   paymentMethod: "cash" | "card" | "wallet" | "split";
+  payments?: {
+    method: "cash" | "card" | "wallet" | "store_credit";
+    amount: number;
+    reference?: string;
+  }[];
+  counterSessionId?: mongoose.Types.ObjectId;
   status: "completed" | "held" | "voided" | "refunded";
   syncedOffline: boolean;
   createdAt: Date;
@@ -40,6 +46,12 @@ const OrderItemSchema = new Schema({
   discount: { type: Number, default: 0 },
   total: { type: Number, required: true },
   batchNumber: { type: String },
+});
+
+const PaymentDetailSchema = new Schema({
+  method: { type: String, enum: ["cash", "card", "wallet", "store_credit"], required: true },
+  amount: { type: Number, required: true },
+  reference: { type: String },
 });
 
 const OrderSchema: Schema<IOrder> = new Schema(
@@ -61,6 +73,8 @@ const OrderSchema: Schema<IOrder> = new Schema(
     discountTotal: { type: Number, default: 0 },
     grandTotal: { type: Number, required: true },
     paymentMethod: { type: String, enum: ["cash", "card", "wallet", "split"], default: "cash" },
+    payments: [PaymentDetailSchema],
+    counterSessionId: { type: Schema.Types.ObjectId, ref: "CounterSession" },
     status: { type: String, enum: ["completed", "held", "voided", "refunded"], default: "completed" },
     syncedOffline: { type: Boolean, default: false },
   },

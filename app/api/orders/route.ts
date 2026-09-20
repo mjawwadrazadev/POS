@@ -4,6 +4,8 @@ import { Order } from "@/models/Order";
 import { Product } from "@/models/Product";
 import { Organization } from "@/models/Organization";
 import { Branch } from "@/models/Branch";
+import { CounterSession } from "@/models/CounterSession";
+import { deductStockFEFO } from "@/lib/inventory/fefo";
 
 export async function GET(req: Request) {
   try {
@@ -35,7 +37,8 @@ export async function POST(req: Request) {
       tableNumber,
       cashierName,
       customerName,
-      paymentMethod,
+      paymentMethod = "cash",
+      payments = [],
       discountGlobalPercent = 0,
     } = body;
 
@@ -57,6 +60,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check for open counter shift
+    const activeSession = await CounterSession.findOne({
+      branchId: branch._id,
+      status: "open",
+    });
+
     let subtotal = 0;
     const processedItems = [];
 
@@ -66,13 +75,8 @@ export async function POST(req: Request) {
         throw new Error(`Product ${item.name} not found`);
       }
 
-      if (product.stock < item.quantity) {
-        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
-      }
-
-      // Deduct stock in real-time
-      product.stock -= item.quantity;
-      await product.save();
+      // Deduct stock using FEFO batch strategy
+      const fefoResult = await deductStockFEFO(product._id, branch._id, item.quantity);
 
       const itemTotal = item.price * item.quantity - (item.discount || 0);
       subtotal += itemTotal;
@@ -85,13 +89,31 @@ export async function POST(req: Request) {
         unitPrice: item.price,
         discount: item.discount || 0,
         total: itemTotal,
-        batchNumber: product.batchNumber,
+        batchNumber: fefoResult.primaryBatchNumber || product.batchNumber,
       });
     }
 
     const taxAmount = Math.round(subtotal * 0.16); // 16% sales tax
     const discountTotal = Math.round(subtotal * (discountGlobalPercent / 100));
     const grandTotal = Math.max(0, subtotal + taxAmount - discountTotal);
+
+    // Validate split payments if paymentMethod === "split"
+    if (paymentMethod === "split") {
+      if (!payments || payments.length === 0) {
+        return NextResponse.json(
+          { error: "Split payment details are required when payment method is 'split'" },
+          { status: 400 }
+        );
+      }
+
+      const totalSplitPaid = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      if (Math.abs(totalSplitPaid - grandTotal) > 1) {
+        return NextResponse.json(
+          { error: `Split payment total (PKR ${totalSplitPaid}) does not equal order total (PKR ${grandTotal})` },
+          { status: 400 }
+        );
+      }
+    }
 
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
 
@@ -108,14 +130,16 @@ export async function POST(req: Request) {
       taxAmount,
       discountTotal,
       grandTotal,
-      paymentMethod: paymentMethod || "cash",
+      paymentMethod,
+      payments: paymentMethod === "split" ? payments : undefined,
+      counterSessionId: activeSession ? activeSession._id : undefined,
       status: "completed",
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Order completed & stock updated!",
+        message: "Order completed & FEFO batch stock updated!",
         order: newOrder,
       },
       { status: 201 }

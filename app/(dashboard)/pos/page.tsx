@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePosStore } from "@/lib/store/usePosStore";
 import { useInventoryStore } from "@/lib/store/useInventoryStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
@@ -23,10 +23,23 @@ import {
   AlertTriangle,
   X,
   ShieldCheck,
-  Key,
+  Split,
+  Lock,
+  Unlock,
+  DollarSign,
+  Printer,
 } from "lucide-react";
 
-type PaymentMethod = "cash" | "card" | "wallet";
+type PaymentMethod = "cash" | "card" | "wallet" | "split";
+
+interface CounterSessionData {
+  _id: string;
+  openingFloat: number;
+  openedAt: string;
+  cashSalesTotal: number;
+  expectedCashInDrawer: number;
+  orderCount: number;
+}
 
 export default function PosBillingPage() {
   const {
@@ -60,6 +73,14 @@ export default function PosBillingPage() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastOrderNumber, setLastOrderNumber] = useState("");
   const [stockError, setStockError] = useState("");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // Split Payment State
+  const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
+  const [splitCash, setSplitCash] = useState<number>(0);
+  const [splitCard, setSplitCard] = useState<number>(0);
+  const [splitWallet, setSplitWallet] = useState<number>(0);
+  const [splitError, setSplitError] = useState("");
 
   // Manager PIN Override State
   const [pendingDiscountVal, setPendingDiscountVal] = useState<number | null>(null);
@@ -67,6 +88,21 @@ export default function PosBillingPage() {
   const [managerPinError, setManagerPinError] = useState("");
   const [isManagerAuthorized, setIsManagerAuthorized] = useState(false);
   const [verifyingPin, setVerifyingPin] = useState(false);
+
+  // Counter Session (EOD Shift Float) State
+  const [activeSession, setActiveSession] = useState<CounterSessionData | null>(null);
+  const [isOpenShiftModalOpen, setIsOpenShiftModalOpen] = useState(false);
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
+  const [openingFloatInput, setOpeningFloatInput] = useState<number>(5000);
+  const [actualCashInput, setActualCashInput] = useState<number>(0);
+  const [shiftNotes, setShiftNotes] = useState("");
+  const [eodSummaryReport, setEodSummaryReport] = useState<any | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+
+  const subtotal = getSubtotal();
+  const taxAmount = getTaxTotal();
+  const discountTotal = getDiscountTotal();
+  const grandTotal = getGrandTotal();
 
   // Get distinct categories from inventory
   const allCategories = ["All", ...Array.from(new Set(inventoryItems.map((i) => i.category)))];
@@ -76,6 +112,81 @@ export default function PosBillingPage() {
     (p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  useEffect(() => {
+    fetchActiveCounterSession();
+  }, []);
+
+  const fetchActiveCounterSession = async () => {
+    try {
+      const res = await fetch("/api/counter-session");
+      const data = await res.json();
+      if (data.success && data.activeSession) {
+        setActiveSession(data.activeSession);
+      } else {
+        setActiveSession(null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch active counter session", err);
+    }
+  };
+
+  const handleOpenShiftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSessionLoading(true);
+    try {
+      const res = await fetch("/api/counter-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "open",
+          openingFloat: openingFloatInput,
+          cashierName: shiftCashier || "Main Cashier",
+          notes: shiftNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to open shift");
+
+      setIsOpenShiftModalOpen(false);
+      setShiftNotes("");
+      fetchActiveCounterSession();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  const handleCloseShiftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSession) return;
+
+    setSessionLoading(true);
+    try {
+      const res = await fetch("/api/counter-session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: activeSession._id,
+          actualCountedCash: actualCashInput,
+          notes: shiftNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to close shift");
+
+      setEodSummaryReport(data.summary);
+      setIsCloseShiftModalOpen(false);
+      setActiveSession(null);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSessionLoading(false);
+    }
+  };
 
   function handleAddToCart(product: typeof inventoryItems[0]) {
     if (product.stock <= 0) {
@@ -123,7 +234,6 @@ export default function PosBillingPage() {
         throw new Error("Cashier PIN entered. Manager or Admin PIN required for > 10% discount override.");
       }
 
-      // Authorization success
       setIsManagerAuthorized(true);
       if (pendingDiscountVal !== null) {
         setDiscount(pendingDiscountVal);
@@ -136,346 +246,754 @@ export default function PosBillingPage() {
     }
   }
 
-  function handleCompleteCheckout() {
+  const handleOpenSplitModal = () => {
+    setSplitCash(grandTotal);
+    setSplitCard(0);
+    setSplitWallet(0);
+    setSplitError("");
+    setIsSplitModalOpen(true);
+  };
+
+  async function handleCompleteCheckout(paymentsBreakdown?: { method: "cash" | "card" | "wallet" | "store_credit"; amount: number }[]) {
     if (cart.length === 0) return;
 
-    // Deduct stock for each item
-    cart.forEach((cartItem) => {
-      adjustStock(cartItem.id, -cartItem.quantity);
-    });
+    setCheckoutLoading(true);
+    try {
+      const checkoutPayload = {
+        items: cart.map((c) => ({
+          id: c.id,
+          name: c.name,
+          sku: c.sku,
+          price: c.price,
+          quantity: c.quantity,
+          discount: c.discount,
+        })),
+        orderType,
+        tableNumber: selectedTable,
+        cashierName: shiftCashier || "Ahmed Ali",
+        customerName: customerName || "Walk-in Customer",
+        paymentMethod: selectedPayment,
+        payments: selectedPayment === "split" ? paymentsBreakdown : undefined,
+        discountGlobalPercent,
+      };
 
-    const orderNum = `ORD-${Date.now().toString().slice(-6)}`;
-    setLastOrderNumber(orderNum);
-    setShowReceipt(true);
-    clearCart();
-    setCustomerName("Walk-in Customer");
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(checkoutPayload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to process order");
+      }
+
+      // Deduct stock locally
+      cart.forEach((cartItem) => {
+        adjustStock(cartItem.id, -cartItem.quantity);
+      });
+
+      setLastOrderNumber(data.order?.orderNumber || `ORD-${Date.now().toString().slice(-6)}`);
+      setShowReceipt(true);
+      clearCart();
+      setCustomerName("Walk-in Customer");
+      setIsSplitModalOpen(false);
+      fetchActiveCounterSession();
+    } catch (err: any) {
+      alert(`Checkout Error: ${err.message}`);
+    } finally {
+      setCheckoutLoading(false);
+    }
   }
 
-  const subtotal = getSubtotal();
-  const taxAmount = getTaxTotal();
-  const discountTotal = getDiscountTotal();
-  const grandTotal = getGrandTotal();
+  const handleConfirmSplitPayment = () => {
+    const totalPaid = Number(splitCash) + Number(splitCard) + Number(splitWallet);
+    if (Math.abs(totalPaid - grandTotal) > 0.01) {
+      setSplitError(`Total split payment (PKR ${totalPaid.toLocaleString()}) must equal order total (PKR ${grandTotal.toLocaleString()}).`);
+      return;
+    }
+
+    const paymentsList: { method: "cash" | "card" | "wallet"; amount: number }[] = [];
+    if (splitCash > 0) paymentsList.push({ method: "cash", amount: Number(splitCash) });
+    if (splitCard > 0) paymentsList.push({ method: "card", amount: Number(splitCard) });
+    if (splitWallet > 0) paymentsList.push({ method: "wallet", amount: Number(splitWallet) });
+
+    handleCompleteCheckout(paymentsList);
+  };
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" style={{ height: "calc(100vh - 13rem)" }}>
-
-        {/* LEFT — Product Catalogue (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
-
-          {/* Search + Barcode */}
-          <div className="bg-base-tint border border-stroke-muted p-3 flex gap-3">
-            <div className="flex-1 flex items-center gap-2 bg-base-bright border border-stroke-muted px-3 py-2">
-              <Search className="w-4 h-4 text-muted flex-shrink-0" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`Search ${config.terminology.item || "product"} by name or SKU...`}
-                className="w-full bg-transparent text-[1.4rem] outline-none text-bright font-sans"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery("")}>
-                  <X className="w-4 h-4 text-muted hover:text-error" />
-                </button>
-              )}
-            </div>
-            <button type="button" className="btn btn-secondary py-2 px-4">
-              <Barcode className="w-5 h-5 text-accent" />
-              <span className="font-accent text-[1.2rem] hidden sm:inline">Scan</span>
-            </button>
+      <div className="space-y-4">
+        {/* Top Shift Counter Bar */}
+        <div className="bg-[#0b0b0d] border border-stroke-muted p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 uppercase tracking-wider">Branch: <b className="text-white">{selectedBranch}</b></span>
+            <span className="text-gray-600">|</span>
+            <span className="text-gray-400 uppercase tracking-wider">Cashier: <b className="text-white">{shiftCashier}</b></span>
+            <span className="text-gray-600">|</span>
+            {activeSession ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <Unlock className="w-3.5 h-3.5" /> SHIFT OPEN (Float: PKR {activeSession.openingFloat.toLocaleString()})
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">
+                <Lock className="w-3.5 h-3.5" /> SHIFT CLOSED
+              </span>
+            )}
           </div>
 
-          {/* Stock error banner */}
-          {stockError && (
-            <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-4 py-2.5 font-accent text-[1.2rem]">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>{stockError}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {!activeSession ? (
+              <button
+                onClick={() => setIsOpenShiftModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 uppercase tracking-wider transition flex items-center gap-1.5"
+              >
+                <Unlock className="w-3.5 h-3.5" /> Open Counter Shift
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setActualCashInput(activeSession.expectedCashInDrawer || activeSession.openingFloat);
+                  setIsCloseShiftModalOpen(true);
+                }}
+                className="bg-rose-700 hover:bg-rose-600 text-white font-bold px-3 py-1.5 uppercase tracking-wider transition flex items-center gap-1.5"
+              >
+                <Lock className="w-3.5 h-3.5" /> Close Shift (EOD)
+              </button>
+            )}
+          </div>
+        </div>
 
-          {/* Order Type + Table Selector */}
-          <div className="bg-base-tint border border-stroke-muted p-3 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 font-accent text-[1.2rem]">
-              <span className="text-muted font-semibold">Type:</span>
-              {(["retail_sale", "dine_in", "takeaway", "prescription"] as const).map((type) => (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" style={{ height: "calc(100vh - 16rem)" }}>
+          {/* LEFT — Product Catalogue (7 cols) */}
+          <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
+            {/* Search + Barcode */}
+            <div className="bg-base-tint border border-stroke-muted p-3 flex gap-3">
+              <div className="flex-1 flex items-center gap-2 bg-base-bright border border-stroke-muted px-3 py-2">
+                <Search className="w-4 h-4 text-muted flex-shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={`Search ${config.terminology.item || "product"} by name or SKU...`}
+                  className="w-full bg-transparent text-[1.4rem] outline-none text-bright font-sans"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")}>
+                    <X className="w-4 h-4 text-muted hover:text-error" />
+                  </button>
+                )}
+              </div>
+              <button type="button" className="btn btn-secondary py-2 px-4">
+                <Barcode className="w-5 h-5 text-accent" />
+                <span className="font-accent text-[1.2rem] hidden sm:inline">Scan</span>
+              </button>
+            </div>
+
+            {/* Stock error banner */}
+            {stockError && (
+              <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-4 py-2.5 font-accent text-[1.2rem]">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{stockError}</span>
+              </div>
+            )}
+
+            {/* Order Type + Table Selector */}
+            <div className="bg-base-tint border border-stroke-muted p-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 font-accent text-[1.2rem]">
+                <span className="text-muted font-semibold">Type:</span>
+                {(["retail_sale", "dine_in", "takeaway", "prescription"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setOrderType(type)}
+                    className={`px-3 py-1 text-[1.1rem] font-bold uppercase transition-colors ${
+                      orderType === type
+                        ? "bg-accent text-white"
+                        : "bg-base-bright border border-stroke-muted text-bright hover:bg-accent-subtle"
+                    }`}
+                  >
+                    {type.replace("_", " ")}
+                  </button>
+                ))}
+              </div>
+
+              {(currentVertical === "restaurant" || orderType === "dine_in") && (
+                <div className="flex items-center gap-2 font-accent text-[1.2rem] ml-auto">
+                  <span className="text-muted">Table:</span>
+                  <select
+                    value={selectedTable}
+                    onChange={(e) => setSelectedTable(e.target.value)}
+                    className="bg-base-bright border border-stroke-muted px-2 py-1 text-[1.2rem] text-bright outline-none font-bold"
+                  >
+                    {["Table 01","Table 02","Table 03","Table 04","Table 05","Table 06","Table 07","Table 08"].map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex gap-2 flex-wrap">
+              {allCategories.map((cat) => (
                 <button
-                  key={type}
+                  key={cat}
                   type="button"
-                  onClick={() => setOrderType(type)}
-                  className={`px-3 py-1 text-[1.1rem] font-bold uppercase transition-colors ${
-                    orderType === type
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1 font-accent text-[1.2rem] font-bold uppercase transition-colors ${
+                    selectedCategory === cat
                       ? "bg-accent text-white"
-                      : "bg-base-bright border border-stroke-muted text-bright hover:bg-accent-subtle"
+                      : "bg-base-tint border border-stroke-muted text-medium hover:border-accent hover:text-bright"
                   }`}
                 >
-                  {type.replace("_", " ")}
+                  {cat}
                 </button>
               ))}
             </div>
 
-            {(currentVertical === "restaurant" || orderType === "dine_in") && (
-              <div className="flex items-center gap-2 font-accent text-[1.2rem] ml-auto">
-                <span className="text-muted">Table:</span>
-                <select
-                  value={selectedTable}
-                  onChange={(e) => setSelectedTable(e.target.value)}
-                  className="bg-base-bright border border-stroke-muted px-2 py-1 text-[1.2rem] text-bright outline-none font-bold"
+            {/* Product Grid */}
+            <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1">
+              {filteredProducts.length === 0 && (
+                <div className="col-span-3 text-center py-12 text-muted font-accent text-[1.3rem]">
+                  No products found. Add products from Inventory page.
+                </div>
+              )}
+              {filteredProducts.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => handleAddToCart(p)}
+                  className={`bg-base-tint border flex flex-col justify-between p-4 transition-all group cursor-pointer ${
+                    p.stock === 0
+                      ? "border-red-500/30 opacity-50 cursor-not-allowed"
+                      : "border-stroke-muted hover:border-accent hover:shadow-md"
+                  }`}
                 >
-                  {["Table 01","Table 02","Table 03","Table 04","Table 05","Table 06","Table 07","Table 08"].map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* Category Filter Pills */}
-          <div className="flex gap-2 flex-wrap">
-            {allCategories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1 font-accent text-[1.2rem] font-bold uppercase transition-colors ${
-                  selectedCategory === cat
-                    ? "bg-accent text-white"
-                    : "bg-base-tint border border-stroke-muted text-medium hover:border-accent hover:text-bright"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Product Grid */}
-          <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1">
-            {filteredProducts.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-muted font-accent text-[1.3rem]">
-                No products found. Add products from Inventory page.
-              </div>
-            )}
-            {filteredProducts.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => handleAddToCart(p)}
-                className={`bg-base-tint border flex flex-col justify-between p-4 transition-all group cursor-pointer ${
-                  p.stock === 0
-                    ? "border-red-500/30 opacity-50 cursor-not-allowed"
-                    : "border-stroke-muted hover:border-accent hover:shadow-md"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-accent text-[1.1rem] text-accent font-bold">{p.sku}</span>
-                    <span className={`font-accent text-[1rem] px-1.5 py-0.5 border ${p.stock < 10 ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-muted border-stroke-muted bg-base-bright"}`}>
-                      {p.stock === 0 ? "OUT" : `${p.stock} ${p.unit}`}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-accent text-[1.1rem] text-accent font-bold">{p.sku}</span>
+                      <span className={`font-accent text-[1rem] px-1.5 py-0.5 border ${p.stock < 10 ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-muted border-stroke-muted bg-base-bright"}`}>
+                        {p.stock === 0 ? "OUT" : `${p.stock} ${p.unit}`}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-[1.35rem] text-bright line-clamp-2 group-hover:text-accent transition-colors">
+                      {p.name}
+                    </h4>
+                    <div className="mt-1 text-[1.1rem] font-accent text-muted space-y-0.5">
+                      {p.batchNumber && (
+                        <div className="flex items-center gap-1 text-emerald-600">
+                          <Pill className="w-3 h-3" />
+                          <span>Batch: {p.batchNumber}</span>
+                        </div>
+                      )}
+                      {p.flavour && (
+                        <div className="flex items-center gap-1 text-amber-500">
+                          <Cake className="w-3 h-3" />
+                          <span>{p.flavour}{p.weightGrams ? ` · ${p.weightGrams}g` : ""}</span>
+                        </div>
+                      )}
+                      {p.preparationTime && (
+                        <div className="flex items-center gap-1 text-emerald-500">
+                          <Utensils className="w-3 h-3" />
+                          <span>Prep: {p.preparationTime}m</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-stroke-muted flex items-center justify-between">
+                    <span className="font-accent text-[1.6rem] font-extrabold text-bright">
+                      PKR {p.price.toLocaleString()}
                     </span>
-                  </div>
-                  <h4 className="font-bold text-[1.35rem] text-bright line-clamp-2 group-hover:text-accent transition-colors">
-                    {p.name}
-                  </h4>
-                  <div className="mt-1 text-[1.1rem] font-accent text-muted space-y-0.5">
-                    {p.batchNumber && (
-                      <div className="flex items-center gap-1 text-emerald-600">
-                        <Pill className="w-3 h-3" />
-                        <span>Batch: {p.batchNumber}</span>
-                      </div>
-                    )}
-                    {p.flavour && (
-                      <div className="flex items-center gap-1 text-amber-500">
-                        <Cake className="w-3 h-3" />
-                        <span>{p.flavour}{p.weightGrams ? ` · ${p.weightGrams}g` : ""}</span>
-                      </div>
-                    )}
-                    {p.preparationTime && (
-                      <div className="flex items-center gap-1 text-emerald-500">
-                        <Utensils className="w-3 h-3" />
-                        <span>Prep: {p.preparationTime}m</span>
-                      </div>
-                    )}
-                    {p.expiryTime && (
-                      <span className="text-amber-500">Best Before: {p.expiryTime}</span>
-                    )}
+                    <div className="bg-accent text-white p-1.5 group-hover:bg-accent-hover transition-colors">
+                      <Plus className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-stroke-muted flex items-center justify-between">
-                  <span className="font-accent text-[1.6rem] font-extrabold text-bright">
-                    PKR {p.price.toLocaleString()}
-                  </span>
-                  <div className="bg-accent text-white p-1.5 group-hover:bg-accent-hover transition-colors">
-                    <Plus className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* RIGHT — Cart & Checkout (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col bg-base-tint border border-stroke-muted overflow-hidden">
-
-          {/* Cart Header */}
-          <div className="p-4 border-b border-stroke-muted flex items-center justify-between bg-base-bright flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-accent" />
-              <h3 className="font-accent font-bold text-[1.4rem] uppercase text-bright">
-                Billing Cart
-              </h3>
+          {/* RIGHT — Cart & Checkout (5 cols) */}
+          <div className="lg:col-span-5 flex flex-col bg-base-tint border border-stroke-muted overflow-hidden">
+            {/* Cart Header */}
+            <div className="p-4 border-b border-stroke-muted flex items-center justify-between bg-base-bright flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-accent" />
+                <h3 className="font-accent font-bold text-[1.4rem] uppercase text-bright">
+                  Billing Cart
+                </h3>
+                {cart.length > 0 && (
+                  <span className="badge badge-accent font-accent">{cart.length}</span>
+                )}
+              </div>
               {cart.length > 0 && (
-                <span className="badge badge-accent font-accent">{cart.length}</span>
+                <button onClick={clearCart} className="text-error font-accent text-[1.1rem] hover:underline flex items-center gap-1">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Clear</span>
+                </button>
               )}
             </div>
-            {cart.length > 0 && (
-              <button onClick={clearCart} className="text-error font-accent text-[1.1rem] hover:underline flex items-center gap-1">
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Clear</span>
-              </button>
-            )}
-          </div>
 
-          {/* Customer Name */}
-          <div className="px-4 py-2.5 border-b border-stroke-muted bg-base-bright flex-shrink-0">
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Customer Name (optional)"
-              className="w-full bg-base-tint border border-stroke-muted text-bright text-[1.3rem] px-3 py-2 outline-none focus:border-accent font-sans"
-            />
-          </div>
-
-          {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-muted gap-3 py-10">
-                <ShoppingCart className="w-12 h-12 stroke-[1.5] text-stroke-muted" />
-                <p className="font-accent text-[1.3rem] uppercase">Cart is Empty</p>
-                <p className="text-[1.2rem] text-center">Click products on the left to add</p>
-              </div>
-            ) : (
-              cart.map((item) => (
-                <div key={item.id} className="bg-base-bright border border-stroke-muted p-3 flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[1.3rem] text-bright truncate">{item.name}</div>
-                    <div className="font-accent text-[1.1rem] text-muted">
-                      {item.sku} · PKR {item.price.toLocaleString()} ea
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-base-tint border border-stroke-muted px-2 py-1 flex-shrink-0">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="text-bright hover:text-accent">
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="font-accent font-bold text-[1.3rem] w-5 text-center">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)} className="text-bright hover:text-accent">
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-accent font-bold text-[1.4rem] text-bright">
-                      PKR {(item.price * item.quantity - item.discount).toLocaleString()}
-                    </div>
-                    <button onClick={() => removeFromCart(item.id)} className="text-error hover:opacity-80">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Totals + Discount + Payment */}
-          <div className="p-4 border-t border-stroke-muted bg-base-bright space-y-3 flex-shrink-0">
-
-            {/* Discount slider + Manager Authorization Status */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between font-accent text-[1.2rem]">
-                <span className="text-muted flex items-center gap-1">
-                  <span>Discount:</span>
-                  {isManagerAuthorized && (
-                    <span className="text-emerald-400 font-bold text-[1rem] bg-emerald-500/10 border border-emerald-500/30 px-1">
-                      MANAGER AUTHORIZED
-                    </span>
-                  )}
-                </span>
-                <span className="font-bold text-accent">{discountGlobalPercent}%</span>
-              </div>
+            {/* Customer Name */}
+            <div className="px-4 py-2.5 border-b border-stroke-muted bg-base-bright flex-shrink-0">
               <input
-                type="range"
-                min={0}
-                max={50}
-                step={5}
-                value={discountGlobalPercent}
-                onChange={(e) => handleDiscountChange(Number(e.target.value))}
-                className="w-full accent-accent cursor-pointer"
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Customer Name (optional)"
+                className="w-full bg-base-tint border border-stroke-muted text-bright text-[1.3rem] px-3 py-2 outline-none focus:border-accent font-sans"
               />
             </div>
 
-            {/* Totals */}
-            <div className="space-y-1 font-accent text-[1.2rem]">
-              <div className="flex justify-between text-muted">
-                <span>Subtotal:</span>
-                <span className="text-bright">PKR {subtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-muted">
-                <span>Sales Tax (16%):</span>
-                <span className="text-bright">PKR {taxAmount.toLocaleString()}</span>
-              </div>
-              {discountTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted">Discount ({discountGlobalPercent}%):</span>
-                  <span className="text-error font-bold">- PKR {discountTotal.toLocaleString()}</span>
+            {/* Cart Items */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted gap-3 py-10">
+                  <ShoppingCart className="w-12 h-12 stroke-[1.5] text-stroke-muted" />
+                  <p className="font-accent text-[1.3rem] uppercase">Cart is Empty</p>
+                  <p className="text-[1.2rem] text-center">Click products on the left to add</p>
                 </div>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.id} className="bg-base-bright border border-stroke-muted p-3 flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[1.3rem] text-bright truncate">{item.name}</div>
+                      <div className="font-accent text-[1.1rem] text-muted">
+                        {item.sku} · PKR {item.price.toLocaleString()} ea
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-base-tint border border-stroke-muted px-2 py-1 flex-shrink-0">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="text-bright hover:text-accent">
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="font-accent font-bold text-[1.3rem] w-5 text-center">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="text-bright hover:text-accent">
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-accent font-bold text-[1.4rem] text-bright">
+                        PKR {(item.price * item.quantity - item.discount).toLocaleString()}
+                      </div>
+                      <button onClick={() => removeFromCart(item.id)} className="text-error hover:opacity-80">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
-              <div className="flex justify-between text-[1.8rem] font-extrabold text-bright pt-2 border-t border-stroke-muted">
-                <span>TOTAL:</span>
-                <span className="text-accent">PKR {grandTotal.toLocaleString()}</span>
+            </div>
+
+            {/* Totals + Discount + Payment */}
+            <div className="p-4 border-t border-stroke-muted bg-base-bright space-y-3 flex-shrink-0">
+              {/* Discount slider */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between font-accent text-[1.2rem]">
+                  <span className="text-muted flex items-center gap-1">
+                    <span>Discount:</span>
+                    {isManagerAuthorized && (
+                      <span className="text-emerald-400 font-bold text-[1rem] bg-emerald-500/10 border border-emerald-500/30 px-1">
+                        MANAGER AUTHORIZED
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-bold text-accent">{discountGlobalPercent}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={50}
+                  step={5}
+                  value={discountGlobalPercent}
+                  onChange={(e) => handleDiscountChange(Number(e.target.value))}
+                  className="w-full accent-accent cursor-pointer"
+                />
               </div>
-            </div>
 
-            {/* Payment Method */}
-            <div className="grid grid-cols-3 gap-2">
-              {(["cash","card","wallet"] as const).map((method) => {
-                const icons = { cash: <Banknote className="w-4 h-4" />, card: <CreditCard className="w-4 h-4" />, wallet: <QrCode className="w-4 h-4" /> };
-                return (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() => setSelectedPayment(method)}
-                    className={`btn py-2 text-[1.1rem] flex items-center justify-center gap-1 transition-colors ${
-                      selectedPayment === method
-                        ? "btn-primary"
-                        : "btn-secondary"
-                    }`}
-                  >
-                    {icons[method]}
-                    <span className="uppercase">{method}</span>
-                  </button>
-                );
-              })}
-            </div>
+              {/* Totals */}
+              <div className="space-y-1 font-accent text-[1.2rem]">
+                <div className="flex justify-between text-muted">
+                  <span>Subtotal:</span>
+                  <span className="text-bright">PKR {subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-muted">
+                  <span>Sales Tax (16%):</span>
+                  <span className="text-bright">PKR {taxAmount.toLocaleString()}</span>
+                </div>
+                {discountTotal > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Discount ({discountGlobalPercent}%):</span>
+                    <span className="text-error font-bold">- PKR {discountTotal.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-[1.8rem] font-extrabold text-bright pt-2 border-t border-stroke-muted">
+                  <span>TOTAL:</span>
+                  <span className="text-accent">PKR {grandTotal.toLocaleString()}</span>
+                </div>
+              </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" className="btn btn-secondary py-3 text-[1.2rem]">
-                <PauseCircle className="w-4 h-4" />
-                <span>Hold Order</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleCompleteCheckout}
-                disabled={cart.length === 0}
-                className="btn btn-primary py-3 text-[1.3rem] disabled:opacity-40"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                <span>Pay PKR {grandTotal.toLocaleString()}</span>
-              </button>
+              {/* Payment Method selector */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["cash","card","wallet","split"] as const).map((method) => {
+                  const icons = {
+                    cash: <Banknote className="w-3.5 h-3.5" />,
+                    card: <CreditCard className="w-3.5 h-3.5" />,
+                    wallet: <QrCode className="w-3.5 h-3.5" />,
+                    split: <Split className="w-3.5 h-3.5" />,
+                  };
+                  return (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPayment(method);
+                        if (method === "split" && cart.length > 0) {
+                          handleOpenSplitModal();
+                        }
+                      }}
+                      className={`btn py-2 text-[1rem] flex items-center justify-center gap-1 transition-colors ${
+                        selectedPayment === method ? "btn-primary" : "btn-secondary"
+                      }`}
+                    >
+                      {icons[method]}
+                      <span className="uppercase">{method}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" className="btn btn-secondary py-3 text-[1.2rem]">
+                  <PauseCircle className="w-4 h-4" />
+                  <span>Hold Order</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedPayment === "split") {
+                      handleOpenSplitModal();
+                    } else {
+                      handleCompleteCheckout();
+                    }
+                  }}
+                  disabled={cart.length === 0 || checkoutLoading}
+                  className="btn btn-primary py-3 text-[1.3rem] disabled:opacity-40"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>{checkoutLoading ? "Processing..." : `Pay PKR ${grandTotal.toLocaleString()}`}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MANAGER PIN OVERRIDE MODAL (For discounts > 10%) */}
+      {/* SPLIT PAYMENT MODAL */}
+      {isSplitModalOpen && (
+        <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
+          <div className="bg-[#0b0b0d] border border-blue-500/50 w-full max-w-lg p-6 text-white space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2 font-mono font-bold text-[#002bba] text-base uppercase tracking-wider">
+                <Split className="w-5 h-5 text-blue-400" />
+                <span>Split Payment Checkout</span>
+              </div>
+              <button onClick={() => setIsSplitModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-xs">
+                [Close]
+              </button>
+            </div>
+
+            <div className="bg-blue-950/40 border border-blue-500/30 p-4 font-mono text-xs space-y-1">
+              <div className="flex justify-between text-gray-300">
+                <span>Grand Order Total:</span>
+                <span className="font-bold text-white text-sm">PKR {grandTotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-300">
+                <span>Entered Payment Total:</span>
+                <span className="font-bold text-amber-400 text-sm">
+                  PKR {(Number(splitCash) + Number(splitCard) + Number(splitWallet)).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between text-gray-300 pt-1 border-t border-blue-500/20">
+                <span>Remaining Balance:</span>
+                <span className={`font-bold text-sm ${grandTotal - (Number(splitCash) + Number(splitCard) + Number(splitWallet)) === 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  PKR {(grandTotal - (Number(splitCash) + Number(splitCard) + Number(splitWallet))).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {splitError && (
+              <div className="bg-rose-950/80 border border-rose-500/50 text-rose-300 p-3 text-xs font-mono">
+                {splitError}
+              </div>
+            )}
+
+            <div className="space-y-3 font-mono text-xs">
+              <div>
+                <label className="block text-gray-300 uppercase tracking-wider mb-1">Cash Payment Amount (PKR)</label>
+                <input
+                  type="number"
+                  value={splitCash}
+                  onChange={(e) => setSplitCash(Number(e.target.value))}
+                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 uppercase tracking-wider mb-1">Card Payment Amount (PKR)</label>
+                <input
+                  type="number"
+                  value={splitCard}
+                  onChange={(e) => setSplitCard(Number(e.target.value))}
+                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 uppercase tracking-wider mb-1">Wallet / Digital Payment Amount (PKR)</label>
+                <input
+                  type="number"
+                  value={splitWallet}
+                  onChange={(e) => setSplitWallet(Number(e.target.value))}
+                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-gray-800">
+              <button
+                type="button"
+                onClick={() => setIsSplitModalOpen(false)}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-2.5 font-mono text-xs uppercase tracking-wider"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSplitPayment}
+                disabled={checkoutLoading}
+                className="flex-1 bg-[#002bba] hover:bg-blue-700 text-white py-2.5 font-mono text-xs uppercase tracking-wider font-bold"
+              >
+                {checkoutLoading ? "Processing..." : "Confirm & Complete Split Pay"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OPEN SHIFT MODAL */}
+      {isOpenShiftModalOpen && (
+        <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
+          <div className="bg-[#0b0b0d] border border-emerald-500/50 w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h3 className="font-mono font-bold text-emerald-400 text-sm uppercase tracking-wider flex items-center gap-2">
+                <Unlock className="w-4 h-4" /> Open Counter Shift Float
+              </h3>
+              <button onClick={() => setIsOpenShiftModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-xs">
+                [Close]
+              </button>
+            </div>
+
+            <form onSubmit={handleOpenShiftSubmit} className="space-y-4 font-mono text-xs">
+              <div>
+                <label className="block text-gray-300 uppercase tracking-wider mb-1">Opening Cash Float in Drawer (PKR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={openingFloatInput}
+                  onChange={(e) => setOpeningFloatInput(Number(e.target.value))}
+                  className="w-full bg-gray-900 border border-emerald-500/50 text-emerald-300 font-bold text-lg p-2.5 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 uppercase tracking-wider mb-1">Shift Opening Notes</label>
+                <textarea
+                  rows={2}
+                  value={shiftNotes}
+                  onChange={(e) => setShiftNotes(e.target.value)}
+                  placeholder="e.g. Morning shift start with PKR 5,000 float notes"
+                  className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOpenShiftModalOpen(false)}
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={sessionLoading}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 uppercase font-bold"
+                >
+                  {sessionLoading ? "Opening..." : "Confirm & Start Shift"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CLOSE SHIFT (EOD) MODAL */}
+      {isCloseShiftModalOpen && activeSession && (
+        <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
+          <div className="bg-[#0b0b0d] border border-rose-500/50 w-full max-w-lg p-6 text-white space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h3 className="font-mono font-bold text-rose-400 text-sm uppercase tracking-wider flex items-center gap-2">
+                <Lock className="w-4 h-4" /> End of Day (EOD) Shift Close
+              </h3>
+              <button onClick={() => setIsCloseShiftModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-xs">
+                [Close]
+              </button>
+            </div>
+
+            <div className="bg-gray-900 border border-gray-800 p-4 font-mono text-xs space-y-2">
+              <div className="flex justify-between text-gray-400">
+                <span>Opening Cash Float:</span>
+                <span className="text-white font-bold">PKR {activeSession.openingFloat.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>Shift Cash Sales:</span>
+                <span className="text-emerald-400 font-bold">PKR {activeSession.cashSalesTotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-300 pt-2 border-t border-gray-800">
+                <span>Expected Cash in Drawer:</span>
+                <span className="text-blue-400 font-bold text-sm">PKR {activeSession.expectedCashInDrawer.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleCloseShiftSubmit} className="space-y-4 font-mono text-xs">
+              <div>
+                <label className="block text-gray-300 uppercase tracking-wider mb-1">Actual Physical Counted Cash (PKR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={actualCashInput}
+                  onChange={(e) => setActualCashInput(Number(e.target.value))}
+                  className="w-full bg-gray-900 border border-rose-500/50 text-rose-300 font-bold text-lg p-2.5 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="p-3 bg-gray-950 border border-gray-800 flex justify-between items-center">
+                <span className="text-gray-400 uppercase">Calculated Shift Variance:</span>
+                <span className={`font-bold text-sm ${actualCashInput - activeSession.expectedCashInDrawer === 0 ? "text-emerald-400" : actualCashInput - activeSession.expectedCashInDrawer < 0 ? "text-rose-400" : "text-amber-400"}`}>
+                  PKR {(actualCashInput - activeSession.expectedCashInDrawer).toLocaleString()}
+                  {actualCashInput - activeSession.expectedCashInDrawer < 0 ? " (SHORTAGE)" : actualCashInput - activeSession.expectedCashInDrawer > 0 ? " (OVERAGE)" : " (EXACT)"}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 uppercase tracking-wider mb-1">Closing Notes / Discrepancy Reason</label>
+                <textarea
+                  rows={2}
+                  value={shiftNotes}
+                  onChange={(e) => setShiftNotes(e.target.value)}
+                  placeholder="e.g. Cash count verified by shift manager"
+                  className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCloseShiftModalOpen(false)}
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={sessionLoading}
+                  className="bg-rose-700 hover:bg-rose-600 text-white px-5 py-2 uppercase font-bold"
+                >
+                  {sessionLoading ? "Closing Shift..." : "Close Shift & Print EOD Report"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EOD SUMMARY REPORT MODAL */}
+      {eodSummaryReport && (
+        <div className="fixed inset-0 bg-black/85 z-[140] flex items-center justify-center p-4">
+          <div className="bg-[#0b0b0d] border border-blue-500/50 w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h3 className="font-mono font-bold text-blue-400 text-sm uppercase tracking-wider flex items-center gap-2">
+                <Printer className="w-4 h-4" /> EOD Shift Closing Report
+              </h3>
+              <button onClick={() => setEodSummaryReport(null)} className="text-gray-400 hover:text-white font-mono text-xs">
+                [Close]
+              </button>
+            </div>
+
+            <div className="bg-gray-900 p-4 border border-gray-800 font-mono text-xs space-y-2">
+              <div className="text-center font-bold text-sm text-white uppercase tracking-widest border-b border-gray-800 pb-2">
+                RST POS — End of Shift Summary
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>Cashier:</span>
+                <span className="text-white font-bold">{eodSummaryReport.cashierName}</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>Shift Started:</span>
+                <span className="text-white">{new Date(eodSummaryReport.openedAt).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>Shift Closed:</span>
+                <span className="text-white">{new Date(eodSummaryReport.closedAt).toLocaleString()}</span>
+              </div>
+              <hr className="border-gray-800" />
+              <div className="flex justify-between text-gray-300">
+                <span>Opening Float:</span>
+                <span>PKR {eodSummaryReport.openingFloat.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-300">
+                <span>Total Cash Sales:</span>
+                <span className="text-emerald-400 font-bold">PKR {eodSummaryReport.cashSalesTotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-300">
+                <span>Expected Cash:</span>
+                <span className="text-blue-400 font-bold">PKR {eodSummaryReport.expectedCashInDrawer.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-300">
+                <span>Actual Counted:</span>
+                <span className="text-white font-bold">PKR {eodSummaryReport.actualCountedCash.toLocaleString()}</span>
+              </div>
+              <hr className="border-gray-800" />
+              <div className="flex justify-between text-sm font-bold">
+                <span>Variance:</span>
+                <span className={eodSummaryReport.variance === 0 ? "text-emerald-400" : eodSummaryReport.variance < 0 ? "text-rose-400" : "text-amber-400"}>
+                  PKR {eodSummaryReport.variance.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 bg-[#002bba] hover:bg-blue-700 text-white py-2 font-mono text-xs uppercase font-bold flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4" /> Print Shift Summary
+              </button>
+              <button
+                onClick={() => setEodSummaryReport(null)}
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 font-mono text-xs uppercase"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANAGER PIN OVERRIDE MODAL */}
       {pendingDiscountVal !== null && (
         <div className="fixed inset-0 bg-black/80 z-[120] flex items-center justify-center p-4">
           <div className="bg-[#171719] border border-amber-500/50 w-full max-w-md p-6 text-white space-y-5 shadow-2xl">
@@ -537,7 +1055,7 @@ export default function PosBillingPage() {
         </div>
       )}
 
-      {/* Thermal Receipt Modal — opens automatically after payment */}
+      {/* Thermal Receipt Modal */}
       <ThermalReceiptModal
         isOpen={showReceipt}
         onClose={() => setShowReceipt(false)}
