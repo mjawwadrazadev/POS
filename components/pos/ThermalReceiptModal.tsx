@@ -1,6 +1,8 @@
 "use client";
 
-import { Printer, X, CheckCircle2, Share2 } from "lucide-react";
+import { useState } from "react";
+import { Printer, X, CheckCircle2, Share2, Play } from "lucide-react";
+import { PrinterService } from "@/lib/printer/PrinterService";
 
 interface ReceiptItem {
   name: string;
@@ -41,10 +43,38 @@ export function ThermalReceiptModal({
   paymentMethod,
   branchName,
 }: ThermalReceiptModalProps) {
+  const [printing, setPrinting] = useState(false);
+  const [printNotice, setPrintNotice] = useState("");
+
   if (!isOpen) return null;
 
-  function handlePrintWindow() {
-    window.print();
+  async function handleHardwarePrint() {
+    setPrinting(true);
+    setPrintNotice("");
+
+    try {
+      const res = await PrinterService.print({
+        orderNumber,
+        dateStr: dateStr || new Date().toLocaleString(),
+        cashierName,
+        customerName,
+        branchName,
+        items,
+        subtotal,
+        taxAmount,
+        discountTotal,
+        grandTotal,
+        paymentMethod,
+      });
+
+      setPrintNotice(`Printed via ${res.transportUsed.toUpperCase()}`);
+      setTimeout(() => setPrintNotice(""), 3000);
+    } catch (err: any) {
+      console.warn("Hardware print error, opening fallback print window", err);
+      window.print();
+    } finally {
+      setPrinting(false);
+    }
   }
 
   const whatsappMessage = encodeURIComponent(
@@ -70,6 +100,13 @@ export function ThermalReceiptModal({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {printNotice && (
+          <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-2 text-xs font-mono text-center flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{printNotice}</span>
+          </div>
+        )}
 
         {/* 80mm Receipt Formatting Box (Monospace Styled) */}
         <div
@@ -184,11 +221,12 @@ export function ThermalReceiptModal({
 
           <button
             type="button"
-            onClick={handlePrintWindow}
+            disabled={printing}
+            onClick={handleHardwarePrint}
             className="btn btn-primary py-3 text-[1.2rem] flex items-center justify-center gap-2"
           >
             <Printer className="w-4 h-4" />
-            <span>Print ESC/POS</span>
+            <span>{printing ? "Printing..." : "Print ESC/POS"}</span>
           </button>
         </div>
       </div>

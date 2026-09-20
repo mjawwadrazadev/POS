@@ -6,6 +6,8 @@ import { useInventoryStore } from "@/lib/store/useInventoryStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import { ThermalReceiptModal } from "@/components/pos/ThermalReceiptModal";
 import { BarcodeScannerListener } from "@/components/pos/BarcodeScannerListener";
+import { CameraBarcodeScannerModal } from "@/components/pos/CameraBarcodeScannerModal";
+import { playScanSuccessBeep, playScanErrorBeep } from "@/lib/audio/scanBeep";
 import {
   Search,
   ShoppingCart,
@@ -30,6 +32,7 @@ import {
   DollarSign,
   Printer,
   LayoutGrid,
+  Camera,
 } from "lucide-react";
 
 type PaymentMethod = "cash" | "card" | "wallet" | "split";
@@ -101,6 +104,7 @@ export default function PosBillingPage() {
   const [eodSummaryReport, setEodSummaryReport] = useState<any | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [isFloorPlanOpen, setIsFloorPlanOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   const subtotal = getSubtotal();
   const taxAmount = getTaxTotal();
@@ -114,8 +118,10 @@ export default function PosBillingPage() {
         p.sku.toLowerCase() === barcode.toLowerCase()
     );
     if (match) {
+      playScanSuccessBeep();
       handleAddToCart(match);
     } else {
+      playScanErrorBeep();
       setStockError(`Scanned barcode "${barcode}" not found in inventory.`);
       setTimeout(() => setStockError(""), 4000);
     }
@@ -426,9 +432,13 @@ export default function PosBillingPage() {
                   </button>
                 )}
               </div>
-              <button type="button" className="btn btn-secondary py-2 px-4">
-                <Barcode className="w-5 h-5 text-accent" />
-                <span className="font-accent text-[1.2rem] hidden sm:inline">Scan</span>
+              <button
+                type="button"
+                onClick={() => setIsCameraModalOpen(true)}
+                className="btn btn-secondary py-2 px-3 flex items-center gap-1 bg-[#002bba] text-white hover:bg-blue-700"
+              >
+                <Camera className="w-4 h-4 text-white" />
+                <span className="font-accent text-[1.2rem] hidden sm:inline font-bold">Camera Scan</span>
               </button>
             </div>
 
@@ -1122,6 +1132,13 @@ export default function PosBillingPage() {
 
       {/* Global Hardware Barcode Scanner Listener */}
       <BarcodeScannerListener onScan={handleBarcodeScanned} />
+
+      {/* Mobile Camera Video Barcode Scanner Modal */}
+      <CameraBarcodeScannerModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onScan={handleBarcodeScanned}
+      />
     </>
   );
 }
