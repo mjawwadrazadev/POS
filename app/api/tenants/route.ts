@@ -50,6 +50,11 @@ export async function GET() {
           adminName: adminUser?.fullName || "Not Set",
           adminEmail: adminUser?.email || "Not Set",
           adminPin: adminUser?.pin || "1234",
+          // Plan Tier & Retention
+          planTier: org.planTier || "billing_accounting",
+          accountingEnabled: org.accountingEnabled !== false,
+          dataRetentionMonths: org.dataRetentionMonths || 6,
+          planPriceAtSelection: org.planPriceAtSelection || org.subscriptionFee || 5000,
           // Subscription & Fee Data
           subscriptionPlan: org.subscriptionPlan || "monthly",
           subscriptionFee: org.subscriptionFee || 5000,
@@ -111,6 +116,8 @@ export async function POST(req: Request) {
       phone,
       address,
       taxRate = 16.0,
+      planTier = "billing_accounting",
+      dataRetentionMonths = 6,
       subscriptionPlan = "monthly",
       subscriptionFee = 5000,
       durationMonths = 1,
@@ -140,7 +147,7 @@ export async function POST(req: Request) {
     const now = new Date();
     const expiryDate = new Date(now.getTime() + Number(durationMonths) * 30 * 24 * 60 * 60 * 1000);
 
-    // 1. Create Organization with Subscription Info
+    // 1. Create Organization with Plan Tier & Retention Info
     const org = await Organization.create({
       name,
       code,
@@ -150,6 +157,10 @@ export async function POST(req: Request) {
       phone,
       email: adminEmail,
       address,
+      planTier,
+      accountingEnabled: planTier === "billing_accounting",
+      dataRetentionMonths: Number(dataRetentionMonths),
+      planPriceAtSelection: Number(subscriptionFee),
       subscriptionPlan,
       subscriptionFee: Number(subscriptionFee),
       subscriptionStatus: "active",

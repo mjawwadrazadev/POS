@@ -105,11 +105,14 @@ export default function SuperAdminTenantsPage() {
     phone: "",
     address: "",
     taxRate: 16.0,
+    planTier: "billing_accounting" as "billing_only" | "billing_accounting",
+    dataRetentionMonths: 6,
     subscriptionPlan: "monthly",
     subscriptionFee: 5000,
     durationMonths: 1,
     createSampleMenu: true,
   });
+
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -183,11 +186,14 @@ export default function SuperAdminTenantsPage() {
         phone: "",
         address: "",
         taxRate: 16.0,
+        planTier: "billing_accounting",
+        dataRetentionMonths: 6,
         subscriptionPlan: "monthly",
         subscriptionFee: 5000,
         durationMonths: 1,
         createSampleMenu: true,
       });
+
 
       fetchTenants();
     } catch (err: any) {
@@ -819,16 +825,51 @@ export default function SuperAdminTenantsPage() {
                 </div>
               </div>
 
-              {/* Row 2: Subscription Fee & Duration */}
+              {/* Row 2: Subscription Fee, Plan Tier & Data Retention */}
               <div className="border border-emerald-500/40 bg-emerald-500/10 p-4 space-y-3">
                 <p className="font-accent text-[1.2rem] text-emerald-400 font-bold uppercase flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
-                  Subscription Fee & Access Expiry Setup
+                  Subscription Plan Tier & Data Retention Setup
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Plan Type</label>
+                    <label className="form-label text-[rgba(255,255,255,0.6)]">Feature Plan Tier *</label>
+                    <select
+                      value={form.planTier}
+                      onChange={(e) => {
+                        const tier = e.target.value as "billing_only" | "billing_accounting";
+                        setForm({
+                          ...form,
+                          planTier: tier,
+                          subscriptionFee: tier === "billing_accounting" ? 10000 : 5000,
+                        });
+                      }}
+                      className="w-full bg-[#0b0b0d] border border-emerald-500/40 text-emerald-400 font-bold px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                    >
+                      <option value="billing_only" className="bg-[#0b0b0d]">Option A: Billing + Inventory Only (PKR 5,000/mo)</option>
+                      <option value="billing_accounting" className="bg-[#0b0b0d]">Option B: Full Accounting & Ledger (PKR 10,000/mo)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label text-[rgba(255,255,255,0.6)]">Data Retention Period *</label>
+                    <select
+                      value={form.dataRetentionMonths}
+                      onChange={(e) => setForm({ ...form, dataRetentionMonths: Number(e.target.value) })}
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                    >
+                      <option value={6} className="bg-[#0b0b0d]">6 Months Retention (Standard)</option>
+                      <option value={12} className="bg-[#0b0b0d]">12 Months / 1 Year Retention</option>
+                      <option value={24} className="bg-[#0b0b0d]">24 Months / 2 Years Retention</option>
+                      <option value={0} className="bg-[#0b0b0d]">Unlimited / Lifetime Data Retention</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-emerald-500/20">
+                  <div>
+                    <label className="form-label text-[rgba(255,255,255,0.6)]">Billing Cycle</label>
                     <select
                       value={form.subscriptionPlan}
                       onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value })}
@@ -867,6 +908,7 @@ export default function SuperAdminTenantsPage() {
                   </div>
                 </div>
               </div>
+
 
               {/* Row 3: Admin Owner Credentials */}
               <div className="border border-[#002bba]/40 bg-[#002bba]/10 p-4 space-y-4">

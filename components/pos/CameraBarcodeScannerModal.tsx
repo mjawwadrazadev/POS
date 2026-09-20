@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, X, RefreshCw, AlertCircle } from "lucide-react";
+import { Camera, X, RefreshCw, AlertCircle, Barcode } from "lucide-react";
 import { playScanSuccessBeep, playScanErrorBeep } from "@/lib/audio/scanBeep";
 
 interface CameraBarcodeScannerModalProps {
@@ -18,6 +18,7 @@ export function CameraBarcodeScannerModal({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [cameraError, setCameraError] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [manualCodeInput, setManualCodeInput] = useState("");
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export function CameraBarcodeScannerModal({
 
   const detectBarcodeLoop = async () => {
     if (typeof window === "undefined" || !("BarcodeDetector" in window)) {
-      // Fallback barcode prompt if BarcodeDetector API is not present
+      // Fallback message for browsers lacking native BarcodeDetector (e.g. Safari iOS)
       return;
     }
 
@@ -103,6 +104,17 @@ export function CameraBarcodeScannerModal({
     }
   };
 
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualCodeInput.trim()) {
+      playScanSuccessBeep();
+      onScan(manualCodeInput.trim());
+      setManualCodeInput("");
+      stopCamera();
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -122,12 +134,9 @@ export function CameraBarcodeScannerModal({
           <div className="bg-rose-950/80 border border-rose-500/50 text-rose-300 p-4 text-xs space-y-3 text-center">
             <AlertCircle className="w-6 h-6 mx-auto text-rose-400" />
             <p>{cameraError}</p>
-            <p className="text-gray-400 text-[11px]">
-              Please ensure camera permissions are allowed or use manual barcode input.
-            </p>
           </div>
         ) : (
-          <div className="relative bg-black border border-gray-800 overflow-hidden flex items-center justify-center h-64">
+          <div className="relative bg-black border border-gray-800 overflow-hidden flex items-center justify-center h-60">
             <video
               ref={videoRef}
               muted
@@ -145,11 +154,33 @@ export function CameraBarcodeScannerModal({
           </div>
         )}
 
-        <div className="flex justify-between items-center text-xs text-gray-400 pt-2 border-t border-gray-800">
-          <span>Supported: EAN-13, Code128, QR</span>
+        {/* Manual Barcode Input Fallback (for Safari / Non-BarcodeDetector devices) */}
+        <form onSubmit={handleManualSubmit} className="space-y-2 text-xs">
+          <label className="block text-gray-400 uppercase tracking-wider text-[11px]">
+            Direct Barcode Input / Keypad Fallback
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={manualCodeInput}
+              onChange={(e) => setManualCodeInput(e.target.value)}
+              placeholder="e.g. 890123456789"
+              className="flex-1 bg-gray-900 border border-gray-700 text-white px-3 py-2 outline-none focus:border-blue-500 font-bold"
+            />
+            <button
+              type="submit"
+              className="bg-[#002bba] hover:bg-blue-700 text-white px-4 py-2 uppercase font-bold text-xs"
+            >
+              Add Item
+            </button>
+          </div>
+        </form>
+
+        <div className="flex justify-between items-center text-[11px] text-gray-400 pt-2 border-t border-gray-800">
+          <span>Supported: Chrome, Android, Safari (Manual Fallback)</span>
           <button
             onClick={onClose}
-            className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-1.5 uppercase font-bold"
+            className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 uppercase font-bold"
           >
             Cancel
           </button>

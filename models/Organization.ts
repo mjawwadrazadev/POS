@@ -17,6 +17,11 @@ export interface IOrganization extends Document {
   phone?: string;
   email?: string;
   address?: string;
+  // Plan Tier & Retention Fields
+  planTier: "billing_only" | "billing_accounting";
+  accountingEnabled: boolean;
+  dataRetentionMonths: number; // 6, 12, 24, 0 (0 = lifetime)
+  planPriceAtSelection?: number;
   // Subscription & Expiry Fields
   subscriptionPlan: "monthly" | "yearly" | "custom";
   subscriptionFee: number; // e.g. 5000 per month
@@ -43,6 +48,15 @@ const OrganizationSchema: Schema<IOrganization> = new Schema(
     phone: { type: String },
     email: { type: String },
     address: { type: String },
+    // Plan Tier & Retention
+    planTier: {
+      type: String,
+      enum: ["billing_only", "billing_accounting"],
+      default: "billing_accounting",
+    },
+    accountingEnabled: { type: Boolean, default: true },
+    dataRetentionMonths: { type: Number, default: 6 },
+    planPriceAtSelection: { type: Number, default: 5000 },
     // Subscription & Expiry
     subscriptionPlan: {
       type: String,

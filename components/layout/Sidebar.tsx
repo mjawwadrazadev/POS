@@ -42,6 +42,8 @@ export function Sidebar() {
     role: string;
     organizationName?: string;
     businessType?: BusinessType;
+    planTier?: "billing_only" | "billing_accounting";
+    accountingEnabled?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -90,6 +92,8 @@ export function Sidebar() {
   }
 
   const isSuperAdmin = userSession?.role === "super_admin";
+  const isAccountingEnabled = isSuperAdmin || (userSession?.accountingEnabled !== false && userSession?.planTier !== "billing_only");
+
 
   return (
     <aside className="sidebar">
@@ -243,32 +247,37 @@ export function Sidebar() {
         )}
 
         {/* Finance Group */}
-        <button
-          type="button"
-          onClick={() => setFinanceOpen(!financeOpen)}
-          className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-2"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <FileSpreadsheet className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">Finance & Ledger</span>
-          </div>
-          <ChevronDown
-            className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${
-              financeOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-        {financeOpen && (
-          <div className="flex flex-col gap-1 pl-4">
-            <Link
-              href="/accounting/ledger"
-              className={`sidebar__link ${isActive("/accounting/ledger") ? "sidebar__link--active" : ""}`}
+        {isAccountingEnabled && (
+          <>
+            <button
+              type="button"
+              onClick={() => setFinanceOpen(!financeOpen)}
+              className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-2"
             >
-              <FileSpreadsheet className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">Double-Entry Ledger</span>
-            </Link>
-          </div>
+              <div className="flex items-center gap-3 min-w-0">
+                <FileSpreadsheet className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">Finance & Ledger</span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${
+                  financeOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {financeOpen && (
+              <div className="flex flex-col gap-1 pl-4">
+                <Link
+                  href="/accounting/ledger"
+                  className={`sidebar__link ${isActive("/accounting/ledger") ? "sidebar__link--active" : ""}`}
+                >
+                  <FileSpreadsheet className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">Double-Entry Ledger</span>
+                </Link>
+              </div>
+            )}
+          </>
         )}
+
 
         {/* HRMS & Staff */}
         <Link

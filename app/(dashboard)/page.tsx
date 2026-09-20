@@ -15,6 +15,12 @@ import {
   Printer,
   CheckCircle2,
   AlertTriangle,
+  Users,
+  Utensils,
+  Pill,
+  BarChart3,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -58,6 +64,25 @@ export default function DashboardPage() {
       status: "completed",
       time: "09:14 AM",
     },
+  ];
+
+  // Visual 7-Day Revenue Trend Data
+  const revenueTrend = [
+    { day: "Mon", amount: 124000, height: "60%" },
+    { day: "Tue", amount: 145000, height: "70%" },
+    { day: "Wed", amount: 132000, height: "64%" },
+    { day: "Thu", amount: 168000, height: "82%" },
+    { day: "Fri", amount: 195000, height: "95%" },
+    { day: "Sat", amount: 210000, height: "100%" },
+    { day: "Sun", amount: 184570, height: "90%" },
+  ];
+
+  // Top Selling Items Data
+  const topProducts = [
+    { name: "Special Cream Fudge Cake (2lb)", sales: 48, percentage: 85, category: "Cakes" },
+    { name: "Double Shot Espresso", sales: 42, percentage: 74, category: "Beverages" },
+    { name: "Panadol Extra 500mg Strip", sales: 36, percentage: 62, category: "Medicines" },
+    { name: "Special Chicken Karahi (1KG)", sales: 29, percentage: 51, category: "Main Course" },
   ];
 
   return (
@@ -147,6 +172,149 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Visual Analytics Grid: 7-Day Revenue Trend + Top Selling Products */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 7-Day Revenue Trend Chart */}
+        <div className="lg:col-span-2 bg-base-tint border border-stroke-muted p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-accent text-[1.4rem] font-bold text-bright uppercase">
+              <BarChart3 className="w-5 h-5 text-accent" />
+              <span>7-Day Sales Trend & Performance</span>
+            </div>
+            <span className="text-[1.2rem] font-accent text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 px-3 py-1">
+              Peak: Sat (PKR 210,000)
+            </span>
+          </div>
+
+          <div className="h-52 pt-6 pb-2 flex items-end justify-between gap-3 border-b border-stroke-muted px-2">
+            {revenueTrend.map((item) => (
+              <div key={item.day} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                <div className="text-[1.1rem] font-accent font-bold text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+                  {(item.amount / 1000).toFixed(0)}k
+                </div>
+                <div
+                  style={{ height: item.height }}
+                  className="w-full bg-gradient-to-t from-[#002bba] to-blue-400 hover:to-blue-300 transition-all border-t-2 border-blue-300"
+                />
+                <span className="font-accent text-[1.2rem] text-muted font-bold uppercase">
+                  {item.day}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between text-[1.2rem] font-accent text-muted pt-1">
+            <span>Weekly Sales Aggregate: PKR 1,173,570</span>
+            <span className="text-accent font-bold">100% Tenant Scoped</span>
+          </div>
+        </div>
+
+        {/* Top Selling Items */}
+        <div className="bg-base-tint border border-stroke-muted p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-accent text-[1.4rem] font-bold text-bright uppercase">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              <span>Top Sellers Today</span>
+            </div>
+            <Link href="/products" className="text-accent font-accent text-[1.2rem] hover:underline">
+              All SKUs →
+            </Link>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            {topProducts.map((prod, idx) => (
+              <div key={idx} className="space-y-1.5">
+                <div className="flex justify-between text-[1.3rem] font-accent">
+                  <span className="font-bold text-bright truncate max-w-[18rem]">{prod.name}</span>
+                  <span className="text-accent font-bold">{prod.sales} sold</span>
+                </div>
+                <div className="w-full bg-base-bright h-2 border border-stroke-muted overflow-hidden">
+                  <div
+                    style={{ width: `${prod.percentage}%` }}
+                    className="bg-[#002bba] h-full"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Contextual Vertical Dashboard Widgets */}
+      {(currentVertical === "restaurant" || currentVertical === "cafe") && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-base-tint border border-emerald-500/30 p-5 space-y-3">
+            <div className="flex justify-between items-center text-emerald-400 font-accent font-bold text-[1.3rem] uppercase">
+              <span>Live Table Occupancy</span>
+              <Utensils className="w-4 h-4" />
+            </div>
+            <div className="text-[2.2rem] font-extrabold text-bright">8 / 12 Occupied</div>
+            <p className="text-[1.2rem] font-accent text-medium">
+              4 Tables Available (66% Hall Capacity)
+            </p>
+          </div>
+
+          <div className="bg-base-tint border border-blue-500/30 p-5 space-y-3">
+            <div className="flex justify-between items-center text-blue-400 font-accent font-bold text-[1.3rem] uppercase">
+              <span>KDS Kitchen Queue</span>
+              <Clock className="w-4 h-4" />
+            </div>
+            <div className="text-[2.2rem] font-extrabold text-bright">5 Active Tickets</div>
+            <p className="text-[1.2rem] font-accent text-medium">
+              Avg Prep Time: 14 mins (Queued: 2, Prep: 3)
+            </p>
+          </div>
+
+          <div className="bg-base-tint border border-purple-500/30 p-5 space-y-3">
+            <div className="flex justify-between items-center text-purple-400 font-accent font-bold text-[1.3rem] uppercase">
+              <span>Floor Staff Attendance</span>
+              <Users className="w-4 h-4" />
+            </div>
+            <div className="text-[2.2rem] font-extrabold text-bright">6 On Duty</div>
+            <p className="text-[1.2rem] font-accent text-medium">
+              3 Waiters, 2 Chefs, 1 Manager Clocked-In
+            </p>
+          </div>
+        </div>
+      )}
+
+      {(currentVertical === "pharmacy" || currentVertical === "bakery" || currentVertical === "supermarket") && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-base-tint border border-rose-500/30 p-5 space-y-3">
+            <div className="flex justify-between items-center text-rose-400 font-accent font-bold text-[1.3rem] uppercase">
+              <span>Near-Expiry Alert (FEFO)</span>
+              <Pill className="w-4 h-4" />
+            </div>
+            <div className="text-[2.2rem] font-extrabold text-rose-400">4 Batches</div>
+            <p className="text-[1.2rem] font-accent text-medium">
+              Expiring within 30 days — FEFO priority active
+            </p>
+          </div>
+
+          <div className="bg-base-tint border border-amber-500/30 p-5 space-y-3">
+            <div className="flex justify-between items-center text-amber-400 font-accent font-bold text-[1.3rem] uppercase">
+              <span>Reorder Warning</span>
+              <Package className="w-4 h-4" />
+            </div>
+            <div className="text-[2.2rem] font-extrabold text-amber-400">12 SKUs Low</div>
+            <p className="text-[1.2rem] font-accent text-medium">
+              Below safety stock threshold
+            </p>
+          </div>
+
+          <div className="bg-base-tint border border-emerald-500/30 p-5 space-y-3">
+            <div className="flex justify-between items-center text-emerald-400 font-accent font-bold text-[1.3rem] uppercase">
+              <span>Perishable Freshness</span>
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div className="text-[2.2rem] font-extrabold text-bright">100% Inspected</div>
+            <p className="text-[1.2rem] font-accent text-medium">
+              No expired stock present on sales floor
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Active Vertical Capabilities Panel */}
       <div className="bg-base-tint border border-stroke-muted p-6">
