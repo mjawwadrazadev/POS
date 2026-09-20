@@ -16,6 +16,7 @@ import {
   Layers,
   ArrowUpRight,
   PieChart,
+  CheckCircle2,
 } from "lucide-react";
 
 export default function ReportsPage() {
@@ -27,6 +28,7 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState("2026-09-19");
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [exportNotice, setExportNotice] = useState("");
 
   useEffect(() => {
     fetchReport();
@@ -57,6 +59,30 @@ export default function ReportsPage() {
     { month: "Year 2025 (Annual Total)", orders: 4120, revenue: "PKR 4,890,000", tax: "PKR 782,400", profit: "PKR 1,350,000", growth: "+24.5%" },
   ];
 
+  const handleExportCSV = () => {
+    const headers = ["Historical Period", "Total Orders", "Gross Revenue", "FBR Sales Tax", "Net Profit", "Growth Rate"];
+    const rows = monthlyHistory.map((r) => [
+      `"${r.month}"`,
+      r.orders,
+      `"${r.revenue}"`,
+      `"${r.tax}"`,
+      `"${r.profit}"`,
+      `"${r.growth}"`,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `RST_POS_Sales_Report_${startDate}_to_${endDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setExportNotice("CSV sales summary report exported successfully!");
+    setTimeout(() => setExportNotice(""), 4000);
+  };
+
   return (
     <div className="space-y-8">
       {/* Top Banner */}
@@ -65,7 +91,7 @@ export default function ReportsPage() {
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-accent" />
             <h2 className="font-extrabold text-[2.2rem] text-bright">
-              Historical Financial & Sales Reports ("Hisab Kitab")
+              Historical Financial & Sales Reports (&quot;Hisab Kitab&quot;)
             </h2>
           </div>
           <p className="text-medium text-[1.4rem] mt-1">
@@ -78,12 +104,19 @@ export default function ReportsPage() {
             <Printer className="w-4 h-4" />
             <span>Print Report</span>
           </button>
-          <button type="button" className="btn btn-primary py-3 px-5 text-[1.3rem]">
+          <button type="button" onClick={handleExportCSV} className="btn btn-primary py-3 px-5 text-[1.3rem]">
             <Download className="w-4 h-4" />
             <span>Export CSV / Excel</span>
           </button>
         </div>
       </div>
+
+      {exportNotice && (
+        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-4 text-xs font-mono flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+          <span>{exportNotice}</span>
+        </div>
+      )}
 
       {/* Date Range Selector Bar */}
       <div className="bg-base-tint border border-stroke-muted p-4 flex flex-wrap items-center justify-between gap-4">
@@ -190,7 +223,7 @@ export default function ReportsPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-accent text-[1.4rem] font-bold text-bright uppercase tracking-wider">
-            Monthly & Yearly Historical Audit Breakdown ("Pichla Hisab Kitab")
+            Monthly & Yearly Historical Audit Breakdown (&quot;Pichla Hisab Kitab&quot;)
           </h3>
           <span className="badge badge-accent font-accent">
             Permanent Audit Trail
@@ -222,7 +255,7 @@ export default function ReportsPage() {
                     <span className="badge badge-success font-accent">{row.growth}</span>
                   </td>
                   <td className="text-right">
-                    <button type="button" className="btn btn-secondary py-1 px-3 text-[1.1rem]">
+                    <button type="button" onClick={() => window.print()} className="btn btn-secondary py-1 px-3 text-[1.1rem]">
                       <span>Download PDF</span>
                     </button>
                   </td>

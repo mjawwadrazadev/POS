@@ -5,6 +5,7 @@ import { usePosStore } from "@/lib/store/usePosStore";
 import { useInventoryStore } from "@/lib/store/useInventoryStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import { ThermalReceiptModal } from "@/components/pos/ThermalReceiptModal";
+import { BarcodeScannerListener } from "@/components/pos/BarcodeScannerListener";
 import {
   Search,
   ShoppingCart,
@@ -28,6 +29,7 @@ import {
   Unlock,
   DollarSign,
   Printer,
+  LayoutGrid,
 } from "lucide-react";
 
 type PaymentMethod = "cash" | "card" | "wallet" | "split";
@@ -98,11 +100,26 @@ export default function PosBillingPage() {
   const [shiftNotes, setShiftNotes] = useState("");
   const [eodSummaryReport, setEodSummaryReport] = useState<any | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [isFloorPlanOpen, setIsFloorPlanOpen] = useState(false);
 
   const subtotal = getSubtotal();
   const taxAmount = getTaxTotal();
   const discountTotal = getDiscountTotal();
   const grandTotal = getGrandTotal();
+
+  function handleBarcodeScanned(barcode: string) {
+    const match = inventoryItems.find(
+      (p) =>
+        ((p as any).barcode && (p as any).barcode.toLowerCase() === barcode.toLowerCase()) ||
+        p.sku.toLowerCase() === barcode.toLowerCase()
+    );
+    if (match) {
+      handleAddToCart(match);
+    } else {
+      setStockError(`Scanned barcode "${barcode}" not found in inventory.`);
+      setTimeout(() => setStockError(""), 4000);
+    }
+  }
 
   // Get distinct categories from inventory
   const allCategories = ["All", ...Array.from(new Set(inventoryItems.map((i) => i.category)))];
@@ -292,6 +309,31 @@ export default function PosBillingPage() {
       cart.forEach((cartItem) => {
         adjustStock(cartItem.id, -cartItem.quantity);
       });
+
+      // Auto-dispatch KOT ticket for kitchen display screen
+      if (orderType === "dine_in" || currentVertical === "restaurant" || currentVertical === "cafe" || currentVertical === "bakery") {
+        try {
+          await fetch("/api/kot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: data.order?._id,
+              orderNumber: data.order?.orderNumber || `ORD-${Date.now().toString().slice(-6)}`,
+              tableNumber: selectedTable,
+              orderType,
+              items: cart.map((c) => ({
+                productId: c.id,
+                productName: c.name,
+                quantity: c.quantity,
+                notes: "",
+                station: "mains",
+              })),
+            }),
+          });
+        } catch (kotErr) {
+          console.error("Failed to post KOT ticket", kotErr);
+        }
+      }
 
       setLastOrderNumber(data.order?.orderNumber || `ORD-${Date.now().toString().slice(-6)}`);
       setShowReceipt(true);
@@ -1077,6 +1119,9 @@ export default function PosBillingPage() {
         paymentMethod={selectedPayment}
         branchName={selectedBranch}
       />
+
+      {/* Global Hardware Barcode Scanner Listener */}
+      <BarcodeScannerListener onScan={handleBarcodeScanned} />
     </>
   );
 }
