@@ -4,18 +4,41 @@ import { User } from "@/models/User";
 import { Branch } from "@/models/Branch";
 import { Organization } from "@/models/Organization";
 import { signToken, SessionPayload } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/security/rateLimiter";
+import { logAudit } from "@/lib/audit/logger";
 
 export async function POST(req: Request) {
   try {
     await dbConnect();
     const { email, password, pin, isSuperAdminPortal } = await req.json();
 
-    // Check user by email or pin
+    // 1. Rate Limiting Check (Max 5 attempts / 15 mins per IP/identifier)
+    const rateLimitKey = email ? `login:${email.toLowerCase()}` : `pin:${pin}`;
+    const rateCheck = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000);
+
+    if (!rateCheck.success) {
+      const minsRemaining = Math.ceil((rateCheck.resetTime - Date.now()) / (60 * 1000));
+      return NextResponse.json(
+        {
+          error: `Too many failed login attempts. Account locked for security. Please try again in ${minsRemaining} minute(s).`,
+        },
+        { status: 429 }
+      );
+    }
+
+    // 2. Check user by email or pin (explicitly include +password +pin for comparison)
     let user = null;
     if (email) {
-      user = await User.findOne({ email: email.toLowerCase() });
+      user = await User.findOne({ email: email.toLowerCase() }).select("+password +pin");
     } else if (pin) {
-      user = await User.findOne({ pin });
+      // Find all users and compare PIN via bcrypt or fallback match
+      const activeUsers = await User.find({ isActive: true }).select("+pin +password");
+      for (const u of activeUsers) {
+        if (await u.comparePin(pin)) {
+          user = u;
+          break;
+        }
+      }
     }
 
     if (!user || !user.isActive) {
@@ -25,7 +48,34 @@ export async function POST(req: Request) {
       );
     }
 
-    // Super Admin Portal restriction check
+    // 3. Password / PIN Comparison
+    if (email) {
+      if (password) {
+        const isPasswordValid = await user.comparePassword(password);
+        if (!isPasswordValid) {
+          // Log failed login audit
+          await logAudit({
+            organizationId: user.organizationId,
+            branchId: user.branchId,
+            actorId: user._id,
+            actorName: user.fullName,
+            actorRole: user.role,
+            action: "login.failed",
+            targetCollection: "User",
+            targetId: user._id,
+          });
+
+          return NextResponse.json({ error: "Invalid email address or password" }, { status: 401 });
+        }
+      } else if (pin) {
+        const isPinValid = await user.comparePin(pin);
+        if (!isPinValid) {
+          return NextResponse.json({ error: "Invalid 4-digit PIN" }, { status: 401 });
+        }
+      }
+    }
+
+    // 4. Super Admin Portal restriction check
     if (isSuperAdminPortal && user.role !== "super_admin") {
       return NextResponse.json(
         { error: "Access Denied — This portal is strictly for Super Admin accounts. Regular tenants please log in at /login" },
@@ -33,7 +83,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get Organization & check subscription expiry (Skip check for Super Admin)
+    // 5. Get Organization & check subscription expiry (Skip check for Super Admin)
     let organizationName = "Master Organization";
     let businessType: any = "bakery";
 
@@ -67,7 +117,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Get branch details
+    // 6. Get branch details
     let branchName = "Main Branch";
     if (user.branchId) {
       const branch = await Branch.findById(user.branchId);
@@ -87,6 +137,18 @@ export async function POST(req: Request) {
     };
 
     const token = signToken(payload);
+
+    // 7. Audit log successful login
+    await logAudit({
+      organizationId: user.organizationId,
+      branchId: user.branchId,
+      actorId: user._id,
+      actorName: user.fullName,
+      actorRole: user.role,
+      action: "login.success",
+      targetCollection: "User",
+      targetId: user._id,
+    });
 
     const response = NextResponse.json({
       success: true,

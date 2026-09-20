@@ -51,6 +51,7 @@ export async function GET() {
       branchId: masterBranch._id,
       fullName: "System Super Admin",
       email: "superadmin@rstpos.com",
+      password: "admin123",
       pin: "9999",
       role: "super_admin",
       isActive: true,
@@ -97,6 +98,7 @@ export async function GET() {
       branchId: bakeryBranchLhr._id,
       fullName: "Ahmed Ali (Head Baker)",
       email: "admin@rstpos.com",
+      password: "admin123",
       pin: "1234",
       role: "admin",
       isActive: true,
@@ -169,11 +171,12 @@ export async function GET() {
       isMain: true,
     });
 
-    const restAdmin = await User.create({
+    await User.create({
       organizationId: restOrg._id,
       branchId: restBranch._id,
       fullName: "Tariq Mahmood (Restaurant Owner)",
       email: "restaurant@rstpos.com",
+      password: "admin123",
       pin: "2222",
       role: "admin",
       isActive: true,
@@ -235,6 +238,7 @@ export async function GET() {
       branchId: pharmBranch._id,
       fullName: "Dr. Usman Raza (Pharmacist)",
       email: "pharmacy@rstpos.com",
+      password: "admin123",
       pin: "3333",
       role: "admin",
       isActive: true,
@@ -281,6 +285,7 @@ export async function GET() {
       branchId: expiredBranch._id,
       fullName: "Zubair Ahmad (Owner)",
       email: "expired@rstpos.com",
+      password: "admin123",
       pin: "4444",
       role: "admin",
       isActive: true,
@@ -288,14 +293,14 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      message: "Database seeded with Super Admin & 4 Subscription Tenants (Active, Expiring Soon, and Expired)! ",
+      message: "Database seeded with Bcrypt Salted Hashed Passwords & PINs for Super Admin & Tenants!",
       data: {
-        superAdmin: "superadmin@rstpos.com (PIN: 9999)",
+        superAdmin: "superadmin@rstpos.com (Password: admin123, PIN: 9999)",
         tenants: [
-          { name: bakeryOrg.name, email: bakeryAdmin.email, pin: "1234", fee: "5,000/mo", status: "Active (+25 days)" },
-          { name: restOrg.name, email: restAdmin.email, pin: "2222", fee: "10,000/mo", status: "Expiring Soon (+3 days alert!)" },
-          { name: pharmOrg.name, email: "pharmacy@rstpos.com", pin: "3333", fee: "6,000/mo", status: "Active (+18 days)" },
-          { name: expiredOrg.name, email: "expired@rstpos.com", pin: "4444", fee: "8,000/mo", status: "EXPIRED (Access Blocked)" },
+          { name: bakeryOrg.name, email: bakeryAdmin.email, pin: "1234", fee: "5,000/mo" },
+          { name: restOrg.name, email: "restaurant@rstpos.com", pin: "2222", fee: "10,000/mo" },
+          { name: pharmOrg.name, email: "pharmacy@rstpos.com", pin: "3333", fee: "6,000/mo" },
+          { name: expiredOrg.name, email: "expired@rstpos.com", pin: "4444", fee: "8,000/mo" },
         ],
       },
     });

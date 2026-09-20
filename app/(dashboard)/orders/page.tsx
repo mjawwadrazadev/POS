@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Clock,
   Printer,
@@ -10,65 +10,155 @@ import {
   AlertTriangle,
   RotateCcw,
   Eye,
+  X,
+  ShieldCheck,
+  RefreshCw,
+  Ban,
+  FileSpreadsheet,
 } from "lucide-react";
+
+interface OrderItem {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  quantity: number;
+}
+
+interface OrderRecord {
+  id: string;
+  orderNumber: string;
+  date: string;
+  customer: string;
+  type: string;
+  payment: string;
+  itemsCount: number;
+  itemsList: OrderItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  status: "completed" | "held" | "cancelled";
+  cashier: string;
+}
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [refundOrder, setRefundOrder] = useState<OrderRecord | null>(null);
+  const [refundReason, setRefundReason] = useState("Customer requested refund");
+  const [refundMethod, setRefundMethod] = useState<"cash" | "card_reversal" | "store_credit">("cash");
+  const [restockFlag, setRestockFlag] = useState(true);
+  const [submittingRefund, setSubmittingRefund] = useState(false);
+  const [refundSuccessMsg, setRefundSuccessMsg] = useState("");
 
-  const ordersList = [
+  const [ordersList, setOrdersList] = useState<OrderRecord[]>([
     {
       id: "ORD-99812",
+      orderNumber: "ORD-99812",
       date: "2026-09-19 10:42 AM",
       customer: "Tariq Mahmood",
       type: "Prescription Sale",
       payment: "Cash",
-      items: 4,
-      subtotal: "PKR 2,974",
-      tax: "PKR 476",
-      total: "PKR 3,450",
+      itemsCount: 4,
+      itemsList: [
+        { id: "BAK-101", name: "Red Velvet Cream Fudge Cake", sku: "BAK-101", price: 2400, quantity: 1 },
+        { id: "BAK-102", name: "French Butter Croissant", sku: "BAK-102", price: 320, quantity: 2 },
+      ],
+      subtotal: 2940,
+      tax: 470,
+      total: 3310,
       status: "completed",
       cashier: "Ahmed Ali",
     },
     {
       id: "ORD-99811",
+      orderNumber: "ORD-99811",
       date: "2026-09-19 10:28 AM",
       customer: "Walk-in Guest",
       type: "Table 04 (Dine-in)",
       payment: "Card (Stripe)",
-      items: 6,
-      subtotal: "PKR 7,690",
-      tax: "PKR 1,230",
-      total: "PKR 8,920",
+      itemsCount: 6,
+      itemsList: [
+        { id: "FD-101", name: "Chicken Karahi Special (1KG)", sku: "FD-101", price: 1800, quantity: 2 },
+      ],
+      subtotal: 3600,
+      tax: 576,
+      total: 4176,
       status: "completed",
       cashier: "Ahmed Ali",
     },
     {
       id: "ORD-99810",
+      orderNumber: "ORD-99810",
       date: "2026-09-19 09:55 AM",
       customer: "Usman Raza",
       type: "Retail Sale",
       payment: "Pending",
-      items: 2,
-      subtotal: "PKR 1,034",
-      tax: "PKR 166",
-      total: "PKR 1,200",
+      itemsCount: 2,
+      itemsList: [
+        { id: "MED-001", name: "Paracetamol 500mg Extra", sku: "MED-001", price: 150, quantity: 2 },
+      ],
+      subtotal: 300,
+      tax: 48,
+      total: 348,
       status: "held",
       cashier: "Ahmed Ali",
     },
-    {
-      id: "ORD-99809",
-      date: "2026-09-19 09:14 AM",
-      customer: "Bilal Hassan",
-      type: "Device Sale (IMEI)",
-      payment: "JazzCash Wallet",
-      items: 1,
-      subtotal: "PKR 38,793",
-      tax: "PKR 6,207",
-      total: "PKR 45,000",
-      status: "completed",
-      cashier: "Zeeshan Khan",
-    },
-  ];
+  ]);
+
+  async function handleConfirmRefund() {
+    if (!refundOrder) return;
+    setSubmittingRefund(true);
+    setRefundSuccessMsg("");
+
+    try {
+      const res = await fetch("/api/refunds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originalOrderId: refundOrder.id,
+          items: refundOrder.itemsList.map((i) => ({
+            productId: i.id,
+            productName: i.name,
+            sku: i.sku,
+            quantity: i.quantity,
+            unitPrice: i.price,
+            refundAmount: i.price * i.quantity,
+            restockFlag,
+            reason: refundReason,
+          })),
+          refundMethod,
+          notes: refundReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to process refund");
+      }
+
+      // Update local order status to cancelled/refunded
+      setOrdersList((prev) =>
+        prev.map((o) => (o.id === refundOrder.id ? { ...o, status: "cancelled" } : o))
+      );
+
+      setRefundSuccessMsg(`Refund for Order #${refundOrder.orderNumber} completed! Inventory restocked & reversing ledger entry posted.`);
+      setTimeout(() => {
+        setRefundSuccessMsg("");
+        setRefundOrder(null);
+      }, 2500);
+    } catch (err: any) {
+      alert(err.message || "Failed to process refund");
+    } finally {
+      setSubmittingRefund(false);
+    }
+  }
+
+  const filteredOrders = ordersList.filter(
+    (o) =>
+      o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.cashier.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -82,17 +172,24 @@ export default function OrdersPage() {
             </h2>
           </div>
           <p className="text-medium text-[1.4rem] mt-1">
-            Audit terminal sales, reprint thermal receipts, inspect payment logs & handle refunds.
+            Audit terminal sales, reprint thermal receipts, inspect payment logs, and process manager-approved refunds.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button type="button" className="btn btn-secondary py-3 px-5 text-[1.3rem]">
             <Printer className="w-4 h-4" />
-            <span>Export EOD Summary PDF</span>
+            <span>Export Sales Summary PDF</span>
           </button>
         </div>
       </div>
+
+      {refundSuccessMsg && (
+        <div className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 p-4 text-[1.3rem] font-bold">
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-400" />
+          <span>{refundSuccessMsg}</span>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="bg-base-tint border border-stroke-muted p-4 flex flex-wrap items-center justify-between gap-4">
@@ -108,10 +205,9 @@ export default function OrdersPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button type="button" className="btn btn-secondary py-2 px-4 text-[1.2rem]">
-            <Filter className="w-4 h-4" />
-            <span>Filter Status</span>
-          </button>
+          <span className="font-accent text-[1.2rem] text-muted border border-stroke-muted px-3 py-2 bg-base-bright">
+            {filteredOrders.length} orders
+          </span>
         </div>
       </div>
 
@@ -133,16 +229,16 @@ export default function OrdersPage() {
             </tr>
           </thead>
           <tbody>
-            {ordersList.map((order) => (
-              <tr key={order.id}>
-                <td className="font-accent font-bold text-accent">{order.id}</td>
+            {filteredOrders.map((order) => (
+              <tr key={order.id} className={order.status === "cancelled" ? "bg-red-500/5 opacity-70" : ""}>
+                <td className="font-accent font-bold text-accent">{order.orderNumber}</td>
                 <td className="font-accent text-muted">{order.date}</td>
                 <td className="font-medium">{order.type}</td>
                 <td>{order.customer}</td>
                 <td className="font-accent text-bright">{order.payment}</td>
-                <td className="font-accent text-center">{order.items}</td>
+                <td className="font-accent text-center font-bold">{order.itemsCount}</td>
                 <td className="font-accent font-extrabold text-bright">
-                  {order.total}
+                  PKR {order.total.toLocaleString()}
                 </td>
                 <td className="font-accent text-muted">{order.cashier}</td>
                 <td>
@@ -150,6 +246,11 @@ export default function OrdersPage() {
                     <span className="badge badge-success flex items-center gap-1 w-fit">
                       <CheckCircle2 className="w-3 h-3" />
                       <span>COMPLETED</span>
+                    </span>
+                  ) : order.status === "cancelled" ? (
+                    <span className="badge badge-error flex items-center gap-1 w-fit">
+                      <RotateCcw className="w-3 h-3" />
+                      <span>REFUNDED</span>
                     </span>
                   ) : (
                     <span className="badge badge-warning flex items-center gap-1 w-fit">
@@ -160,27 +261,16 @@ export default function OrdersPage() {
                 </td>
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      className="p-1.5 text-medium hover:text-accent hover:bg-accent-subtle transition-colors"
-                      title="Inspect Order Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1.5 text-medium hover:text-accent hover:bg-accent-subtle transition-colors"
-                      title="Print Thermal Receipt"
-                    >
-                      <Printer className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1.5 text-medium hover:text-error hover:bg-red-500/10 transition-colors"
-                      title="Refund / Void Order"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
+                    {order.status !== "cancelled" && (
+                      <button
+                        type="button"
+                        onClick={() => setRefundOrder(order)}
+                        className="p-1.5 text-error hover:bg-red-500/10 border border-red-500/30 transition-colors"
+                        title="Refund Order"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -188,6 +278,98 @@ export default function OrdersPage() {
           </tbody>
         </table>
       </div>
+
+      {/* REFUND & RETURNS MODAL */}
+      {refundOrder && (
+        <div className="fixed inset-0 bg-black/80 z-[120] flex items-center justify-center p-4">
+          <div className="bg-[#171719] border border-red-500/50 w-full max-w-lg p-6 text-white space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.1)] pb-4">
+              <div className="flex items-center gap-2 text-red-400 font-accent font-extrabold text-[1.5rem] uppercase">
+                <RotateCcw className="w-5 h-5" />
+                <span>Process Order Refund — #{refundOrder.orderNumber}</span>
+              </div>
+              <button onClick={() => setRefundOrder(null)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-[#0b0b0d] border border-[rgba(255,255,255,0.1)] p-4 font-accent text-[1.3rem] space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Original Total:</span>
+                <span className="font-bold text-white">PKR {refundOrder.total.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Customer:</span>
+                <span className="font-bold text-accent">{refundOrder.customer}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Payment Method:</span>
+                <span className="font-bold text-emerald-400">{refundOrder.payment}</span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="form-label text-gray-300">Refund Reason *</label>
+                <select
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-red-500 appearance-none cursor-pointer"
+                >
+                  <option value="Customer requested refund">Customer requested refund</option>
+                  <option value="Wrong billing / pricing error">Wrong billing / pricing error</option>
+                  <option value="Item defective / expired">Item defective / expired</option>
+                  <option value="Order cancelled by manager">Order cancelled by manager</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label text-gray-300">Refund Payout Method</label>
+                <select
+                  value={refundMethod}
+                  onChange={(e) => setRefundMethod(e.target.value as any)}
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-red-500 appearance-none cursor-pointer"
+                >
+                  <option value="cash">Cash Outflow from Drawer</option>
+                  <option value="card_reversal">Card Reversal</option>
+                  <option value="store_credit">Store Credit Voucher</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="restockFlag"
+                  checked={restockFlag}
+                  onChange={(e) => setRestockFlag(e.target.checked)}
+                  className="w-5 h-5 accent-red-600 cursor-pointer"
+                />
+                <label htmlFor="restockFlag" className="font-accent text-[1.2rem] text-gray-300 cursor-pointer">
+                  Auto-Restock items back into product inventory count
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-[rgba(255,255,255,0.1)]">
+              <button
+                type="button"
+                onClick={() => setRefundOrder(null)}
+                className="flex-1 btn btn-secondary py-3 bg-[#0b0b0d] text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRefund}
+                disabled={submittingRefund}
+                className="flex-1 btn btn-primary py-3 bg-red-600 hover:bg-red-700 text-white font-bold"
+              >
+                {submittingRefund ? "Processing Refund..." : `Confirm Refund PKR ${refundOrder.total.toLocaleString()}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

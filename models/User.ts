@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
+import bcrypt from "bcryptjs";
 
 export type UserRole = "super_admin" | "admin" | "manager" | "cashier";
 
@@ -7,12 +8,16 @@ export interface IUser extends Document {
   branchId?: mongoose.Types.ObjectId;
   fullName: string;
   email: string;
-  pin: string; // 4-digit cashier quick switch pin
+  password?: string;
+  pin: string; // 4-digit cashier quick switch pin (hashed)
   role: UserRole;
   isActive: boolean;
   avatar?: string;
   createdAt: Date;
   updatedAt: Date;
+
+  comparePassword(candidatePassword: string): Promise<boolean>;
+  comparePin(candidatePin: string): Promise<boolean>;
 }
 
 const UserSchema: Schema<IUser> = new Schema(
@@ -21,7 +26,8 @@ const UserSchema: Schema<IUser> = new Schema(
     branchId: { type: Schema.Types.ObjectId, ref: "Branch" },
     fullName: { type: String, required: true },
     email: { type: String, required: true, lowercase: true, trim: true },
-    pin: { type: String, required: true, default: "1234" },
+    password: { type: String, select: false }, // Hashed password, excluded from queries by default
+    pin: { type: String, required: true, default: "1234", select: false }, // Hashed PIN, excluded by default
     role: { type: String, enum: ["super_admin", "admin", "manager", "cashier"], default: "cashier" },
     isActive: { type: Boolean, default: true },
     avatar: { type: String },
@@ -30,6 +36,35 @@ const UserSchema: Schema<IUser> = new Schema(
 );
 
 UserSchema.index({ organizationId: 1, email: 1 }, { unique: true });
+
+// Pre-save hook to hash password and PIN
+UserSchema.pre("save", async function (next) {
+  if (this.isModified("password") && this.password) {
+    if (!this.password.startsWith("$2a$") && !this.password.startsWith("$2b$")) {
+      this.password = await bcrypt.hash(this.password, 12);
+    }
+  }
+
+  if (this.isModified("pin") && this.pin) {
+    if (!this.pin.startsWith("$2a$") && !this.pin.startsWith("$2b$")) {
+      this.pin = await bcrypt.hash(this.pin, 10);
+    }
+  }
+
+  next();
+});
+
+// Instance method to compare password
+UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  if (!this.password) return false;
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Instance method to compare PIN
+UserSchema.methods.comparePin = async function (candidatePin: string): Promise<boolean> {
+  if (!this.pin) return false;
+  return bcrypt.compare(candidatePin, this.pin);
+};
 
 export const User: Model<IUser> =
   mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

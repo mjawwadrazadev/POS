@@ -22,6 +22,8 @@ import {
   Pill,
   AlertTriangle,
   X,
+  ShieldCheck,
+  Key,
 } from "lucide-react";
 
 type PaymentMethod = "cash" | "card" | "wallet";
@@ -59,6 +61,13 @@ export default function PosBillingPage() {
   const [lastOrderNumber, setLastOrderNumber] = useState("");
   const [stockError, setStockError] = useState("");
 
+  // Manager PIN Override State
+  const [pendingDiscountVal, setPendingDiscountVal] = useState<number | null>(null);
+  const [managerPin, setManagerPin] = useState("");
+  const [managerPinError, setManagerPinError] = useState("");
+  const [isManagerAuthorized, setIsManagerAuthorized] = useState(false);
+  const [verifyingPin, setVerifyingPin] = useState(false);
+
   // Get distinct categories from inventory
   const allCategories = ["All", ...Array.from(new Set(inventoryItems.map((i) => i.category)))];
 
@@ -82,6 +91,49 @@ export default function PosBillingPage() {
       batchNumber: product.batchNumber,
       serialNumber: product.serialNumber,
     });
+  }
+
+  function handleDiscountChange(val: number) {
+    if (val > 10 && !isManagerAuthorized) {
+      setPendingDiscountVal(val);
+      setManagerPin("");
+      setManagerPinError("");
+      return;
+    }
+    setDiscount(val);
+  }
+
+  async function handleVerifyManagerPin() {
+    setVerifyingPin(true);
+    setManagerPinError("");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: managerPin }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error("Invalid Manager PIN");
+      }
+
+      if (data.user.role === "cashier") {
+        throw new Error("Cashier PIN entered. Manager or Admin PIN required for > 10% discount override.");
+      }
+
+      // Authorization success
+      setIsManagerAuthorized(true);
+      if (pendingDiscountVal !== null) {
+        setDiscount(pendingDiscountVal);
+      }
+      setPendingDiscountVal(null);
+    } catch (err: any) {
+      setManagerPinError(err.message || "Invalid Manager PIN");
+    } finally {
+      setVerifyingPin(false);
+    }
   }
 
   function handleCompleteCheckout() {
@@ -335,19 +387,28 @@ export default function PosBillingPage() {
           {/* Totals + Discount + Payment */}
           <div className="p-4 border-t border-stroke-muted bg-base-bright space-y-3 flex-shrink-0">
 
-            {/* Discount slider */}
-            <div className="flex items-center gap-3 font-accent text-[1.2rem]">
-              <span className="text-muted">Discount:</span>
+            {/* Discount slider + Manager Authorization Status */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between font-accent text-[1.2rem]">
+                <span className="text-muted flex items-center gap-1">
+                  <span>Discount:</span>
+                  {isManagerAuthorized && (
+                    <span className="text-emerald-400 font-bold text-[1rem] bg-emerald-500/10 border border-emerald-500/30 px-1">
+                      MANAGER AUTHORIZED
+                    </span>
+                  )}
+                </span>
+                <span className="font-bold text-accent">{discountGlobalPercent}%</span>
+              </div>
               <input
                 type="range"
                 min={0}
                 max={50}
                 step={5}
                 value={discountGlobalPercent}
-                onChange={(e) => setDiscount(Number(e.target.value))}
-                className="flex-1 accent-accent"
+                onChange={(e) => handleDiscountChange(Number(e.target.value))}
+                className="w-full accent-accent cursor-pointer"
               />
-              <span className="font-bold text-accent w-10 text-right">{discountGlobalPercent}%</span>
             </div>
 
             {/* Totals */}
@@ -413,6 +474,68 @@ export default function PosBillingPage() {
           </div>
         </div>
       </div>
+
+      {/* MANAGER PIN OVERRIDE MODAL (For discounts > 10%) */}
+      {pendingDiscountVal !== null && (
+        <div className="fixed inset-0 bg-black/80 z-[120] flex items-center justify-center p-4">
+          <div className="bg-[#171719] border border-amber-500/50 w-full max-w-md p-6 text-white space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.1)] pb-4">
+              <div className="flex items-center gap-2 text-amber-400 font-accent font-extrabold text-[1.4rem] uppercase">
+                <ShieldCheck className="w-5 h-5" />
+                <span>Manager PIN Required</span>
+              </div>
+              <button onClick={() => setPendingDiscountVal(null)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[1.3rem] text-gray-300">
+                Discounts higher than <b>10%</b> ({pendingDiscountVal}%) require Manager or Store Admin authorization.
+              </p>
+            </div>
+
+            {managerPinError && (
+              <div className="bg-red-500/20 border border-red-500/40 text-red-300 p-3 text-[1.2rem] font-medium">
+                {managerPinError}
+              </div>
+            )}
+
+            <div>
+              <label className="form-label text-gray-300">Enter Manager / Admin 4-Digit PIN</label>
+              <input
+                type="password"
+                maxLength={4}
+                value={managerPin}
+                onChange={(e) => setManagerPin(e.target.value)}
+                placeholder="••••"
+                className="w-full bg-[#0b0b0d] border border-amber-500/40 text-amber-300 font-mono font-bold text-center text-[2.2rem] py-3 outline-none focus:border-amber-400"
+              />
+              <p className="text-[1.1rem] font-accent text-gray-400 mt-1">
+                Manager PIN: 1234, 2222, 3333, or 9999
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingDiscountVal(null)}
+                className="flex-1 btn btn-secondary py-3 text-[1.2rem] bg-[#0b0b0d] text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleVerifyManagerPin}
+                disabled={managerPin.length !== 4 || verifyingPin}
+                className="flex-1 btn btn-primary py-3 text-[1.2rem] bg-amber-600 hover:bg-amber-700 text-white font-bold disabled:opacity-50"
+              >
+                {verifyingPin ? "Verifying..." : "Authorize Discount"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Thermal Receipt Modal — opens automatically after payment */}
       <ThermalReceiptModal
