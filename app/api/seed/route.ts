@@ -5,10 +5,19 @@ import { Branch } from "@/models/Branch";
 import { User } from "@/models/User";
 import { Product } from "@/models/Product";
 import { Order } from "@/models/Order";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET() {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Forbidden — Seed endpoint is disabled in production." }, { status: 403 });
+    }
+
     await dbConnect();
+    const session = await getSession();
+    if (!session || session.role !== "super_admin") {
+      return NextResponse.json({ error: "Forbidden — Super Admin authorization required to seed database." }, { status: 403 });
+    }
 
     // Clear existing sample collections for clean seed
     await Organization.deleteMany({});
@@ -306,7 +315,7 @@ export async function GET() {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to seed database" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to seed database" : error.message },
       { status: 500 }
     );
   }

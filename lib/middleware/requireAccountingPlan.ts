@@ -21,7 +21,8 @@ export async function requireAccountingPlan(organizationId: string) {
     };
   }
 
-  const isAccountingEnabled = org.planTier === "billing_accounting" || org.accountingEnabled !== false;
+  // Strict Single Source of Truth — Fail Closed Security
+  const isAccountingEnabled = org.planTier === "billing_accounting";
 
   if (!isAccountingEnabled) {
     return {

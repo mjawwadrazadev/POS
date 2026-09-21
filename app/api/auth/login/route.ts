@@ -12,8 +12,11 @@ export async function POST(req: Request) {
     await dbConnect();
     const { email, password, pin, isSuperAdminPortal } = await req.json();
 
-    // 1. Rate Limiting Check (Max 5 attempts / 15 mins per IP/identifier)
-    const rateLimitKey = email ? `login:${email.toLowerCase()}` : `pin:${pin}`;
+    // 1. Rate Limiting — key by email for email logins; by client IP for PIN logins (prevents PIN enumeration)
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || req.headers.get("x-real-ip")
+      || "unknown";
+    const rateLimitKey = email ? `login:${email.toLowerCase()}` : `pin_ip:${clientIp}`;
     const rateCheck = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000);
 
     if (!rateCheck.success) {
@@ -50,6 +53,10 @@ export async function POST(req: Request) {
 
     // 3. Password / PIN Comparison
     if (email) {
+      if (!password && !pin) {
+        return NextResponse.json({ error: "Password or PIN is required" }, { status: 400 });
+      }
+
       if (password) {
         const isPasswordValid = await user.comparePassword(password);
         if (!isPasswordValid) {
@@ -166,7 +173,7 @@ export async function POST(req: Request) {
     return response;
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Internal Server Error" },
+      { error: process.env.NODE_ENV === "production" ? "Internal Server Error" : error.message },
       { status: 500 }
     );
   }

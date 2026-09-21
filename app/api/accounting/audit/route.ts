@@ -2,21 +2,26 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { auditLedgerBalance } from "@/lib/accounting/auditBalance";
 import { requireAccountingPlan } from "@/lib/middleware/requireAccountingPlan";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
-    const { searchParams } = new URL(req.url);
-    const orgId = searchParams.get("organizationId");
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (orgId) {
-      const guard = await requireAccountingPlan(orgId);
+    const targetOrgId = session.role === "super_admin"
+      ? (new URL(req.url).searchParams.get("organizationId") || session.organizationId)
+      : session.organizationId;
+
+    if (targetOrgId) {
+      const guard = await requireAccountingPlan(targetOrgId);
       if (!guard.allowed) {
         return guard.response!;
       }
     }
 
-    const result = await auditLedgerBalance(orgId || undefined);
+    const result = await auditLedgerBalance(targetOrgId || undefined);
 
     return NextResponse.json({
       success: true,
@@ -28,9 +33,8 @@ export async function GET(req: Request) {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to execute ledger audit" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to execute ledger audit" : error.message },
       { status: 500 }
     );
   }
 }
-

@@ -4,12 +4,18 @@ import { Organization } from "@/models/Organization";
 import { Branch } from "@/models/Branch";
 import { User } from "@/models/User";
 import { Product } from "@/models/Product";
+import { Doctor } from "@/models/Doctor";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
+import { getSession } from "@/lib/auth/session";
 
 // GET: Fetch all tenant organizations with subscription details and stats
 export async function GET() {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session || session.role !== "super_admin") {
+      return NextResponse.json({ error: "Forbidden — Super Admin access required" }, { status: 403 });
+    }
 
     const orgs = await Organization.find({}).sort({ createdAt: -1 }).lean();
     const now = new Date();
@@ -95,7 +101,7 @@ export async function GET() {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to fetch tenants" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to fetch tenants" : error.message },
       { status: 500 }
     );
   }
@@ -105,6 +111,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session || session.role !== "super_admin") {
+      return NextResponse.json({ error: "Forbidden — Super Admin access required" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const {
@@ -242,7 +253,38 @@ export async function POST(req: Request) {
           { name: "Gentleman Haircut & Beard Styling", sku: "SLN-101", category: "Hair Services", price: 1500, costPrice: 400, stock: 999, unit: "Service" },
           { name: "Deep Cleansing Facial Treatment", sku: "SLN-102", category: "Skin Services", price: 3500, costPrice: 1200, stock: 999, unit: "Service" },
         ],
+        hospital: [
+          { name: "General OPD Medical Kit", sku: "HOSP-101", category: "Hospital Supplies", price: 500, costPrice: 200, stock: 100, unit: "Kit" },
+          { name: "Patient Registration File", sku: "HOSP-102", category: "Stationery", price: 100, costPrice: 30, stock: 500, unit: "File" },
+        ],
       };
+
+      if (businessType === "hospital") {
+        await Doctor.insertMany([
+          {
+            organizationId: org._id,
+            name: "Dr. Ahmed Khan",
+            specialization: "Cardiologist",
+            registrationNumber: "PMC-78910-K",
+            photo: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80",
+            fees: { newPatient: 2000, followUp: 1000, emergency: 3500 },
+            hospitalCommissionPercent: 20,
+            paymentArrangement: "revenue_share",
+            status: "active",
+          },
+          {
+            organizationId: org._id,
+            name: "Dr. Sara Ali",
+            specialization: "Pediatrician",
+            registrationNumber: "PMC-65432-A",
+            photo: "https://images.unsplash.com/photo-1594824813566-78a9c394d210?w=150&auto=format&fit=crop&q=80",
+            fees: { newPatient: 1500, followUp: 800, emergency: 2500 },
+            hospitalCommissionPercent: 25,
+            paymentArrangement: "revenue_share",
+            status: "active",
+          },
+        ]);
+      }
 
       const productsToCreate = (templateItems[businessType as BusinessType] || templateItems.bakery).map((item) => ({
         ...item,
@@ -270,7 +312,7 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to create tenant" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to create tenant" : error.message },
       { status: 500 }
     );
   }

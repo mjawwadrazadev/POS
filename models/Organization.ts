@@ -40,9 +40,10 @@ const OrganizationSchema: Schema<IOrganization> = new Schema(
     code: { type: String, required: true, unique: true, lowercase: true, trim: true },
     businessType: {
       type: String,
-      enum: ["restaurant", "cafe", "bakery", "pharmacy", "retail", "supermarket", "electronics", "clothing", "salon"],
+      enum: ["restaurant", "cafe", "bakery", "pharmacy", "retail", "supermarket", "electronics", "clothing", "salon", "hospital"],
       default: "bakery",
     },
+
     currency: { type: String, default: "PKR" },
     taxRate: { type: Number, default: 16.0 },
     phone: { type: String },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
+import { getSession } from "@/lib/auth/session";
 
 // POST: Record renewal payment & extend access expiry
 export async function POST(
@@ -9,6 +10,11 @@ export async function POST(
 ) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session || session.role !== "super_admin") {
+      return NextResponse.json({ error: "Forbidden — Super Admin access required" }, { status: 403 });
+    }
+
     const { id } = await params;
     const body = await req.json();
 
@@ -52,7 +58,7 @@ export async function POST(
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to renew subscription" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to renew subscription" : error.message },
       { status: 500 }
     );
   }
@@ -65,6 +71,11 @@ export async function PATCH(
 ) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session || session.role !== "super_admin") {
+      return NextResponse.json({ error: "Forbidden — Super Admin access required" }, { status: 403 });
+    }
+
     const { id } = await params;
     const { action } = await req.json();
 
@@ -81,6 +92,8 @@ export async function PATCH(
       if (new Date(org.expiryDate) < new Date()) {
         org.expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       }
+    } else {
+      return NextResponse.json({ error: "Invalid action. Use 'suspend' or 'unsuspend'" }, { status: 400 });
     }
 
     await org.save();
@@ -92,7 +105,7 @@ export async function PATCH(
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to update tenant status" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to update tenant status" : error.message },
       { status: 500 }
     );
   }

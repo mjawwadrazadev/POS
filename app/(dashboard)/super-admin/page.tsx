@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   DollarSign,
   History,
+  Stethoscope,
 } from "lucide-react";
 
 interface PaymentRecord {
@@ -126,6 +127,7 @@ export default function SuperAdminTenantsPage() {
     electronics: <Tv className="w-4 h-4 text-purple-400" />,
     clothing: <Shirt className="w-4 h-4 text-pink-400" />,
     salon: <Scissors className="w-4 h-4 text-teal-400" />,
+    hospital: <Stethoscope className="w-4 h-4 text-cyan-400" />,
   };
 
   async function fetchTenants() {

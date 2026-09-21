@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Printer, X, CheckCircle2, Share2, Play } from "lucide-react";
+import { Printer, X, CheckCircle2, Share2 } from "lucide-react";
 import { PrinterService } from "@/lib/printer/PrinterService";
 
 interface ReceiptItem {
@@ -26,6 +26,16 @@ interface ThermalReceiptModalProps {
   grandTotal: number;
   paymentMethod: string;
   branchName: string;
+  // Hospital Consultation Specific Props
+  isHospitalBill?: boolean;
+  perchiNumber?: number;
+  consultationTime?: string;
+  doctorName?: string;
+  doctorSpecialization?: string;
+  visitType?: string;
+  patientPhone?: string;
+  patientAge?: number;
+  patientGender?: string;
 }
 
 export function ThermalReceiptModal({
@@ -42,6 +52,15 @@ export function ThermalReceiptModal({
   grandTotal,
   paymentMethod,
   branchName,
+  isHospitalBill,
+  perchiNumber,
+  consultationTime,
+  doctorName,
+  doctorSpecialization,
+  visitType,
+  patientPhone,
+  patientAge,
+  patientGender,
 }: ThermalReceiptModalProps) {
   const [printing, setPrinting] = useState(false);
   const [printNotice, setPrintNotice] = useState("");
@@ -78,7 +97,9 @@ export function ThermalReceiptModal({
   }
 
   const whatsappMessage = encodeURIComponent(
-    `*RST POS RECEIPT*\nOrder #: ${orderNumber}\nTotal: PKR ${grandTotal}\nThank you for visiting ${branchName}!`
+    isHospitalBill
+      ? `*RST HOSPITAL CONSULTATION PERCHI*\nPerchi #: ${perchiNumber}\nDoctor: ${doctorName}\nPatient: ${customerName}\nFee: PKR ${grandTotal}\nDate & Time: ${dateStr} ${consultationTime || ""}`
+      : `*RST POS RECEIPT*\nOrder #: ${orderNumber}\nTotal: PKR ${grandTotal}\nThank you for visiting ${branchName}!`
   );
 
   return (
@@ -89,7 +110,7 @@ export function ThermalReceiptModal({
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-[#819ffe]" />
             <h3 className="font-accent font-extrabold text-[1.4rem] uppercase">
-              ESC/POS Thermal Receipt (80mm)
+              {isHospitalBill ? "Consultation Perchi (80mm)" : "ESC/POS Thermal Receipt (80mm)"}
             </h3>
           </div>
           <button
@@ -116,95 +137,173 @@ export function ThermalReceiptModal({
           {/* Header */}
           <div className="text-center space-y-1">
             <h2 className="font-bold text-[1.6rem] uppercase tracking-wider">
-              RST BAKERS & POS
+              {isHospitalBill ? "RST HOSPITAL & MEDICAL CENTER" : "RST ENTERPRISE POS"}
             </h2>
             <p className="text-[1.1rem]">{branchName}</p>
             <p className="text-[1rem] text-gray-700">TEL: +92 42 111 778 778</p>
-            <p className="text-[1rem] text-gray-700">FBR NTN: 8847291-0</p>
             <div className="border-b border-dashed border-black my-2" />
           </div>
 
-          {/* Meta Details */}
-          <div className="text-[1.1rem] space-y-1">
-            <div className="flex justify-between">
-              <span>Receipt #:</span>
-              <span className="font-bold">{orderNumber}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Date:</span>
-              <span>{dateStr || new Date().toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Cashier:</span>
-              <span>{cashierName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Customer:</span>
-              <span>{customerName}</span>
-            </div>
-            <div className="border-b border-dashed border-black my-2" />
-          </div>
-
-          {/* Items Header */}
-          <div className="grid grid-cols-12 font-bold text-[1.1rem] uppercase border-b border-black pb-1">
-            <span className="col-span-6">ITEM</span>
-            <span className="col-span-2 text-center">QTY</span>
-            <span className="col-span-4 text-right">TOTAL</span>
-          </div>
-
-          {/* Items List */}
-          <div className="space-y-1 text-[1.1rem]">
-            {items.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-12">
-                <span className="col-span-6 truncate font-medium">{item.name}</span>
-                <span className="col-span-2 text-center font-bold">{item.quantity}</span>
-                <span className="col-span-4 text-right font-bold">
-                  {item.total}
-                </span>
+          {isHospitalBill ? (
+            /* Hospital Consultation Perchi Layout */
+            <div className="space-y-3 text-[1.1rem]">
+              <div className="bg-black text-white text-center py-1 font-bold text-[1.5rem] tracking-widest my-1">
+                PERCHI #: {perchiNumber || 1}
               </div>
-            ))}
-          </div>
 
-          <div className="border-b border-dashed border-black my-2" />
-
-          {/* Totals */}
-          <div className="space-y-1 text-[1.1rem]">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>PKR {subtotal}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Sales Tax (16%):</span>
-              <span>PKR {taxAmount}</span>
-            </div>
-            {discountTotal > 0 && (
-              <div className="flex justify-between text-red-700 font-bold">
-                <span>Discount:</span>
-                <span>- PKR {discountTotal}</span>
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span>Receipt #:</span>
+                  <span className="font-bold">{orderNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Date & Time:</span>
+                  <span>{dateStr} {consultationTime || ""}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Receptionist:</span>
+                  <span>{cashierName}</span>
+                </div>
               </div>
-            )}
-            <div className="border-t border-black pt-1 flex justify-between text-[1.4rem] font-extrabold">
-              <span>NET TOTAL:</span>
-              <span>PKR {grandTotal}</span>
-            </div>
-            <div className="flex justify-between text-[1.1rem] pt-1">
-              <span>Payment Mode:</span>
-              <span className="font-bold uppercase">{paymentMethod}</span>
-            </div>
-          </div>
 
-          <div className="border-b border-dashed border-black my-2" />
+              <div className="border-b border-dashed border-black my-2" />
 
-          {/* Barcode & Footer */}
-          <div className="text-center space-y-2 pt-1">
-            <div className="font-bold text-[1.4rem] tracking-widest font-mono">
-              ||||| | |||||| || |||||||
+              <div className="space-y-1 bg-gray-100 p-2 border border-gray-300">
+                <div className="font-bold text-[1.3rem] text-blue-900">{doctorName}</div>
+                <div className="text-[1.1rem] font-semibold text-gray-700">{doctorSpecialization}</div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span>Patient Name:</span>
+                  <span className="font-bold">{customerName}</span>
+                </div>
+                {patientPhone && (
+                  <div className="flex justify-between">
+                    <span>Phone:</span>
+                    <span>{patientPhone}</span>
+                  </div>
+                )}
+                {(patientAge || patientGender) && (
+                  <div className="flex justify-between">
+                    <span>Age / Gender:</span>
+                    <span>{patientAge || "N/A"} Yrs / {patientGender || "N/A"}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Visit Type:</span>
+                  <span className="font-bold uppercase text-emerald-800">{visitType?.replace("_", " ")}</span>
+                </div>
+              </div>
+
+              <div className="border-b border-dashed border-black my-2" />
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-[1.3rem] font-bold">
+                  <span>Consultation Fee:</span>
+                  <span>PKR {grandTotal}</span>
+                </div>
+                <div className="flex justify-between text-[1.1rem]">
+                  <span>Payment Mode:</span>
+                  <span className="font-bold uppercase">{paymentMethod}</span>
+                </div>
+              </div>
+
+              <div className="border-b border-dashed border-black my-2" />
+
+              <div className="text-center space-y-1 pt-1">
+                <p className="text-[1.1rem] font-bold uppercase italic">
+                  Get Well Soon! Please wait for your turn.
+                </p>
+                <p className="text-[0.9rem] text-gray-600">Software Powered by NIB IT Solutions</p>
+              </div>
             </div>
-            <p className="text-[1rem] uppercase font-bold">
-              Software Powered by NIB IT Solutions
-            </p>
-            <p className="text-[0.9rem] italic">Thank you for shopping with us!</p>
-          </div>
+          ) : (
+            /* General POS Receipt Layout */
+            <>
+              {/* Meta Details */}
+              <div className="text-[1.1rem] space-y-1">
+                <div className="flex justify-between">
+                  <span>Receipt #:</span>
+                  <span className="font-bold">{orderNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Date:</span>
+                  <span>{dateStr || new Date().toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Cashier:</span>
+                  <span>{cashierName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Customer:</span>
+                  <span>{customerName}</span>
+                </div>
+                <div className="border-b border-dashed border-black my-2" />
+              </div>
+
+              {/* Items Header */}
+              <div className="grid grid-cols-12 font-bold text-[1.1rem] uppercase border-b border-black pb-1">
+                <span className="col-span-6">ITEM</span>
+                <span className="col-span-2 text-center">QTY</span>
+                <span className="col-span-4 text-right">TOTAL</span>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-1 text-[1.1rem]">
+                {items.map((item, idx) => (
+                  <div key={idx} className="grid grid-cols-12">
+                    <span className="col-span-6 truncate font-medium">{item.name}</span>
+                    <span className="col-span-2 text-center font-bold">{item.quantity}</span>
+                    <span className="col-span-4 text-right font-bold">
+                      {item.total}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-b border-dashed border-black my-2" />
+
+              {/* Totals */}
+              <div className="space-y-1 text-[1.1rem]">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>PKR {subtotal}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sales Tax (16%):</span>
+                  <span>PKR {taxAmount}</span>
+                </div>
+                {discountTotal > 0 && (
+                  <div className="flex justify-between text-red-700 font-bold">
+                    <span>Discount:</span>
+                    <span>- PKR {discountTotal}</span>
+                  </div>
+                )}
+                <div className="border-t border-black pt-1 flex justify-between text-[1.4rem] font-extrabold">
+                  <span>NET TOTAL:</span>
+                  <span>PKR {grandTotal}</span>
+                </div>
+                <div className="flex justify-between text-[1.1rem] pt-1">
+                  <span>Payment Mode:</span>
+                  <span className="font-bold uppercase">{paymentMethod}</span>
+                </div>
+              </div>
+
+              <div className="border-b border-dashed border-black my-2" />
+
+              {/* Barcode & Footer */}
+              <div className="text-center space-y-2 pt-1">
+                <div className="font-bold text-[1.4rem] tracking-widest font-mono">
+                  ||||| | |||||| || |||||||
+                </div>
+                <p className="text-[1rem] uppercase font-bold">
+                  Software Powered by NIB IT Solutions
+                </p>
+                <p className="text-[0.9rem] italic">Thank you for shopping with us!</p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Buttons */}
@@ -216,7 +315,7 @@ export function ThermalReceiptModal({
             className="btn btn-secondary py-3 text-[1.2rem] flex items-center justify-center gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
           >
             <Share2 className="w-4 h-4" />
-            <span>WhatsApp Share</span>
+            <span>WhatsApp Perchi</span>
           </a>
 
           <button
@@ -226,7 +325,7 @@ export function ThermalReceiptModal({
             className="btn btn-primary py-3 text-[1.2rem] flex items-center justify-center gap-2"
           >
             <Printer className="w-4 h-4" />
-            <span>{printing ? "Printing..." : "Print ESC/POS"}</span>
+            <span>{printing ? "Printing..." : "Print Perchi"}</span>
           </button>
         </div>
       </div>

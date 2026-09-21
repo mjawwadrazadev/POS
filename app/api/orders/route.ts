@@ -6,21 +6,26 @@ import { Organization } from "@/models/Organization";
 import { Branch } from "@/models/Branch";
 import { CounterSession } from "@/models/CounterSession";
 import { deductStockFEFO } from "@/lib/inventory/fefo";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
+    const ALLOWED_STATUSES = ["pending", "completed", "cancelled", "held", "refunded"];
 
-    const query: any = {};
-    if (status) query.status = status;
+    const query: any = { organizationId: session.organizationId };
+    if (status && ALLOWED_STATUSES.includes(status)) query.status = status;
 
     const orders = await Order.find(query).sort({ createdAt: -1 }).limit(50);
     return NextResponse.json({ success: true, count: orders.length, orders });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to fetch orders" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to fetch orders" : error.message },
       { status: 500 }
     );
   }
@@ -29,6 +34,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
 
     const {
@@ -49,9 +57,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Default Org & Branch IDs
-    let org = await Organization.findOne();
-    let branch = await Branch.findOne();
+    // Use session org — never Organization.findOne() (breaks multi-tenancy)
+    const org = await Organization.findById(session.organizationId);
+    const branch = await Branch.findOne({ organizationId: session.organizationId, isMain: true })
+      || await Branch.findOne({ organizationId: session.organizationId });
 
     if (!org || !branch) {
       return NextResponse.json(
@@ -146,7 +155,7 @@ export async function POST(req: Request) {
     );
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to process order" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to process order" : error.message },
       { status: 400 }
     );
   }

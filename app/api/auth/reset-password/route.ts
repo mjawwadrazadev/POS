@@ -38,15 +38,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User account not found or inactive" }, { status: 404 });
     }
 
-    // Update password or PIN
+    // Update password or PIN (Mongoose pre-save hook will hash password/PIN with bcrypt)
     if (newPassword) {
-      // In production with bcryptjs: user.password = await bcrypt.hash(newPassword, 10);
-      // For now update PIN or password field
-      if (newPassword.length === 4 && !isNaN(Number(newPassword))) {
-        user.pin = newPassword;
+      if (newPassword.length < 6) {
+        return NextResponse.json({ error: "New password must be at least 6 characters long" }, { status: 400 });
       }
+      user.password = newPassword;
     }
-    if (newPin && newPin.length === 4) {
+
+    if (newPin) {
+      if (newPin.length !== 4 || isNaN(Number(newPin))) {
+        return NextResponse.json({ error: "PIN must be a 4-digit number" }, { status: 400 });
+      }
       user.pin = newPin;
     }
 
@@ -62,7 +65,7 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to reset password" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to reset password" : error.message },
       { status: 500 }
     );
   }

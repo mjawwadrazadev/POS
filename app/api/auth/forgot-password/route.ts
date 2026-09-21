@@ -96,11 +96,10 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: "Password reset instructions sent! Please check your inbox.",
-      resetUrlPreview: !resendApiKey ? resetUrl : undefined, // For easy testing if Resend key not added yet
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to process request" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to process request" : error.message },
       { status: 500 }
     );
   }

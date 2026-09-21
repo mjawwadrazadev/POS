@@ -3,16 +3,21 @@ import { dbConnect } from "@/lib/db/mongoose";
 import { Table } from "@/models/Table";
 import { Organization } from "@/models/Organization";
 import { Branch } from "@/models/Branch";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
-    let org = await Organization.findOne();
-    let branch = await Branch.findOne();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const org = await Organization.findById(session.organizationId);
+    const branch = await Branch.findOne({ organizationId: session.organizationId, isMain: true })
+      || await Branch.findOne({ organizationId: session.organizationId });
 
     if (!org || !branch) {
       return NextResponse.json(
-        { error: "No organization or branch found. Run /api/seed first." },
+        { error: "No organization or branch found." },
         { status: 400 }
       );
     }
@@ -51,7 +56,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: true, count: tables.length, tables });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to fetch restaurant tables" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to fetch restaurant tables" : error.message },
       { status: 500 }
     );
   }
@@ -60,11 +65,15 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
     const { action, tableId, status, label, capacity } = body;
 
-    let org = await Organization.findOne();
-    let branch = await Branch.findOne();
+    const org = await Organization.findById(session.organizationId);
+    const branch = await Branch.findOne({ organizationId: session.organizationId, isMain: true })
+      || await Branch.findOne({ organizationId: session.organizationId });
 
     if (!org || !branch) {
       return NextResponse.json({ error: "No organization found" }, { status: 400 });
@@ -95,7 +104,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to update tables" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to update tables" : error.message },
       { status: 500 }
     );
   }

@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Order } from "@/models/Order";
 import { JournalEntry } from "@/models/JournalEntry";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
@@ -16,6 +20,7 @@ export async function GET(req: Request) {
     const endDate = endDateParam ? new Date(endDateParam) : new Date();
 
     const matchQuery: any = {
+      organizationId: session.organizationId,
       createdAt: { $gte: startDate, $lte: endDate },
       status: "completed",
     };
@@ -88,7 +93,7 @@ export async function GET(req: Request) {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to generate sales report" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to generate sales report" : error.message },
       { status: 500 }
     );
   }

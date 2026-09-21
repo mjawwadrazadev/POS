@@ -1,23 +1,33 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Product } from "@/models/Product";
-import { Organization } from "@/models/Organization";
+import { getSession } from "@/lib/auth/session";
+
+// Escape string for safe MongoDB $regex use (prevents ReDoS)
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search");
     const category = searchParams.get("category");
 
-    const query: any = {};
+    // Always scope to session org — never cross-tenant product access
+    const query: any = { organizationId: session.organizationId };
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { sku: { $regex: search, $options: "i" } },
-        { barcode: { $regex: search, $options: "i" } },
-        { batchNumber: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { sku: { $regex: safeSearch, $options: "i" } },
+        { barcode: { $regex: safeSearch, $options: "i" } },
+        { batchNumber: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -29,7 +39,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: true, count: products.length, products });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to fetch products" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to fetch products" : error.message },
       { status: 500 }
     );
   }
@@ -38,24 +48,21 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
 
-    // Fetch default org if not provided
-    let orgId = body.organizationId;
-    if (!orgId) {
-      const org = await Organization.findOne();
-      if (org) orgId = org._id;
-    }
-
+    // Always use session org — never trust body.organizationId from client
     const newProduct = await Product.create({
       ...body,
-      organizationId: orgId,
+      organizationId: session.organizationId, // override any client-supplied value
     });
 
     return NextResponse.json({ success: true, product: newProduct }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to create product" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to create product" : error.message },
       { status: 400 }
     );
   }

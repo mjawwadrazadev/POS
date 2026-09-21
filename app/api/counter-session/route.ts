@@ -4,14 +4,19 @@ import { CounterSession } from "@/models/CounterSession";
 import { Order } from "@/models/Order";
 import { Organization } from "@/models/Organization";
 import { Branch } from "@/models/Branch";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const cashierName = searchParams.get("cashierName") || "Main Cashier";
 
     const activeSession = await CounterSession.findOne({
+      organizationId: session.organizationId,
       status: "open",
     }).sort({ openedAt: -1 });
 
@@ -48,7 +53,7 @@ export async function GET(req: Request) {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to fetch counter session" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to fetch counter session" : error.message },
       { status: 500 }
     );
   }
@@ -57,15 +62,19 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
     const { action, openingFloat, cashierName = "Main Cashier", notes } = body;
 
-    let org = await Organization.findOne();
-    let branch = await Branch.findOne();
+    const org = await Organization.findById(session.organizationId);
+    const branch = await Branch.findOne({ organizationId: session.organizationId, isMain: true })
+      || await Branch.findOne({ organizationId: session.organizationId });
 
     if (!org || !branch) {
       return NextResponse.json(
-        { error: "No organization or branch found. Run /api/seed first." },
+        { error: "No organization or branch found." },
         { status: 400 }
       );
     }
@@ -84,10 +93,10 @@ export async function POST(req: Request) {
         );
       }
 
-      const session = await CounterSession.create({
+      const counterSession = await CounterSession.create({
         organizationId: org._id,
         branchId: branch._id,
-        cashierName,
+        cashierName: session.fullName || cashierName,
         openingFloat: Number(openingFloat) || 0,
         openedAt: new Date(),
         status: "open",
@@ -95,7 +104,7 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json(
-        { success: true, message: "Shift opened successfully!", session },
+        { success: true, message: "Shift opened successfully!", session: counterSession },
         { status: 201 }
       );
     }
@@ -103,7 +112,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid action specified" }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to process counter session action" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to process counter session action" : error.message },
       { status: 500 }
     );
   }
@@ -112,6 +121,9 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     await dbConnect();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
     const { sessionId, actualCountedCash, notes } = body;
 
@@ -119,8 +131,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
     }
 
-    const session = await CounterSession.findById(sessionId);
-    if (!session || session.status !== "open") {
+    const counterSession = await CounterSession.findOne({
+      _id: sessionId,
+      organizationId: session.organizationId,
+    });
+
+    if (!counterSession || counterSession.status !== "open") {
       return NextResponse.json(
         { error: "Open counter session not found" },
         { status: 404 }
@@ -129,7 +145,7 @@ export async function PATCH(req: Request) {
 
     // Calculate total cash collected during session
     const cashOrders = await Order.find({
-      counterSessionId: session._id,
+      counterSessionId: counterSession._id,
       status: "completed",
     });
 
@@ -138,42 +154,42 @@ export async function PATCH(req: Request) {
       if (order.paymentMethod === "cash") {
         cashSalesTotal += order.grandTotal;
       } else if (order.paymentMethod === "split" && order.payments) {
-        const cashPart = order.payments.find((p) => p.method === "cash");
+        const cashPart = order.payments.find((p: any) => p.method === "cash");
         if (cashPart) cashSalesTotal += cashPart.amount;
       }
     }
 
-    const expectedCashInDrawer = session.openingFloat + cashSalesTotal;
+    const expectedCashInDrawer = counterSession.openingFloat + cashSalesTotal;
     const actualCash = Number(actualCountedCash) || 0;
     const variance = actualCash - expectedCashInDrawer;
 
-    session.closedAt = new Date();
-    session.expectedCashInDrawer = expectedCashInDrawer;
-    session.actualCountedCash = actualCash;
-    session.variance = variance;
-    session.notes = notes || session.notes;
-    session.status = "closed";
-    await session.save();
+    counterSession.closedAt = new Date();
+    counterSession.expectedCashInDrawer = expectedCashInDrawer;
+    counterSession.actualCountedCash = actualCash;
+    counterSession.variance = variance;
+    counterSession.notes = notes || counterSession.notes;
+    counterSession.status = "closed";
+    await counterSession.save();
 
     return NextResponse.json({
       success: true,
       message: "Shift closed & EOD report calculated successfully!",
       summary: {
-        sessionId: session._id,
-        cashierName: session.cashierName,
-        openedAt: session.openedAt,
-        closedAt: session.closedAt,
-        openingFloat: session.openingFloat,
+        sessionId: counterSession._id,
+        cashierName: counterSession.cashierName,
+        openedAt: counterSession.openedAt,
+        closedAt: counterSession.closedAt,
+        openingFloat: counterSession.openingFloat,
         cashSalesTotal,
         expectedCashInDrawer,
         actualCountedCash: actualCash,
         variance,
-        status: session.status,
+        status: counterSession.status,
       },
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to close counter session" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to close counter session" : error.message },
       { status: 500 }
     );
   }

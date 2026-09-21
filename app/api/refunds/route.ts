@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: true, refunds });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to fetch refunds" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to fetch refunds" : error.message },
       { status: 500 }
     );
   }
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to process refund request" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to process refund request" : error.message },
       { status: 500 }
     );
   }
@@ -144,6 +144,14 @@ export async function PATCH(req: Request) {
     const refund = await Refund.findById(refundId);
     if (!refund) {
       return NextResponse.json({ error: "Refund record not found" }, { status: 404 });
+    }
+
+    // Four-Eyes Principle: Prevent a manager from approving their own refund request
+    if (action === "approve" && refund.requestedBy?.toString() === session.userId && session.role !== "super_admin") {
+      return NextResponse.json(
+        { error: "Forbidden — You cannot approve your own refund request. A different Manager or Admin must approve it." },
+        { status: 403 }
+      );
     }
 
     if (refund.status !== "pending_approval") {
@@ -189,7 +197,7 @@ export async function PATCH(req: Request) {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to process refund approval" },
+      { error: process.env.NODE_ENV === "production" ? "Failed to process refund approval" : error.message },
       { status: 500 }
     );
   }
@@ -207,24 +215,27 @@ async function processApprovedRefund(refund: any, order: any, session: any) {
   }
 
   // 2. Post Reversing Double-Entry Journal Entry
+  const subtotalReversal = Math.round(refund.totalRefundAmount / 1.16);
+  const taxReversal = refund.totalRefundAmount - subtotalReversal;
+
   const reversingLines = [
     {
-      accountCode: "4010",
+      accountCode: "4010-SALES",
       accountName: "Sales Revenue (Refund Reversal)",
-      debit: Math.round(refund.totalRefundAmount / 1.16),
-      credit: 0,
+      type: "debit" as const,
+      amount: subtotalReversal,
     },
     {
-      accountCode: "2020",
+      accountCode: "2020-TAX-PAYABLE",
       accountName: "FBR Sales Tax Payable (Refund Tax Adjustment)",
-      debit: Math.round(refund.totalRefundAmount - refund.totalRefundAmount / 1.16),
-      credit: 0,
+      type: "debit" as const,
+      amount: taxReversal,
     },
     {
-      accountCode: refund.refundMethod === "cash" ? "1010" : "1020",
+      accountCode: refund.refundMethod === "cash" ? "1010-CASH" : "1020-BANK",
       accountName: refund.refundMethod === "cash" ? "Cash-in-Drawer (Refund Outflow)" : "Bank Account (Refund Outflow)",
-      debit: 0,
-      credit: refund.totalRefundAmount,
+      type: "credit" as const,
+      amount: refund.totalRefundAmount,
     },
   ];
 
@@ -232,14 +243,12 @@ async function processApprovedRefund(refund: any, order: any, session: any) {
     organizationId: refund.organizationId,
     branchId: refund.branchId,
     entryNumber: `JE-REF-${Date.now().toString().slice(-6)}`,
-    date: new Date(),
-    reference: `Refund for Order #${refund.orderNumber}`,
+    referenceId: refund.orderNumber,
     description: `Reversing journal entry for order refund #${refund.orderNumber}`,
     lines: reversingLines,
     totalDebit: refund.totalRefundAmount,
     totalCredit: refund.totalRefundAmount,
     isBalanced: true,
-    createdBy: session.userId,
   });
 
   refund.reversingJournalEntryId = reversingEntry._id;

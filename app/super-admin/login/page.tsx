@@ -17,9 +17,9 @@ import {
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("superadmin@rstpos.com");
-  const [password, setPassword] = useState("admin123");
-  const [pin, setPin] = useState("9999");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [usePin, setUsePin] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -92,10 +92,7 @@ export default function SuperAdminLoginPage() {
 
           <div className="pt-6 border-t border-white/15 flex items-center justify-between">
             <span className="text-[1.2rem] font-accent text-blue-200">
-              Default Super Admin: <b className="text-white">superadmin@rstpos.com</b>
-            </span>
-            <span className="bg-amber-400/20 text-amber-300 px-2 py-0.5 font-mono text-[1.2rem]">
-              PIN: 9999
+              Platform Master HQ Administration
             </span>
           </div>
         </div>

@@ -7,7 +7,8 @@ export type BusinessType =
   | "supermarket"
   | "electronics"
   | "clothing"
-  | "salon";
+  | "salon"
+  | "hospital";
 
 export interface VerticalConfig {
   businessType: BusinessType;
@@ -144,7 +145,22 @@ export const VERTICAL_CONFIGS: Record<BusinessType, VerticalConfig> = {
       product: ["durationMinutes"],
     },
   },
+  hospital: {
+    businessType: "hospital",
+    title: "Hospital & Medical Center",
+    enabledModules: ["doctor_management", "consultation_billing", "doctor_wise_reports"],
+    terminology: {
+      order: "Consultation Bill",
+      item: "Doctor / Consultation",
+      customer: "Patient",
+      staff: "Receptionist / Medical Staff",
+    },
+    requiredFields: {
+      doctor: ["name", "fees"],
+    },
+  },
 };
+
 
 export function getVerticalConfig(type: BusinessType): VerticalConfig {
   return VERTICAL_CONFIGS[type] || VERTICAL_CONFIGS.bakery;

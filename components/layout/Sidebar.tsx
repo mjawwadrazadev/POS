@@ -25,6 +25,7 @@ import {
   Shirt,
   Cake,
   Building2,
+  Stethoscope,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -84,6 +85,7 @@ export function Sidebar() {
     electronics: <Tv className="w-4 h-4 text-purple-400" />,
     clothing: <Shirt className="w-4 h-4 text-pink-400" />,
     salon: <Scissors className="w-4 h-4 text-teal-400" />,
+    hospital: <Stethoscope className="w-4 h-4 text-cyan-400" />,
   };
 
   function isActive(path: string) {
@@ -92,7 +94,7 @@ export function Sidebar() {
   }
 
   const isSuperAdmin = userSession?.role === "super_admin";
-  const isAccountingEnabled = isSuperAdmin || (userSession?.accountingEnabled !== false && userSession?.planTier !== "billing_only");
+  const isAccountingEnabled = isSuperAdmin || userSession?.planTier === "billing_accounting";
 
 
   return (
@@ -207,6 +209,29 @@ export function Sidebar() {
             >
               <Clock className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">Orders & Receipts</span>
+            </Link>
+          </div>
+        )}
+
+        {/* Hospital Management Section */}
+        {currentVertical === "hospital" && (
+          <div className="flex flex-col gap-1 mt-2">
+            <div className="text-[1rem] font-accent uppercase text-cyan-400 font-bold px-3 py-1 tracking-wider">
+              Hospital Operations
+            </div>
+            <Link
+              href="/doctors"
+              className={`sidebar__link ${isActive("/doctors") ? "sidebar__link--active" : ""}`}
+            >
+              <Stethoscope className="w-4 h-4 flex-shrink-0 text-cyan-400" />
+              <span className="truncate">Doctor Directory</span>
+            </Link>
+            <Link
+              href="/reports/doctors"
+              className={`sidebar__link ${isActive("/reports/doctors") ? "sidebar__link--active" : ""}`}
+            >
+              <BarChart3 className="w-4 h-4 flex-shrink-0 text-cyan-400" />
+              <span className="truncate">Doctor Revenue Reports</span>
             </Link>
           </div>
         )}
