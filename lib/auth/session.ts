@@ -17,19 +17,27 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 export interface SessionPayload {
   userId: string;
-  fullName: string;
+  fullName?: string;
+  name?: string;
   email: string;
-  role: "super_admin" | "admin" | "manager" | "cashier";
+  role: "super_admin" | "platform_support" | "admin" | "manager" | "cashier";
   organizationId: string;
   organizationName?: string;
+  orgName?: string;
+  orgCode?: string;
   businessType?: BusinessType;
   branchId?: string;
   branchName?: string;
   planTier?: "billing_only" | "billing_accounting";
   subscriptionStatus?: string;
+  // Impersonation fields
+  isImpersonating?: boolean;
+  originalSuperAdminId?: string;
+  impersonationSessionId?: string;
+  targetOrgName?: string;
 }
 
-export function signToken(payload: SessionPayload): string {
+export function signToken(payload: any): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "12h" });
 }
 
@@ -43,15 +51,15 @@ export function verifyToken(token: string): SessionPayload | null {
 
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("rst_pos_token")?.value;
+  const token = cookieStore.get("rst_pos_token")?.value || cookieStore.get("auth_token")?.value;
   if (!token) return null;
 
   const payload = verifyToken(token);
   if (!payload) return null;
 
   // Live Subscription Status & Plan Tier Verification (Session Revocation Guard)
-  // Non-super_admin requests always hit DB to catch mid-session suspension/expiry.
-  if (payload.role !== "super_admin" && payload.organizationId) {
+  // Non-super_admin / non-platform_support requests always hit DB to catch mid-session suspension/expiry.
+  if (payload.role !== "super_admin" && payload.role !== "platform_support" && !payload.isImpersonating && payload.organizationId) {
     try {
       await dbConnect();
       const org = await Organization.findById(payload.organizationId)

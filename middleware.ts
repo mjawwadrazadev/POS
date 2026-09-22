@@ -14,7 +14,7 @@ function parseJwtPayload(token: string) {
 }
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("rst_pos_token")?.value;
+  const token = request.cookies.get("rst_pos_token")?.value || request.cookies.get("auth_token")?.value;
   const { pathname } = request.nextUrl;
 
   // Public paths that do not require authentication
@@ -33,20 +33,21 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(targetLogin, request.url));
   }
 
-  // 2. If token exists and user tries to access /super-admin route -> verify super_admin role
+  // 2. If token exists and user tries to access /super-admin route -> verify super_admin or platform_support role
   if (isSuperAdminPath && token) {
     const payload = parseJwtPayload(token);
-    if (!payload || payload.role !== "super_admin") {
+    const isAllowed = payload && (payload.role === "super_admin" || payload.role === "platform_support");
+    if (!isAllowed) {
       // Regular store user trying to access /super-admin -> redirect to store dashboard
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
-  // 3. If token exists and super_admin tries to access store routes -> redirect to /super-admin
+  // 3. If token exists and super_admin tries to access store routes -> redirect to /super-admin UNLESS impersonating
   if (token && !isSuperAdminPath && !isPublicPath) {
     const payload = parseJwtPayload(token);
-    if (payload && payload.role === "super_admin") {
-      // Super Admin belongs ONLY in /super-admin
+    if (payload && (payload.role === "super_admin" || payload.role === "platform_support") && !payload.isImpersonating) {
+      // Super Admin belongs in /super-admin unless currently impersonating a tenant
       return NextResponse.redirect(new URL("/super-admin", request.url));
     }
   }
@@ -55,7 +56,7 @@ export function middleware(request: NextRequest) {
   if (isPublicPath && token) {
     const payload = parseJwtPayload(token);
     if (payload) {
-      const homePath = payload.role === "super_admin" ? "/super-admin" : "/";
+      const homePath = (payload.role === "super_admin" || payload.role === "platform_support") && !payload.isImpersonating ? "/super-admin" : "/";
       return NextResponse.redirect(new URL(homePath, request.url));
     }
   }

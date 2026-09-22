@@ -302,6 +302,15 @@ export function Sidebar() {
               <BarChart3 className="w-4 h-4 flex-shrink-0" />
               <span>EOD & Sales Reports</span>
             </Link>
+
+            {/* Platform Support Desk */}
+            <Link
+              href="/support"
+              className={`sidebar__link mt-2 text-blue-400 font-bold ${isActive("/support") ? "sidebar__link--active" : ""}`}
+            >
+              <ShieldCheck className="w-4 h-4 flex-shrink-0 text-blue-400" />
+              <span>Platform Support Desk</span>
+            </Link>
           </>
         )}
       </nav>

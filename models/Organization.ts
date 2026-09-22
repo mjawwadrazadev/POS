@@ -22,10 +22,14 @@ export interface IOrganization extends Document {
   accountingEnabled: boolean;
   dataRetentionMonths: number; // 6, 12, 24, 0 (0 = lifetime)
   planPriceAtSelection?: number;
+  planLimits?: {
+    maxBranches: number;
+    maxStaffUsers: number;
+  };
   // Subscription & Expiry Fields
   subscriptionPlan: "monthly" | "yearly" | "custom";
   subscriptionFee: number; // e.g. 5000 per month
-  subscriptionStatus: "active" | "expiring_soon" | "expired" | "suspended";
+  subscriptionStatus: "active" | "expiring_soon" | "expired" | "suspended" | "suspended_manual" | "terminated";
   startDate: Date;
   expiryDate: Date;
   lastPaymentDate?: Date;
@@ -58,6 +62,10 @@ const OrganizationSchema: Schema<IOrganization> = new Schema(
     accountingEnabled: { type: Boolean, default: true },
     dataRetentionMonths: { type: Number, default: 6 },
     planPriceAtSelection: { type: Number, default: 5000 },
+    planLimits: {
+      maxBranches: { type: Number, default: 5 },
+      maxStaffUsers: { type: Number, default: 20 },
+    },
     // Subscription & Expiry
     subscriptionPlan: {
       type: String,
@@ -67,7 +75,7 @@ const OrganizationSchema: Schema<IOrganization> = new Schema(
     subscriptionFee: { type: Number, default: 5000 },
     subscriptionStatus: {
       type: String,
-      enum: ["active", "expiring_soon", "expired", "suspended"],
+      enum: ["active", "expiring_soon", "expired", "suspended", "suspended_manual", "terminated"],
       default: "active",
     },
     startDate: { type: Date, default: Date.now },

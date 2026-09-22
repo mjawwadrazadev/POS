@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { ImpersonationBanner } from "@/components/super-admin/ImpersonationBanner";
+import { AnnouncementBanner } from "@/components/super-admin/AnnouncementBanner";
 
 export default function DashboardLayout({
   children,
@@ -14,6 +16,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [userSession, setUserSession] = useState<any>(null);
 
   useEffect(() => {
     async function checkAuth() {
@@ -27,12 +30,15 @@ export default function DashboardLayout({
           return;
         }
 
-        // If trying to access /super-admin page as non-super_admin -> redirect to home
-        if (pathname.startsWith("/super-admin") && data.user.role !== "super_admin") {
+        const isSuperAdminOrSupport = data.user.role === "super_admin" || data.user.role === "platform_support";
+
+        // If trying to access /super-admin page as non-super_admin/platform_support -> redirect to home
+        if (pathname.startsWith("/super-admin") && !isSuperAdminOrSupport) {
           router.replace("/");
           return;
         }
 
+        setUserSession(data.user);
         setAuthenticated(true);
       } catch (err) {
         console.error("Dashboard auth check failed:", err);
@@ -60,13 +66,30 @@ export default function DashboardLayout({
     return null;
   }
 
+  const isSuperAdminRoute = pathname.startsWith("/super-admin");
+
   return (
-    <div className="pos-layout">
-      <Sidebar />
-      <div className="pos-main">
-        <TopBar />
-        <main className="pos-main__content">{children}</main>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      {/* Impersonation Banner if super admin is impersonating a tenant */}
+      {userSession?.isImpersonating && (
+        <ImpersonationBanner tenantName={userSession.targetOrgName || userSession.orgName || "Tenant"} />
+      )}
+
+      {/* Announcement Banner for tenant view */}
+      {!isSuperAdminRoute && <AnnouncementBanner />}
+
+      {/* Main App Layout */}
+      {isSuperAdminRoute ? (
+        <div className="flex-1 bg-slate-950">{children}</div>
+      ) : (
+        <div className="pos-layout">
+          <Sidebar />
+          <div className="pos-main">
+            <TopBar />
+            <main className="pos-main__content">{children}</main>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
