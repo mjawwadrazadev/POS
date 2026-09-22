@@ -50,60 +50,50 @@ export default function OrdersPage() {
   const [submittingRefund, setSubmittingRefund] = useState(false);
   const [refundSuccessMsg, setRefundSuccessMsg] = useState("");
 
-  const [ordersList, setOrdersList] = useState<OrderRecord[]>([
-    {
-      id: "ORD-99812",
-      orderNumber: "ORD-99812",
-      date: "2026-09-19 10:42 AM",
-      customer: "Tariq Mahmood",
-      type: "Prescription Sale",
-      payment: "Cash",
-      itemsCount: 4,
-      itemsList: [
-        { id: "BAK-101", name: "Red Velvet Cream Fudge Cake", sku: "BAK-101", price: 2400, quantity: 1 },
-        { id: "BAK-102", name: "French Butter Croissant", sku: "BAK-102", price: 320, quantity: 2 },
-      ],
-      subtotal: 2940,
-      tax: 470,
-      total: 3310,
-      status: "completed",
-      cashier: "Ahmed Ali",
-    },
-    {
-      id: "ORD-99811",
-      orderNumber: "ORD-99811",
-      date: "2026-09-19 10:28 AM",
-      customer: "Walk-in Guest",
-      type: "Table 04 (Dine-in)",
-      payment: "Card (Stripe)",
-      itemsCount: 6,
-      itemsList: [
-        { id: "FD-101", name: "Chicken Karahi Special (1KG)", sku: "FD-101", price: 1800, quantity: 2 },
-      ],
-      subtotal: 3600,
-      tax: 576,
-      total: 4176,
-      status: "completed",
-      cashier: "Ahmed Ali",
-    },
-    {
-      id: "ORD-99810",
-      orderNumber: "ORD-99810",
-      date: "2026-09-19 09:55 AM",
-      customer: "Usman Raza",
-      type: "Retail Sale",
-      payment: "Pending",
-      itemsCount: 2,
-      itemsList: [
-        { id: "MED-001", name: "Paracetamol 500mg Extra", sku: "MED-001", price: 150, quantity: 2 },
-      ],
-      subtotal: 300,
-      tax: 48,
-      total: 348,
-      status: "held",
-      cashier: "Ahmed Ali",
-    },
-  ]);
+  const [ordersList, setOrdersList] = useState<OrderRecord[]>([]);
+
+  useEffect(() => {
+    async function fetchOrders() {
+      try {
+        const res = await fetch("/api/orders");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.orders)) {
+          setOrdersList(
+            data.orders.map((o: any) => ({
+              id: o._id,
+              orderNumber: o.orderNumber,
+              date: new Date(o.createdAt).toLocaleString("en-PK"),
+              customer: o.customerName || "Walk-in Guest",
+              type: o.orderType ? o.orderType.replace("_", " ").toUpperCase() + (o.tableNumber ? ` (${o.tableNumber})` : "") : "Order",
+              payment: o.paymentMethod ? o.paymentMethod.toUpperCase() : "CASH",
+              itemsCount: Array.isArray(o.items) ? o.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) : 0,
+              itemsList: Array.isArray(o.items)
+                ? o.items.map((i: any) => ({
+                    id: i.productId || i.sku,
+                    name: i.productName || "Product",
+                    sku: i.sku || "N/A",
+                    price: i.unitPrice || 0,
+                    quantity: i.quantity || 1,
+                  }))
+                : [],
+              subtotal: o.subtotal || 0,
+              tax: o.taxAmount || 0,
+              total: o.grandTotal || 0,
+              status: o.status || "completed",
+              cashier: o.cashierName || "Cashier",
+            }))
+          );
+        } else {
+          setOrdersList([]);
+        }
+      } catch (e) {
+        console.error("Failed to fetch orders:", e);
+        setOrdersList([]);
+      }
+    }
+
+    fetchOrders();
+  }, []);
 
   async function handleConfirmRefund() {
     if (!refundOrder) return;

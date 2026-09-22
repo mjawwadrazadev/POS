@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useInventoryStore, InventoryItem } from "@/lib/store/useInventoryStore";
 import { usePosStore } from "@/lib/store/usePosStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
@@ -27,7 +27,11 @@ import {
 export default function ProductsPage() {
   const { currentVertical } = usePosStore();
   const config = VERTICAL_CONFIGS[currentVertical];
-  const { items, deleteItem, adjustStock } = useInventoryStore();
+  const { items, deleteItem, adjustStock, fetchFromApi } = useInventoryStore();
+
+  useEffect(() => {
+    fetchFromApi();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");

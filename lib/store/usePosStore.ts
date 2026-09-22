@@ -44,9 +44,9 @@ interface PosState {
 
 export const usePosStore = create<PosState>((set, get) => ({
   currentVertical: "bakery",
-  selectedBranch: "Gulberg Main Bakery — Lahore (LHR-01)",
-  activeShiftOpen: true,
-  shiftCashier: "Ahmed Ali (Manager)",
+  selectedBranch: "Main Branch",
+  activeShiftOpen: false,
+  shiftCashier: "",
   cart: [],
   orderType: "retail_sale",
   selectedTable: "Table 01",

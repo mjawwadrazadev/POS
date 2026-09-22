@@ -331,12 +331,12 @@ export function Sidebar() {
         </div>
         <div className="flex-1 overflow-hidden">
           <div className="sidebar__user-name truncate">
-            {userSession?.fullName || "Ahmed Ali (Manager)"}
+            {userSession?.fullName || "Active User"}
           </div>
           <div className="sidebar__user-role flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-400 inline flex-shrink-0" />
             <span className="uppercase text-[1.05rem]">
-              {userSession?.role ? userSession.role.replace("_", " ") : "ADMIN"} / ACTIVE
+              {userSession?.role ? userSession.role.replace("_", " ") : "USER"} / ACTIVE
             </span>
           </div>
         </div>

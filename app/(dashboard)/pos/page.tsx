@@ -68,8 +68,12 @@ export default function PosBillingPage() {
     selectedBranch,
   } = usePosStore();
 
-  const { items: inventoryItems, adjustStock } = useInventoryStore();
+  const { items: inventoryItems, adjustStock, fetchFromApi } = useInventoryStore();
   const config = VERTICAL_CONFIGS[currentVertical];
+
+  useEffect(() => {
+    fetchFromApi();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");

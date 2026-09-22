@@ -22,36 +22,7 @@ export async function GET(req: Request) {
       );
     }
 
-    let tables = await Table.find({ branchId: branch._id }).sort({ label: 1 });
-
-    // Auto-seed default restaurant tables if none exist
-    if (tables.length === 0) {
-      const defaultTables: Array<{
-        label: string;
-        capacity: number;
-        positionX: number;
-        positionY: number;
-        shape: "square" | "round" | "rect";
-        status: "available" | "occupied" | "reserved" | "dirty";
-      }> = [
-        { label: "Table 01", capacity: 2, positionX: 0, positionY: 0, shape: "square", status: "available" },
-        { label: "Table 02", capacity: 4, positionX: 1, positionY: 0, shape: "square", status: "available" },
-        { label: "Table 03", capacity: 4, positionX: 2, positionY: 0, shape: "square", status: "available" },
-        { label: "Table 04", capacity: 6, positionX: 3, positionY: 0, shape: "rect", status: "available" },
-        { label: "Table 05", capacity: 2, positionX: 0, positionY: 1, shape: "square", status: "occupied" },
-        { label: "Table 06", capacity: 4, positionX: 1, positionY: 1, shape: "round", status: "dirty" },
-        { label: "Table 07", capacity: 8, positionX: 2, positionY: 1, shape: "rect", status: "reserved" },
-        { label: "Table 08", capacity: 4, positionX: 3, positionY: 1, shape: "square", status: "available" },
-      ];
-
-      tables = await Table.insertMany(
-        defaultTables.map((t) => ({
-          ...t,
-          organizationId: org._id,
-          branchId: branch._id,
-        }))
-      );
-    }
+    const tables = await Table.find({ branchId: branch._id }).sort({ label: 1 });
 
     return NextResponse.json({ success: true, count: tables.length, tables });
   } catch (error: any) {

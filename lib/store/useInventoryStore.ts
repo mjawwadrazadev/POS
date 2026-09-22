@@ -30,157 +30,53 @@ export interface InventoryItem {
 
 interface InventoryState {
   items: InventoryItem[];
+  fetchFromApi: () => Promise<void>;
   addItem: (item: Omit<InventoryItem, "id">) => void;
   updateItem: (id: string, updates: Partial<InventoryItem>) => void;
   deleteItem: (id: string) => void;
   adjustStock: (id: string, delta: number) => void;
 }
 
-const defaultItems: InventoryItem[] = [
-  {
-    id: "bak-1",
-    sku: "BAK-101",
-    name: "Red Velvet Cream Fudge Cake (2 Pound)",
-    category: "Cakes",
-    price: 2400,
-    costPrice: 1400,
-    stock: 12,
-    unit: "Pcs",
-    flavour: "Red Velvet & Cocoa",
-    weightGrams: 900,
-    expiryTime: "48 Hours",
-    isPerishable: true,
-  },
-  {
-    id: "bak-2",
-    sku: "BAK-102",
-    name: "French Butter Croissant (Fresh Batch)",
-    category: "Pastries & Breads",
-    price: 320,
-    costPrice: 180,
-    stock: 45,
-    unit: "Pcs",
-    expiryTime: "24 Hours",
-    isPerishable: true,
-  },
-  {
-    id: "bak-3",
-    sku: "BAK-103",
-    name: "Pineapple Fresh Cream Pastry",
-    category: "Pastries & Breads",
-    price: 280,
-    costPrice: 150,
-    stock: 30,
-    unit: "Pcs",
-    expiryTime: "36 Hours",
-    isPerishable: true,
-  },
-  {
-    id: "bak-4",
-    sku: "BAK-104",
-    name: "Artisan Sourdough Garlic Bread",
-    category: "Breads",
-    price: 450,
-    costPrice: 220,
-    stock: 20,
-    unit: "Pcs",
-    expiryTime: "3 Days",
-  },
-  {
-    id: "bak-5",
-    sku: "BAK-105",
-    name: "Belgian Dark Chocolate Mousse Cup",
-    category: "Desserts",
-    price: 490,
-    costPrice: 280,
-    stock: 8,
-    unit: "Cup",
-    expiryTime: "48 Hours",
-    isPerishable: true,
-  },
-  {
-    id: "rest-1",
-    sku: "FD-101",
-    name: "Chicken Karahi Special (1KG)",
-    category: "Main Course",
-    price: 1800,
-    costPrice: 1200,
-    stock: 50,
-    unit: "KG",
-    preparationTime: 25,
-  },
-  {
-    id: "rest-2",
-    sku: "FD-102",
-    name: "Beef Nihari (Large)",
-    category: "Main Course",
-    price: 1400,
-    costPrice: 900,
-    stock: 30,
-    unit: "Bowl",
-    preparationTime: 40,
-  },
-  {
-    id: "caf-1",
-    sku: "BV-201",
-    name: "Cold Brew Espresso Coffee",
-    category: "Beverages",
-    price: 650,
-    costPrice: 350,
-    stock: 90,
-    unit: "Cup",
-  },
-  {
-    id: "caf-2",
-    sku: "BV-202",
-    name: "Classic Cappuccino",
-    category: "Beverages",
-    price: 450,
-    costPrice: 200,
-    stock: 100,
-    unit: "Cup",
-  },
-  {
-    id: "med-1",
-    sku: "MED-001",
-    name: "Paracetamol 500mg Extra",
-    category: "Medicines",
-    price: 150,
-    costPrice: 110,
-    stock: 120,
-    unit: "Pcs",
-    batchNumber: "BCH-9921",
-    expiryDate: "2027-08-15",
-    genericName: "Acetaminophen",
-  },
-  {
-    id: "ele-1",
-    sku: "ELE-882",
-    name: "Wireless Ergonomic Mouse",
-    category: "Electronics",
-    price: 2500,
-    costPrice: 1800,
-    stock: 18,
-    unit: "Pcs",
-    serialNumber: "SN-9948271",
-    warrantyMonths: 12,
-  },
-  {
-    id: "clo-1",
-    sku: "CLO-303",
-    name: "Slim Fit Cotton Denim Shirt",
-    category: "Clothing",
-    price: 3200,
-    costPrice: 2100,
-    stock: 25,
-    unit: "Pcs",
-    size: "L",
-    color: "Navy Blue",
-  },
-];
+export const useInventoryStore = create<InventoryState>((set, get) => ({
+  items: [], // Completely clean by default — 0 dummy products
 
-export const useInventoryStore = create<InventoryState>((set) => ({
-  items: defaultItems,
+  fetchFromApi: async () => {
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.products)) {
+        set({
+          items: data.products.map((p: any) => ({
+            id: p._id,
+            sku: p.sku || "",
+            name: p.name,
+            category: p.category || "General",
+            price: p.price || 0,
+            costPrice: p.costPrice || 0,
+            stock: p.stock || 0,
+            unit: p.unit || "Pcs",
+            batchNumber: p.batchNumber,
+            expiryDate: p.expiryDate,
+            genericName: p.genericName,
+            serialNumber: p.serialNumber,
+            warrantyMonths: p.warrantyMonths,
+            size: p.size,
+            color: p.color,
+            preparationTime: p.preparationTime,
+            flavour: p.flavour,
+            weightGrams: p.weightGrams,
+            expiryTime: p.expiryTime,
+            isPerishable: p.isPerishable,
+          })),
+        });
+      } else {
+        set({ items: [] });
+      }
+    } catch (e) {
+      console.error("Failed to fetch inventory products from API:", e);
+      set({ items: [] });
+    }
+  },
 
   addItem: (item) =>
     set((state) => ({
@@ -188,8 +84,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
         ...state.items,
         {
           ...item,
-          id: `item-${Date.now()}`,
-          sku: item.sku.toUpperCase(),
+          id: `prod-${Date.now()}`,
         },
       ],
     })),
@@ -209,9 +104,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   adjustStock: (id, delta) =>
     set((state) => ({
       items: state.items.map((item) =>
-        item.id === id
-          ? { ...item, stock: Math.max(0, item.stock + delta) }
-          : item
+        item.id === id ? { ...item, stock: Math.max(0, item.stock + delta) } : item
       ),
     })),
 }));
