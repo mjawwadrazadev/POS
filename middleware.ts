@@ -37,12 +37,21 @@ export function middleware(request: NextRequest) {
   if (isSuperAdminPath && token) {
     const payload = parseJwtPayload(token);
     if (!payload || payload.role !== "super_admin") {
-      // User is logged in (e.g. as regular manager/admin), but NOT super_admin -> redirect to main POS dashboard
+      // Regular store user trying to access /super-admin -> redirect to store dashboard
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
-  // 3. If token exists and user visits login page -> redirect to their appropriate home page
+  // 3. If token exists and super_admin tries to access store routes -> redirect to /super-admin
+  if (token && !isSuperAdminPath && !isPublicPath) {
+    const payload = parseJwtPayload(token);
+    if (payload && payload.role === "super_admin") {
+      // Super Admin belongs ONLY in /super-admin
+      return NextResponse.redirect(new URL("/super-admin", request.url));
+    }
+  }
+
+  // 4. If token exists and user visits login page -> redirect to their appropriate home page
   if (isPublicPath && token) {
     const payload = parseJwtPayload(token);
     if (payload) {
