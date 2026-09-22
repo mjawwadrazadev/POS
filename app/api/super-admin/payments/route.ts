@@ -71,11 +71,13 @@ export async function POST(req: Request) {
     // 3. Write AuditLog entry
     await AuditLog.create({
       organizationId: org._id,
-      userId: auth.session!.userId,
-      userName: auth.session!.name || "Super Admin",
-      userRole: auth.session!.role,
+      actorId: auth.session!.userId,
+      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
+      actorRole: auth.session!.role,
       action: "SUBSCRIPTION_PAYMENT_RECORDED",
-      details: `Recorded subscription payment of PKR ${amount} (${monthsAdded} months). New expiry: ${newExpiry.toISOString()}`,
+      targetCollection: "PaymentHistory",
+      targetId: payment._id,
+      after: { amount, monthsAdded, newExpiry },
       ipAddress: "127.0.0.1",
     });
 

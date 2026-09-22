@@ -39,13 +39,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     await AuditLog.create({
       organizationId: targetUser.organizationId,
-      userId: auth.session!.userId,
-      userName: auth.session!.name || "Super Admin",
-      userRole: auth.session!.role,
+      actorId: auth.session!.userId,
+      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
+      actorRole: auth.session!.role,
       action: "SUPER_ADMIN_USER_PIN_RESET",
-      details: `Reset credentials for staff user '${targetUser.fullName}' (${targetUser.email}). Changes: ${resetDetails.join(
-        ", "
-      )}. Reason: ${reason}`,
+      targetCollection: "User",
+      targetId: targetUser._id,
+      after: { targetUserEmail: targetUser.email, resetDetails, reason },
       ipAddress: "127.0.0.1",
     });
 

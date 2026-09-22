@@ -52,11 +52,13 @@ export async function POST(req: Request) {
     // 2. Log in AuditLog
     await AuditLog.create({
       organizationId: targetOrg._id,
-      userId: auth.session!.userId,
-      userName: auth.session!.name || "Super Admin",
-      userRole: auth.session!.role,
+      actorId: auth.session!.userId,
+      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
+      actorRole: auth.session!.role,
       action: "SUPER_ADMIN_IMPERSONATE_START",
-      details: `Started impersonating tenant '${targetOrg.name}' (${targetOrg.code}). Reason: ${reason}. Session ID: ${impersonation._id}`,
+      targetCollection: "ImpersonationSession",
+      targetId: impersonation._id,
+      after: { reason, targetOrgCode: targetOrg.code, expiresAt },
       ipAddress: "127.0.0.1",
     });
 

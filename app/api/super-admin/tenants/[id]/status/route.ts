@@ -34,11 +34,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     await AuditLog.create({
       organizationId: org._id,
-      userId: auth.session!.userId,
-      userName: auth.session!.name || "Super Admin",
-      userRole: auth.session!.role,
+      actorId: auth.session!.userId,
+      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
+      actorRole: auth.session!.role,
       action: status === "suspended_manual" ? "TENANT_MANUAL_SUSPEND" : "TENANT_REACTIVATE",
-      details: `Changed status of '${org.name}' from ${oldStatus} to ${status}. Reason: ${reason || "N/A"}`,
+      targetCollection: "Organization",
+      targetId: org._id,
+      before: { status: oldStatus },
+      after: { status, reason },
       ipAddress: "127.0.0.1",
     });
 

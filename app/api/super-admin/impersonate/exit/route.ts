@@ -28,11 +28,12 @@ export async function POST() {
     // 2. Log exit in AuditLog
     await AuditLog.create({
       organizationId: session.organizationId,
-      userId: session.originalSuperAdminId,
-      userName: "Super Admin",
-      userRole: "super_admin",
+      actorId: session.originalSuperAdminId,
+      actorName: session.name || session.fullName || "Super Admin",
+      actorRole: "super_admin",
       action: "SUPER_ADMIN_IMPERSONATE_EXIT",
-      details: `Exited impersonation of tenant '${session.targetOrgName || session.orgName}'. Restored Super Admin portal session.`,
+      targetCollection: "ImpersonationSession",
+      after: { targetOrgName: session.targetOrgName || session.orgName },
       ipAddress: "127.0.0.1",
     });
 

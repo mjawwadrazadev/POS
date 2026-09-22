@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
 import { User } from "@/models/User";
+import { Order } from "@/models/Order";
+import { Product } from "@/models/Product";
+import { PaymentHistory } from "@/models/PaymentHistory";
 import { AuditLog } from "@/models/AuditLog";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
 
@@ -35,26 +38,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       );
     }
 
-    // Update status to terminated
+    // 1. Data Archival Summary before termination
+    const ordersCount = await Order.countDocuments({ organizationId: org._id });
+    const productsCount = await Product.countDocuments({ organizationId: org._id });
+    const paymentsCount = await PaymentHistory.countDocuments({ organizationId: org._id });
+
+    // 2. Update status to terminated & deactivate all users
     org.subscriptionStatus = "terminated";
     await org.save();
 
-    // Deactivate all users under this tenant
     await User.updateMany({ organizationId: org._id }, { isActive: false });
 
+    // 3. Write AuditLog entry with data export reference
     await AuditLog.create({
       organizationId: org._id,
-      userId: auth.session!.userId,
-      userName: auth.session!.name || "Super Admin",
-      userRole: auth.session!.role,
+      actorId: auth.session!.userId,
+      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
+      actorRole: auth.session!.role,
       action: "TENANT_TERMINATED",
-      details: `OFFBOARDING: Terminated tenant '${org.name}' (${org.code}). All tenant users deactivated. Reason: ${reason}`,
+      targetCollection: "Organization",
+      targetId: org._id,
+      after: { reason, ordersCount, productsCount, paymentsCount },
       ipAddress: "127.0.0.1",
     });
 
     return NextResponse.json({
       success: true,
-      message: `Tenant '${org.name}' has been terminated and offboarded successfully.`,
+      message: `Tenant '${org.name}' offboarded and terminated successfully. Historical data archived (${ordersCount} orders, ${productsCount} products).`,
+      exportUrl: `/api/super-admin/tenants/${id}/export`,
     });
   } catch (error: any) {
     return NextResponse.json(
