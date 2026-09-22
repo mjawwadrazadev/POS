@@ -651,8 +651,8 @@ export default function SuperAdminTenantsPage() {
 
       {/* Record Renewal Payment Modal */}
       {renewTenant && (
-        <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4">
-          <div className="bg-[#171719] border border-emerald-500/40 w-full max-w-md p-6 text-white space-y-5 shadow-2xl">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#171719] border border-emerald-500/40 w-full max-w-md p-6 text-white space-y-5 shadow-2xl rounded-xl">
             <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.1)] pb-4">
               <div className="flex items-center gap-2 text-emerald-400 font-accent font-extrabold text-[1.5rem] uppercase">
                 <CreditCard className="w-5 h-5" />
@@ -676,7 +676,7 @@ export default function SuperAdminTenantsPage() {
                   type="number"
                   value={renewAmount}
                   onChange={(e) => setRenewAmount(Number(e.target.value))}
-                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-emerald-400 font-bold px-3 py-2.5 text-[1.6rem] outline-none focus:border-emerald-500 font-mono"
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-emerald-400 font-bold px-3.5 py-2.5 text-[1.6rem] outline-none focus:border-emerald-500 font-mono"
                 />
               </div>
 
@@ -685,7 +685,7 @@ export default function SuperAdminTenantsPage() {
                 <select
                   value={renewMonths}
                   onChange={(e) => setRenewMonths(Number(e.target.value))}
-                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3.5 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 cursor-pointer"
                 >
                   <option value={1} className="bg-[#0b0b0d]">1 Month (+30 Days)</option>
                   <option value={3} className="bg-[#0b0b0d]">3 Months (+90 Days)</option>
@@ -701,7 +701,7 @@ export default function SuperAdminTenantsPage() {
                   value={renewNotes}
                   onChange={(e) => setRenewNotes(e.target.value)}
                   placeholder="e.g. Cash / Bank Transfer Ref #9921"
-                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500"
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3.5 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
@@ -727,8 +727,8 @@ export default function SuperAdminTenantsPage() {
 
       {/* Payment History Log Modal */}
       {historyTenant && (
-        <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4">
-          <div className="bg-[#171719] border border-[rgba(255,255,255,0.15)] w-full max-w-lg p-6 text-white space-y-5 shadow-2xl">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#171719] border border-[rgba(255,255,255,0.15)] w-full max-w-lg p-6 text-white space-y-5 shadow-2xl rounded-xl">
             <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.1)] pb-4">
               <div className="flex items-center gap-2 text-blue-400 font-accent font-extrabold text-[1.5rem] uppercase">
                 <History className="w-5 h-5" />
@@ -777,70 +777,84 @@ export default function SuperAdminTenantsPage() {
 
       {/* Provision New Tenant Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#171719] border border-[rgba(255,255,255,0.15)] w-full max-w-2xl shadow-2xl text-white">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-[#141417] border border-[rgba(255,255,255,0.18)] w-full max-w-4xl shadow-2xl text-white rounded-xl overflow-hidden flex flex-col max-h-[92vh]">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-[rgba(255,255,255,0.08)]">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-[#819ffe]" />
-                <h3 className="font-accent font-extrabold text-[1.5rem] uppercase text-white">
-                  Provision New Business Tenant
-                </h3>
+            <div className="flex items-center justify-between px-6 py-4 bg-[#1a1b1e] border-b border-[rgba(255,255,255,0.1)] flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#002bba]/20 text-[#819ffe] rounded-lg border border-[#002bba]/40">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-accent font-extrabold text-[1.7rem] uppercase text-white tracking-wide">
+                    Provision New Business Tenant
+                  </h3>
+                  <p className="text-[1.2rem] text-gray-400 font-accent">
+                    Set up business vertical, subscription plan, retention rules, and admin credentials.
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors">
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleCreateTenant} className="p-5 space-y-5">
+            {/* Form Body - Scrollable */}
+            <form onSubmit={handleCreateTenant} className="p-6 space-y-6 overflow-y-auto flex-1">
               {errorMsg && (
-                <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/40 text-red-300 p-3 text-[1.2rem]">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <div className="flex items-center gap-3 bg-red-500/20 border border-red-500/40 text-red-300 p-4 rounded-lg text-[1.3rem]">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <span>{errorMsg}</span>
                 </div>
               )}
 
-              {/* Row 1: Business Name & Vertical */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label text-[rgba(255,255,255,0.6)]">Business / Tenant Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="e.g. Al-Madina Restaurant & Grill"
-                    className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba]"
-                  />
-                </div>
+              {/* SECTION 1: Business Identity & Vertical */}
+              <div className="space-y-3">
+                <h4 className="text-[1.2rem] font-accent uppercase font-extrabold text-[#819ffe] tracking-wider flex items-center gap-2">
+                  <Store className="w-4 h-4" />
+                  1. Business Identity & Vertical Engine
+                </h4>
 
-                <div>
-                  <label className="form-label text-[rgba(255,255,255,0.6)]">Vertical Engine Type *</label>
-                  <select
-                    value={form.businessType}
-                    onChange={(e) => setForm({ ...form, businessType: e.target.value as BusinessType })}
-                    className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba] appearance-none cursor-pointer"
-                  >
-                    {Object.entries(VERTICAL_CONFIGS).map(([key, cfg]) => (
-                      <option key={key} value={key} className="bg-[#0b0b0d]">
-                        {cfg.title}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-7">
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Business / Tenant Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="e.g. Al-Madina Restaurant & Bakery"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-[#002bba] transition-colors"
+                    />
+                  </div>
+
+                  <div className="md:col-span-5">
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Vertical Engine Type *</label>
+                    <select
+                      value={form.businessType}
+                      onChange={(e) => setForm({ ...form, businessType: e.target.value as BusinessType })}
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-[#002bba] cursor-pointer"
+                    >
+                      {Object.entries(VERTICAL_CONFIGS).map(([key, cfg]) => (
+                        <option key={key} value={key} className="bg-[#0b0b0d] py-2">
+                          {cfg.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* Row 2: Subscription Fee, Plan Tier & Data Retention */}
-              <div className="border border-emerald-500/40 bg-emerald-500/10 p-4 space-y-3">
-                <p className="font-accent text-[1.2rem] text-emerald-400 font-bold uppercase flex items-center gap-2">
+              {/* SECTION 2: Subscription Plan Tier & Data Retention */}
+              <div className="border border-emerald-500/40 bg-emerald-500/10 p-5 rounded-xl space-y-4">
+                <h4 className="text-[1.2rem] font-accent uppercase font-extrabold text-emerald-400 tracking-wider flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
-                  Subscription Plan Tier & Data Retention Setup
-                </p>
+                  2. Subscription Plan Tier & Data Retention Setup
+                </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Feature Plan Tier *</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Feature Plan Tier *</label>
                     <select
                       value={form.planTier}
                       onChange={(e) => {
@@ -851,7 +865,7 @@ export default function SuperAdminTenantsPage() {
                           subscriptionFee: tier === "billing_accounting" ? 10000 : 5000,
                         });
                       }}
-                      className="w-full bg-[#0b0b0d] border border-emerald-500/40 text-emerald-400 font-bold px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                      className="w-full bg-[#0b0b0d] border border-emerald-500/50 text-emerald-400 font-bold px-4 py-3 text-[1.35rem] rounded-lg outline-none focus:border-emerald-500 cursor-pointer"
                     >
                       <option value="billing_only" className="bg-[#0b0b0d]">Option A: Billing + Inventory Only (PKR 5,000/mo)</option>
                       <option value="billing_accounting" className="bg-[#0b0b0d]">Option B: Full Accounting & Ledger (PKR 10,000/mo)</option>
@@ -859,11 +873,11 @@ export default function SuperAdminTenantsPage() {
                   </div>
 
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Data Retention Period *</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Data Retention Period *</label>
                     <select
                       value={form.dataRetentionMonths}
                       onChange={(e) => setForm({ ...form, dataRetentionMonths: Number(e.target.value) })}
-                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-emerald-500 cursor-pointer"
                     >
                       <option value={6} className="bg-[#0b0b0d]">6 Months Retention (Standard)</option>
                       <option value={12} className="bg-[#0b0b0d]">12 Months / 1 Year Retention</option>
@@ -873,13 +887,13 @@ export default function SuperAdminTenantsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-emerald-500/20">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-emerald-500/20">
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Billing Cycle</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Billing Cycle</label>
                     <select
                       value={form.subscriptionPlan}
                       onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value })}
-                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-emerald-500 cursor-pointer"
                     >
                       <option value="monthly" className="bg-[#0b0b0d]">Monthly Recurring</option>
                       <option value="yearly" className="bg-[#0b0b0d]">Yearly Recurring</option>
@@ -888,23 +902,23 @@ export default function SuperAdminTenantsPage() {
                   </div>
 
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Subscription Fee (PKR) *</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Subscription Fee (PKR) *</label>
                     <input
                       type="number"
                       required
                       value={form.subscriptionFee}
                       onChange={(e) => setForm({ ...form, subscriptionFee: Number(e.target.value) })}
                       placeholder="5000"
-                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-emerald-400 font-mono font-bold px-3 py-2.5 text-[1.5rem] outline-none focus:border-emerald-500"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-emerald-400 font-mono font-bold px-4 py-3 text-[1.5rem] rounded-lg outline-none focus:border-emerald-500"
                     />
                   </div>
 
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Initial Access Duration</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Initial Access Duration</label>
                     <select
                       value={form.durationMonths}
                       onChange={(e) => setForm({ ...form, durationMonths: Number(e.target.value) })}
-                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-emerald-500 cursor-pointer"
                     >
                       <option value={1} className="bg-[#0b0b0d]">1 Month Access</option>
                       <option value={3} className="bg-[#0b0b0d]">3 Months Access</option>
@@ -915,40 +929,39 @@ export default function SuperAdminTenantsPage() {
                 </div>
               </div>
 
-
-              {/* Row 3: Admin Owner Credentials */}
-              <div className="border border-[#002bba]/40 bg-[#002bba]/10 p-4 space-y-4">
-                <p className="font-accent text-[1.2rem] text-blue-300 font-bold uppercase flex items-center gap-2">
+              {/* SECTION 3: Tenant Admin Credentials */}
+              <div className="border border-[#002bba]/40 bg-[#002bba]/10 p-5 rounded-xl space-y-3">
+                <h4 className="text-[1.2rem] font-accent uppercase font-extrabold text-blue-300 tracking-wider flex items-center gap-2">
                   <Key className="w-4 h-4" />
-                  Tenant Admin Login Access Credentials
-                </p>
+                  3. Tenant Admin Login Credentials
+                </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Owner Full Name</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Owner Full Name</label>
                     <input
                       type="text"
                       value={form.adminName}
                       onChange={(e) => setForm({ ...form, adminName: e.target.value })}
                       placeholder="e.g. Tariq Mahmood"
-                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba]"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-[#002bba]"
                     />
                   </div>
 
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">Admin Login Email *</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Admin Login Email *</label>
                     <input
                       type="email"
                       required
                       value={form.adminEmail}
                       onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
                       placeholder="e.g. owner@restaurant.com"
-                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba]"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-[#002bba]"
                     />
                   </div>
 
                   <div>
-                    <label className="form-label text-[rgba(255,255,255,0.6)]">4-Digit Quick PIN *</label>
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">4-Digit Quick PIN *</label>
                     <input
                       type="text"
                       required
@@ -956,51 +969,58 @@ export default function SuperAdminTenantsPage() {
                       value={form.adminPin}
                       onChange={(e) => setForm({ ...form, adminPin: e.target.value })}
                       placeholder="1234"
-                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-emerald-400 font-mono font-bold px-3 py-2.5 text-[1.5rem] outline-none focus:border-[#002bba]"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-emerald-400 font-mono font-bold px-4 py-3 text-[1.5rem] rounded-lg outline-none focus:border-[#002bba]"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Row 4: Contact & Tax */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="form-label text-[rgba(255,255,255,0.6)]">Contact Phone *</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="+92 300 1234567"
-                    className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba]"
-                  />
-                </div>
+              {/* SECTION 4: Contact, Location & Tax */}
+              <div className="space-y-3">
+                <h4 className="text-[1.2rem] font-accent uppercase font-extrabold text-gray-300 tracking-wider flex items-center gap-2">
+                  <PhoneCall className="w-4 h-4" />
+                  4. Contact, Location & Sales Tax
+                </h4>
 
-                <div>
-                  <label className="form-label text-[rgba(255,255,255,0.6)]">Sales Tax Rate (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={form.taxRate}
-                    onChange={(e) => setForm({ ...form, taxRate: Number(e.target.value) })}
-                    className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba]"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-4">
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Contact Phone *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="+92 300 1234567"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-[#002bba]"
+                    />
+                  </div>
 
-                <div>
-                  <label className="form-label text-[rgba(255,255,255,0.6)]">Address / Location</label>
-                  <input
-                    type="text"
-                    value={form.address}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    placeholder="Gulberg III, Lahore"
-                    className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba]"
-                  />
+                  <div className="md:col-span-3">
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Sales Tax Rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={form.taxRate}
+                      onChange={(e) => setForm({ ...form, taxRate: Number(e.target.value) })}
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-[#002bba]"
+                    />
+                  </div>
+
+                  <div className="md:col-span-5">
+                    <label className="form-label text-gray-300 font-bold mb-1.5 block">Address / Location</label>
+                    <input
+                      type="text"
+                      value={form.address}
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      placeholder="Gulberg III, Lahore"
+                      className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white px-4 py-3 text-[1.4rem] rounded-lg outline-none focus:border-[#002bba]"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Checkbox: Seed starter catalogue */}
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-3 pt-2 bg-[#0b0b0d] p-3.5 border border-[rgba(255,255,255,0.1)] rounded-lg">
                 <input
                   type="checkbox"
                   id="createSampleMenu"
@@ -1008,24 +1028,24 @@ export default function SuperAdminTenantsPage() {
                   onChange={(e) => setForm({ ...form, createSampleMenu: e.target.checked })}
                   className="w-5 h-5 accent-[#002bba] cursor-pointer"
                 />
-                <label htmlFor="createSampleMenu" className="font-accent text-[1.2rem] text-gray-300 cursor-pointer">
-                  Auto-seed starter product menu for <b>{VERTICAL_CONFIGS[form.businessType]?.title}</b>
+                <label htmlFor="createSampleMenu" className="font-accent text-[1.3rem] text-gray-200 cursor-pointer">
+                  Auto-seed starter product menu for <b className="text-amber-400">{VERTICAL_CONFIGS[form.businessType]?.title}</b>
                 </label>
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[rgba(255,255,255,0.08)]">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[rgba(255,255,255,0.1)] flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="btn btn-secondary py-2.5 px-6 text-[1.3rem] bg-[#0b0b0d] border-[rgba(255,255,255,0.15)] text-white"
+                  className="btn btn-secondary py-3 px-6 text-[1.4rem] bg-[#0b0b0d] border-[rgba(255,255,255,0.15)] text-white hover:bg-white/5"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn btn-primary py-2.5 px-8 text-[1.3rem] disabled:opacity-50"
+                  className="btn btn-primary py-3 px-8 text-[1.4rem] bg-[#002bba] hover:bg-blue-700 text-white font-bold disabled:opacity-50"
                 >
                   {submitting ? "Provisioning..." : "Provision Tenant & Activate"}
                 </button>
@@ -1037,8 +1057,8 @@ export default function SuperAdminTenantsPage() {
 
       {/* Access Credentials Card Modal */}
       {createdTenant && (
-        <div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-4">
-          <div className="bg-[#171719] border border-emerald-500/40 w-full max-w-md p-6 text-white space-y-5 shadow-2xl">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#171719] border border-emerald-500/40 w-full max-w-md p-6 text-white space-y-5 shadow-2xl rounded-xl">
             <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.1)] pb-4">
               <div className="flex items-center gap-2 text-emerald-400 font-accent font-extrabold text-[1.5rem] uppercase">
                 <Key className="w-5 h-5" />
@@ -1049,7 +1069,7 @@ export default function SuperAdminTenantsPage() {
               </button>
             </div>
 
-            <div className="space-y-3 bg-[#0b0b0d] border border-[rgba(255,255,255,0.1)] p-4 font-accent text-[1.3rem]">
+            <div className="space-y-3 bg-[#0b0b0d] border border-[rgba(255,255,255,0.1)] p-4 font-accent text-[1.3rem] rounded-lg">
               <div className="flex justify-between">
                 <span className="text-gray-400">Business Name:</span>
                 <span className="font-bold text-white">{createdTenant.name}</span>
