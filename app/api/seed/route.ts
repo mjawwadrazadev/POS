@@ -14,9 +14,13 @@ export async function GET() {
     }
 
     await dbConnect();
-    const session = await getSession();
-    if (!session || session.role !== "super_admin") {
-      return NextResponse.json({ error: "Forbidden — Super Admin authorization required to seed database." }, { status: 403 });
+
+    // In production, require super_admin session authorization
+    if (process.env.NODE_ENV === "production") {
+      const session = await getSession();
+      if (!session || session.role !== "super_admin") {
+        return NextResponse.json({ error: "Forbidden — Super Admin authorization required to seed database." }, { status: 403 });
+      }
     }
 
     // Clear existing sample collections for clean seed
