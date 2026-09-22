@@ -134,6 +134,10 @@ export default function SuperAdminTenantsPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/tenants");
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = "/super-admin/login";
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setTenants(data.tenants);

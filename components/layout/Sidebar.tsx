@@ -69,9 +69,10 @@ export function Sidebar() {
   async function handleLogout() {
     try {
       await fetch("/api/auth/me", { method: "POST" });
-      router.push("/login");
+      window.location.href = "/login";
     } catch (e) {
       console.error("Logout failed", e);
+      window.location.href = "/login";
     }
   }
 
