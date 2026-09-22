@@ -155,28 +155,39 @@ export function Sidebar() {
 
       {/* Main Navigation */}
       <nav className="sidebar__nav">
-        {/* Super Admin Tenant Portal Link (Only for Super Admin) */}
+        {/* Super Admin Tenant Portal Link (Primary for Super Admin) */}
         {isSuperAdmin && (
-          <Link
-            href="/super-admin"
-            className={`sidebar__link bg-[#002bba]/20 border border-[#002bba]/50 text-blue-300 font-bold ${
-              isActive("/super-admin") ? "sidebar__link--active" : ""
-            }`}
-          >
-            <Building2 className="w-4 h-4 text-accent" />
-            <span className="flex-1 truncate">Tenants & Access</span>
-            <span className="sidebar__badge bg-accent text-white">SUPER</span>
-          </Link>
+          <div className="flex flex-col gap-1 mb-3">
+            <div className="text-[1rem] font-accent uppercase text-emerald-400 font-bold px-3 py-1 tracking-wider">
+              Platform Master Command
+            </div>
+            <Link
+              href="/super-admin"
+              className={`sidebar__link bg-[#002bba]/25 border border-[#002bba]/60 text-blue-300 font-extrabold ${
+                isActive("/super-admin") ? "sidebar__link--active" : ""
+              }`}
+            >
+              <Building2 className="w-4 h-4 text-accent" />
+              <span className="flex-1 truncate">Tenants & Access</span>
+              <span className="sidebar__badge bg-accent text-white font-bold">SUPER</span>
+            </Link>
+
+            <div className="text-[1rem] font-accent uppercase text-gray-400 font-bold px-3 pt-4 pb-1 tracking-wider border-t border-[rgba(255,255,255,0.08)] mt-2">
+              Store Engine Testing & Previews
+            </div>
+          </div>
         )}
 
         {/* Executive Dashboard */}
-        <Link
-          href="/"
-          className={`sidebar__link ${isActive("/") ? "sidebar__link--active" : ""}`}
-        >
-          <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-          <span>Dashboard</span>
-        </Link>
+        {!isSuperAdmin && (
+          <Link
+            href="/"
+            className={`sidebar__link ${isActive("/") ? "sidebar__link--active" : ""}`}
+          >
+            <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+            <span>Dashboard</span>
+          </Link>
+        )}
 
         {/* POS Operations Group */}
         <button

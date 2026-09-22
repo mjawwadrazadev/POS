@@ -4,13 +4,9 @@ import { useEffect, useState } from "react";
 import { usePosStore } from "@/lib/store/usePosStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import {
-  MapPin,
   Search,
-  Moon,
-  Sun,
-  Lock,
-  Unlock,
   Building2,
+  ShieldCheck,
 } from "lucide-react";
 
 interface TopBarProps {
@@ -19,17 +15,29 @@ interface TopBarProps {
 
 export function TopBar({ title = "POS Control Center" }: TopBarProps) {
   const { currentVertical, selectedBranch, activeShiftOpen, toggleShift } = usePosStore();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [userSession, setUserSession] = useState<any | null>(null);
 
   useEffect(() => {
-    document.documentElement.setAttribute("color-scheme", theme);
-  }, [theme]);
-
-  function toggleTheme() {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  }
+    async function fetchSession() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setUserSession(data.user);
+        }
+      } catch (e) {
+        console.error("TopBar session fetch failed:", e);
+      }
+    }
+    fetchSession();
+  }, []);
 
   const verticalConfig = VERTICAL_CONFIGS[currentVertical];
+  const isSuperAdmin = userSession?.role === "super_admin";
+
+  const branchDisplayText = isSuperAdmin
+    ? "RST POS PLATFORM HQ (GLOBAL SUPER ADMIN)"
+    : userSession?.branchName || userSession?.organizationName || selectedBranch || "MAIN BRANCH";
 
   return (
     <header className="topbar">
@@ -38,9 +46,13 @@ export function TopBar({ title = "POS Control Center" }: TopBarProps) {
         <div>
           <h1 className="topbar__title">{title}</h1>
           <div className="flex items-center gap-3 mt-1 text-[1.2rem] text-muted font-medium">
-            <span className="flex items-center gap-1 text-accent font-accent font-semibold">
-              <Building2 className="w-3.5 h-3.5" />
-              {selectedBranch}
+            <span className="flex items-center gap-1.5 text-accent font-accent font-semibold">
+              {isSuperAdmin ? (
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              ) : (
+                <Building2 className="w-3.5 h-3.5" />
+              )}
+              <span>{branchDisplayText}</span>
             </span>
             <span>•</span>
             <span className="text-bright font-accent font-semibold uppercase">
@@ -65,46 +77,18 @@ export function TopBar({ title = "POS Control Center" }: TopBarProps) {
 
       {/* Right side actions */}
       <div className="topbar__actions">
-        {/* Shift Control Button */}
-        <button
-          type="button"
-          onClick={toggleShift}
-          className={`btn ${
-            activeShiftOpen ? "btn-success" : "btn-danger"
-          } py-2 px-3 text-[1.2rem] flex items-center gap-2`}
-        >
-          {activeShiftOpen ? (
-            <>
-              <Unlock className="w-3.5 h-3.5" />
-              <span>Shift Open</span>
-            </>
-          ) : (
-            <>
-              <Lock className="w-3.5 h-3.5" />
-              <span>Shift Closed</span>
-            </>
-          )}
-        </button>
-
-        {/* Theme Toggle Button */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="btn btn-secondary py-2 px-3 text-[1.2rem] flex items-center gap-2"
-          title="Toggle Light / Dark Theme"
-        >
-          {theme === "light" ? (
-            <>
-              <Moon className="w-4 h-4 text-slate-700" />
-              <span className="hidden sm:inline font-accent">Dark</span>
-            </>
-          ) : (
-            <>
-              <Sun className="w-4 h-4 text-amber-400" />
-              <span className="hidden sm:inline font-accent">Light</span>
-            </>
-          )}
-        </button>
+        {/* Shift Control Button (Only relevant for store cashiers/managers) */}
+        {!isSuperAdmin && (
+          <button
+            type="button"
+            onClick={toggleShift}
+            className={`btn ${
+              activeShiftOpen ? "btn-success" : "btn-danger"
+            } py-2 px-3 text-[1.2rem] flex items-center gap-2`}
+          >
+            <span>{activeShiftOpen ? "SHIFT OPEN" : "SHIFT CLOSED"}</span>
+          </button>
+        )}
       </div>
     </header>
   );
