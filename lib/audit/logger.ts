@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 export interface LogAuditParams {
   organizationId: string | mongoose.Types.ObjectId;
   branchId?: string | mongoose.Types.ObjectId;
-  actorId: string | mongoose.Types.ObjectId;
+  actorId?: string | mongoose.Types.ObjectId; // omitted for automated/system actions
   actorName: string;
   actorRole: string;
   action: string;
@@ -28,7 +28,7 @@ export async function logAudit(params: LogAuditParams) {
       targetId: params.targetId,
       before: params.before,
       after: params.after,
-      ipAddress: params.ipAddress || "127.0.0.1",
+      ipAddress: params.ipAddress,
     });
   } catch (error) {
     console.error("Audit logging error:", error);

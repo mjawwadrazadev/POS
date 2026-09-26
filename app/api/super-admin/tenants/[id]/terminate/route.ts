@@ -6,7 +6,9 @@ import { Order } from "@/models/Order";
 import { Product } from "@/models/Product";
 import { PaymentHistory } from "@/models/PaymentHistory";
 import { AuditLog } from "@/models/AuditLog";
+import { ImpersonationSession } from "@/models/ImpersonationSession";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
+import { getClientIp } from "@/lib/utils/server";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -48,18 +50,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await org.save();
 
     await User.updateMany({ organizationId: org._id }, { isActive: false });
+    // End any support sessions into this tenant immediately
+    await ImpersonationSession.updateMany(
+      { targetOrganizationId: org._id, isActive: true },
+      { $set: { isActive: false, endedAt: new Date() } }
+    );
 
     // 3. Write AuditLog entry with data export reference
     await AuditLog.create({
       organizationId: org._id,
       actorId: auth.session!.userId,
-      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
+      actorName: auth.session!.fullName || auth.session!.name || auth.session!.email,
       actorRole: auth.session!.role,
       action: "TENANT_TERMINATED",
       targetCollection: "Organization",
       targetId: org._id,
       after: { reason, ordersCount, productsCount, paymentsCount },
-      ipAddress: "127.0.0.1",
+      ipAddress: getClientIp(req),
     });
 
     return NextResponse.json({

@@ -18,6 +18,7 @@ export interface IRefund extends Document {
   orderNumber: string;
   items: IRefundItem[];
   totalRefundAmount: number;
+  taxAmount: number; // sales tax portion of totalRefundAmount (reversed in the ledger)
   refundMethod: "cash" | "card_reversal" | "store_credit" | "wallet";
   requestedBy: mongoose.Types.ObjectId; // cashier user
   requestedByName: string;
@@ -38,7 +39,7 @@ const RefundItemSchema = new Schema({
   unitPrice: { type: Number, required: true },
   refundAmount: { type: Number, required: true },
   restockFlag: { type: Boolean, default: true },
-  reason: { type: String, required: true },
+  reason: { type: String, required: true, default: "Customer return" },
 });
 
 const RefundSchema: Schema<IRefund> = new Schema(
@@ -48,7 +49,8 @@ const RefundSchema: Schema<IRefund> = new Schema(
     originalOrderId: { type: Schema.Types.ObjectId, ref: "Order", required: true, index: true },
     orderNumber: { type: String, required: true },
     items: [RefundItemSchema],
-    totalRefundAmount: { type: Number, required: true },
+    totalRefundAmount: { type: Number, required: true, min: 0 },
+    taxAmount: { type: Number, default: 0, min: 0 },
     refundMethod: {
       type: String,
       enum: ["cash", "card_reversal", "store_credit", "wallet"],

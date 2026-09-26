@@ -27,7 +27,7 @@ import {
 export default function ProductsPage() {
   const { currentVertical } = usePosStore();
   const config = VERTICAL_CONFIGS[currentVertical];
-  const { items, deleteItem, adjustStock, fetchFromApi } = useInventoryStore();
+  const { items, deleteItem, adjustStockOnServer, fetchFromApi } = useInventoryStore();
 
   useEffect(() => {
     fetchFromApi();
@@ -56,14 +56,19 @@ export default function ProductsPage() {
 
   const lowStockCount = items.filter((i) => i.stock < 10).length;
 
-  function handleDelete(id: string) {
-    deleteItem(id);
+  async function handleDelete(id: string) {
+    const result = await deleteItem(id);
+    if (!result.ok) alert(result.error);
     setDeleteConfirmId(null);
   }
 
-  function handleStockAdjust(id: string) {
+  async function handleStockAdjust(id: string) {
     if (stockDelta !== 0) {
-      adjustStock(id, stockDelta);
+      const result = await adjustStockOnServer(id, stockDelta, "Manual stock adjustment");
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
     }
     setStockAdjustId(null);
     setStockDelta(0);
@@ -317,7 +322,7 @@ export default function ProductsPage() {
           onClose={() => setBarcodeItem(null)}
           productName={barcodeItem.name}
           sku={barcodeItem.sku}
-          barcode={barcodeItem.sku}
+          barcode={barcodeItem.barcode || barcodeItem.sku}
           price={barcodeItem.price}
           weightGrams={barcodeItem.weightGrams}
           expiryTime={barcodeItem.expiryTime}

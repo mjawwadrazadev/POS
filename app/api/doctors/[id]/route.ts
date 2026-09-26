@@ -8,6 +8,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     await dbConnect();
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.role !== "admin" && session.role !== "manager") {
+      return NextResponse.json({ error: "Forbidden — Manager or Admin required" }, { status: 403 });
+    }
 
     const { id } = await params;
     const body = await req.json();
@@ -22,10 +25,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.registrationNumber !== undefined) doctor.registrationNumber = body.registrationNumber;
     if (body.photo !== undefined) doctor.photo = body.photo;
     if (body.fees !== undefined) doctor.fees = body.fees;
-    if (body.hospitalCommissionPercent !== undefined) doctor.hospitalCommissionPercent = body.hospitalCommissionPercent;
+    if (body.hospitalCommissionPercent !== undefined) {
+      const commission = Number(body.hospitalCommissionPercent);
+      if (!Number.isFinite(commission) || commission < 0 || commission > 100) {
+        return NextResponse.json({ error: "Hospital commission must be between 0 and 100%" }, { status: 400 });
+      }
+      doctor.hospitalCommissionPercent = commission;
+    }
     if (body.paymentArrangement !== undefined) doctor.paymentArrangement = body.paymentArrangement;
     if (body.availableDays !== undefined) doctor.availableDays = body.availableDays;
-    if (body.status !== undefined) doctor.status = body.status;
+    if (body.status === "active" || body.status === "inactive") doctor.status = body.status;
 
     await doctor.save();
 
@@ -47,6 +56,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     await dbConnect();
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.role !== "admin" && session.role !== "manager") {
+      return NextResponse.json({ error: "Forbidden — Manager or Admin required" }, { status: 403 });
+    }
 
     const { id } = await params;
 

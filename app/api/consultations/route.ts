@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { ConsultationBill } from "@/models/ConsultationBill";
 import { Doctor } from "@/models/Doctor";
-import { Organization } from "@/models/Organization";
-import { JournalEntry, IJournalLine } from "@/models/JournalEntry";
+import mongoose from "mongoose";
 import { getSession } from "@/lib/auth/session";
+import { postJournalEntry, isAccountingEnabled, accountForMethod, ACCOUNTS } from "@/lib/accounting/ledger";
+import { generateDocNumber, roundMoney } from "@/lib/utils/server";
+
+const VISIT_TYPES = ["new_patient", "follow_up", "emergency"];
+const PAYMENT_METHODS = ["cash", "card", "wallet"];
 
 // GET: Fetch consultation bills history
 export async function GET(req: Request) {
@@ -17,7 +21,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const doctorId = searchParams.get("doctorId");
-    if (doctorId) query.doctorId = doctorId;
+    if (doctorId && mongoose.isValidObjectId(doctorId)) query.doctorId = doctorId;
 
     const bills = await ConsultationBill.find(query).sort({ createdAt: -1 }).lean();
 
@@ -51,17 +55,20 @@ export async function POST(req: Request) {
       patientAge,
       patientGender = "male",
       paymentMethod = "cash",
-      receptionistName,
     } = body;
 
-    if (!doctorId || !patientName || !feeCharged) {
+    const fee = roundMoney(Number(feeCharged));
+    if (!mongoose.isValidObjectId(doctorId) || !patientName || !Number.isFinite(fee) || fee <= 0) {
       return NextResponse.json(
-        { error: "Doctor, Patient Name, and Fee Charged are required" },
+        { error: "Doctor, Patient Name, and a positive Fee Charged are required" },
         { status: 400 }
       );
     }
+    if (!VISIT_TYPES.includes(visitType) || !PAYMENT_METHODS.includes(paymentMethod) || !["male", "female", "other"].includes(patientGender)) {
+      return NextResponse.json({ error: "Invalid visit type or payment method" }, { status: 400 });
+    }
 
-    const doctor = await Doctor.findOne({ _id: doctorId, organizationId: session.organizationId });
+    const doctor = await Doctor.findOne({ _id: doctorId, organizationId: session.organizationId, status: "active" });
     if (!doctor) {
       return NextResponse.json({ error: "Selected Doctor not found" }, { status: 404 });
     }
@@ -77,12 +84,13 @@ export async function POST(req: Request) {
     endOfToday.setHours(23, 59, 59, 999);
 
     const todayCount = await ConsultationBill.countDocuments({
+      organizationId: orgId,
       doctorId: doctor._id,
       createdAt: { $gte: startOfToday, $lte: endOfToday },
     });
 
     const perchiNumber = todayCount + 1;
-    const receiptNumber = `HSP-${Date.now().toString().slice(-6)}`;
+    const receiptNumber = generateDocNumber("HSP");
     const now = new Date();
     const consultationTime = now.toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -101,72 +109,41 @@ export async function POST(req: Request) {
       doctorSpecializationSnapshot: doctor.specialization,
       doctorPhotoSnapshot: doctor.photo || "",
       visitType,
-      feeCharged: Number(feeCharged),
+      feeCharged: fee,
       patientName,
       patientPhone: patientPhone || "",
       patientAge: patientAge ? Number(patientAge) : undefined,
       patientGender,
       paymentMethod,
       receptionistId: session?.userId,
-      receptionistName: receptionistName || session?.fullName || "Receptionist",
+      receptionistName: session.fullName || session.email,
       consultationTime,
       status: "completed",
     });
 
-    // 2. Post Double-Entry Journal Entry if Accounting is enabled
-    try {
-      const org = await Organization.findById(orgId).lean();
-      const isAccountingEnabled = org?.planTier === "billing_accounting";
+    // 2. Post a balanced double-entry journal entry (accounting plans only):
+    //    Dr Cash/Bank (fee) = Cr Consultation Revenue (hospital share) + Cr Doctor Payable (doctor share)
+    if (await isAccountingEnabled(orgId)) {
+      try {
+        const doctorSharePercent =
+          doctor.paymentArrangement === "revenue_share" ? Math.min(Math.max(100 - doctor.hospitalCommissionPercent, 0), 100) : 0;
+        const doctorShare = roundMoney((fee * doctorSharePercent) / 100);
 
-      if (isAccountingEnabled) {
-        const assetAccountCode = paymentMethod === "cash" ? "1010-CASH" : "1020-BANK";
-        const assetAccountName = paymentMethod === "cash" ? "Cash on Hand" : "Bank Merchant Account";
-
-        const lines: IJournalLine[] = [
-          {
-            accountCode: assetAccountCode,
-            accountName: assetAccountName,
-            type: "debit",
-            amount: Number(feeCharged),
-          },
-          {
-            accountCode: "4020-CONSULTATION-REVENUE",
-            accountName: "Hospital Consultation Revenue",
-            type: "credit",
-            amount: Number(feeCharged),
-          },
-        ];
-
-        // If revenue share, record doctor payable liability
-        if (doctor.paymentArrangement === "revenue_share" && doctor.hospitalCommissionPercent > 0) {
-          const doctorCutPercent = 100 - doctor.hospitalCommissionPercent;
-          const doctorShare = (Number(feeCharged) * doctorCutPercent) / 100;
-
-          lines.push({
-            accountCode: "2030-DOCTOR-PAYABLE",
-            accountName: `Payable to ${doctor.name}`,
-            type: "credit",
-            amount: doctorShare,
-          });
-        }
-
-        const totalDebit = lines.filter((l) => l.type === "debit").reduce((sum, l) => sum + l.amount, 0);
-        const totalCredit = lines.filter((l) => l.type === "credit").reduce((sum, l) => sum + l.amount, 0);
-
-        await JournalEntry.create({
+        await postJournalEntry({
           organizationId: orgId,
           branchId,
-          entryNumber: `JE-HSP-${Date.now().toString().slice(-6)}`,
+          prefix: "JE-HSP",
           referenceId: receiptNumber,
           description: `Consultation Bill ${receiptNumber} for ${doctor.name} (Patient: ${patientName})`,
-          lines,
-          totalDebit,
-          totalCredit,
-          isBalanced: Math.abs(totalDebit - totalCredit) < 0.01,
+          lines: [
+            { ...accountForMethod(paymentMethod), type: "debit", amount: fee },
+            { ...ACCOUNTS.CONSULTATION, type: "credit", amount: fee - doctorShare },
+            { ...ACCOUNTS.DOCTOR_PAYABLE, accountName: `Payable to ${doctor.name}`, type: "credit", amount: doctorShare },
+          ],
         });
+      } catch (ledgerErr) {
+        console.error("Consultation ledger posting failed:", ledgerErr);
       }
-    } catch (ledgerErr) {
-      console.error("Consultation ledger posting warning:", ledgerErr);
     }
 
     return NextResponse.json({

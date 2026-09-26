@@ -67,7 +67,7 @@ export default function DashboardPage() {
         if (summaryData.success && summaryData.summary) {
           setStats((prev) => ({
             ...prev,
-            todayRevenue: summaryData.summary.totalRevenue || 0,
+            todayRevenue: summaryData.summary.netRevenue ?? summaryData.summary.totalRevenue ?? 0,
             totalOrders: summaryData.summary.totalOrders || 0,
           }));
         }

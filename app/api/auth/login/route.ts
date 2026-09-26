@@ -1,175 +1,189 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
-import { User } from "@/models/User";
+import { User, IUser } from "@/models/User";
 import { Branch } from "@/models/Branch";
 import { Organization } from "@/models/Organization";
-import { signToken, SessionPayload } from "@/lib/auth/session";
-import { checkRateLimit } from "@/lib/security/rateLimiter";
+import { signToken, setSessionCookie, SessionPayload, isPlatformRole, isBlockedTenantStatus } from "@/lib/auth/session";
+import { checkRateLimit, recordFailedAttempt, clearRateLimit } from "@/lib/security/rateLimiter";
 import { logAudit } from "@/lib/audit/logger";
+import { getClientIp, isValidPin } from "@/lib/utils/server";
+
+const WINDOW_MS = 15 * 60 * 1000;
+
+function tooMany(resetTime: number) {
+  const minsRemaining = Math.max(1, Math.ceil((resetTime - Date.now()) / (60 * 1000)));
+  return NextResponse.json(
+    { error: `Too many failed login attempts. Please try again in ${minsRemaining} minute(s).` },
+    { status: 429 }
+  );
+}
 
 export async function POST(req: Request) {
   try {
     await dbConnect();
-    const { email, password, pin, isSuperAdminPortal } = await req.json();
+    const { email, password, pin, orgCode, isSuperAdminPortal } = await req.json();
+    const clientIp = getClientIp(req);
 
-    // 1. Rate Limiting — key by email for email logins; by client IP for PIN logins (prevents PIN enumeration)
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || req.headers.get("x-real-ip")
-      || "unknown";
-    const rateLimitKey = email ? `login:${email.toLowerCase()}` : `pin_ip:${clientIp}`;
-    const rateCheck = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000);
+    let user: IUser | null = null;
+    let failureKeys: string[] = [];
 
-    if (!rateCheck.success) {
-      const minsRemaining = Math.ceil((rateCheck.resetTime - Date.now()) / (60 * 1000));
-      return NextResponse.json(
-        {
-          error: `Too many failed login attempts. Account locked for security. Please try again in ${minsRemaining} minute(s).`,
-        },
-        { status: 429 }
-      );
-    }
-
-    // 2. Check user by email or pin (explicitly include +password +pin for comparison)
-    let user = null;
     if (email) {
-      user = await User.findOne({ email: email.toLowerCase() }).select("+password +pin");
-    } else if (pin) {
-      // Find all users and compare PIN via bcrypt or fallback match
-      const activeUsers = await User.find({ isActive: true }).select("+pin +password");
-      for (const u of activeUsers) {
-        if (await u.comparePin(pin)) {
-          user = u;
-          break;
-        }
-      }
-    }
-
-    if (!user || !user.isActive) {
-      return NextResponse.json(
-        { error: "Invalid credentials or inactive user account" },
-        { status: 401 }
-      );
-    }
-
-    // 3. Password / PIN Comparison
-    if (email) {
-      if (!password && !pin) {
-        return NextResponse.json({ error: "Password or PIN is required" }, { status: 400 });
+      // ─── Email + password login ───
+      if (!password) {
+        return NextResponse.json({ error: "Password is required" }, { status: 400 });
       }
 
-      if (password) {
-        const isPasswordValid = await user.comparePassword(password);
-        if (!isPasswordValid) {
-          // Log failed login audit
+      const normalizedEmail = String(email).toLowerCase().trim();
+      failureKeys = [`login:${normalizedEmail}`, `login_ip:${clientIp}`];
+
+      const [byEmail, byIp] = await Promise.all([
+        checkRateLimit(failureKeys[0], 5, WINDOW_MS),
+        checkRateLimit(failureKeys[1], 50, WINDOW_MS),
+      ]);
+      if (!byEmail.success) return tooMany(byEmail.resetTime);
+      if (!byIp.success) return tooMany(byIp.resetTime);
+
+      const candidate = await User.findOne({ email: normalizedEmail }).select("+password");
+      const passwordOk = candidate ? await candidate.comparePassword(String(password)) : false;
+
+      if (!candidate || !passwordOk || !candidate.isActive) {
+        await Promise.all(failureKeys.map((k) => recordFailedAttempt(k, WINDOW_MS)));
+        if (candidate) {
           await logAudit({
-            organizationId: user.organizationId,
-            branchId: user.branchId,
-            actorId: user._id,
-            actorName: user.fullName,
-            actorRole: user.role,
+            organizationId: candidate.organizationId,
+            branchId: candidate.branchId,
+            actorId: candidate._id as any,
+            actorName: candidate.fullName,
+            actorRole: candidate.role,
             action: "login.failed",
             targetCollection: "User",
-            targetId: user._id,
+            targetId: candidate._id as any,
+            ipAddress: clientIp,
           });
-
-          return NextResponse.json({ error: "Invalid email address or password" }, { status: 401 });
         }
-      } else if (pin) {
-        const isPinValid = await user.comparePin(pin);
-        if (!isPinValid) {
-          return NextResponse.json({ error: "Invalid 4-digit PIN" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid email address or password" }, { status: 401 });
+      }
+      user = candidate;
+    } else if (pin) {
+      // ─── Store code + PIN login (terminal quick login) ───
+      // A PIN is only 4 digits, so it is always scoped to one store and never grants platform access.
+      if (isSuperAdminPortal) {
+        return NextResponse.json({ error: "PIN login is not available on the platform portal" }, { status: 400 });
+      }
+      if (!orgCode || !isValidPin(String(pin))) {
+        return NextResponse.json({ error: "Store code and a 4-digit PIN are required" }, { status: 400 });
+      }
+
+      const normalizedCode = String(orgCode).toLowerCase().trim();
+      failureKeys = [`pin:${normalizedCode}:${clientIp}`, `pin_org:${normalizedCode}`];
+
+      const [byTerminal, byOrg] = await Promise.all([
+        checkRateLimit(failureKeys[0], 5, WINDOW_MS),
+        checkRateLimit(failureKeys[1], 25, WINDOW_MS),
+      ]);
+      if (!byTerminal.success) return tooMany(byTerminal.resetTime);
+      if (!byOrg.success) return tooMany(byOrg.resetTime);
+
+      const org = await Organization.findOne({ code: normalizedCode }).select("_id").lean();
+      if (org) {
+        const storeUsers = await User.find({
+          organizationId: org._id,
+          isActive: true,
+          role: { $in: ["admin", "manager", "cashier"] },
+        }).select("+pin");
+
+        for (const u of storeUsers) {
+          if (await u.comparePin(String(pin))) {
+            user = u;
+            break;
+          }
         }
       }
+
+      if (!user) {
+        await Promise.all(failureKeys.map((k) => recordFailedAttempt(k, WINDOW_MS)));
+        return NextResponse.json({ error: "Invalid store code or PIN" }, { status: 401 });
+      }
+    } else {
+      return NextResponse.json({ error: "Email/password or store code/PIN is required" }, { status: 400 });
     }
 
-    // 4. Super Admin Portal restriction check
-    if (isSuperAdminPortal && user.role !== "super_admin") {
+    // Portal separation: platform staff use /super-admin/login, tenants use /login
+    if (isSuperAdminPortal && !isPlatformRole(user.role)) {
       return NextResponse.json(
-        { error: "Access Denied — This portal is strictly for Super Admin accounts. Regular tenants please log in at /login" },
+        { error: "Access Denied — This portal is strictly for platform staff. Store users please log in at /login" },
         { status: 403 }
       );
     }
 
-    // 5. Get Organization & check subscription expiry (Skip check for Super Admin)
-    let organizationName = "Master Organization";
-    let businessType: any = "bakery";
+    let organizationName = "";
+    let orgCodeValue = "";
+    let businessType: any = undefined;
+    let planTier: SessionPayload["planTier"];
 
-    if (user.organizationId) {
-      const org = await Organization.findById(user.organizationId);
-      if (org) {
-        organizationName = org.name;
-        businessType = org.businessType;
+    const org = await Organization.findById(user.organizationId);
+    if (org) {
+      organizationName = org.name;
+      orgCodeValue = org.code;
+      businessType = org.businessType;
+      planTier = org.planTier;
 
-        // Check subscription status for regular tenants
-        if (user.role !== "super_admin") {
-          const now = new Date();
-          const isExpired = org.expiryDate && new Date(org.expiryDate) < now;
-          const isSuspended = org.subscriptionStatus === "suspended";
-
-          if (isSuspended || isExpired) {
-            // Auto update status if expired
-            if (isExpired && org.subscriptionStatus !== "expired") {
-              org.subscriptionStatus = "expired";
-              await org.save();
-            }
-            return NextResponse.json(
-              {
-                error: `Access Blocked — ${org.name}'s subscription has expired. Please contact Super Admin to renew your access fee.`,
-                isSubscriptionExpired: true,
-              },
-              { status: 403 }
-            );
-          }
+      if (!isPlatformRole(user.role)) {
+        const isExpired = org.expiryDate && new Date(org.expiryDate) < new Date();
+        if (isExpired && org.subscriptionStatus !== "expired" && !isBlockedTenantStatus(org.subscriptionStatus)) {
+          org.subscriptionStatus = "expired";
+          await org.save();
+        }
+        if (isExpired || isBlockedTenantStatus(org.subscriptionStatus)) {
+          return NextResponse.json(
+            {
+              error: `Access Blocked — ${org.name}'s subscription is ${org.subscriptionStatus.replace("_", " ")}. Please contact the platform administrator.`,
+              isSubscriptionExpired: true,
+            },
+            { status: 403 }
+          );
         }
       }
+    } else if (!isPlatformRole(user.role)) {
+      return NextResponse.json({ error: "Organization not found for this account" }, { status: 403 });
     }
 
-    // 6. Get branch details
-    let branchName = "Main Branch";
+    let branchName = "";
     if (user.branchId) {
-      const branch = await Branch.findById(user.branchId);
+      const branch = await Branch.findOne({ _id: user.branchId, organizationId: user.organizationId });
       if (branch) branchName = `${branch.name} (${branch.code})`;
     }
 
     const payload: SessionPayload = {
-      userId: user._id.toString(),
+      userId: (user._id as any).toString(),
       fullName: user.fullName,
       email: user.email,
       role: user.role,
       organizationId: user.organizationId ? user.organizationId.toString() : "",
       organizationName,
+      orgCode: orgCodeValue,
       businessType,
+      planTier,
       branchId: user.branchId?.toString(),
       branchName,
     };
 
-    const token = signToken(payload);
+    await Promise.all(failureKeys.map((k) => clearRateLimit(k)));
 
-    // 7. Audit log successful login
     await logAudit({
       organizationId: user.organizationId,
       branchId: user.branchId,
-      actorId: user._id,
+      actorId: user._id as any,
       actorName: user.fullName,
       actorRole: user.role,
       action: "login.success",
       targetCollection: "User",
-      targetId: user._id,
+      targetId: user._id as any,
+      ipAddress: clientIp,
     });
 
-    const response = NextResponse.json({
-      success: true,
-      user: payload,
-    });
-
-    response.cookies.set("rst_pos_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 43200, // 12 hours
-      path: "/",
-    });
-
+    const response = NextResponse.json({ success: true, user: payload });
+    setSessionCookie(response, signToken(payload));
     return response;
   } catch (error: any) {
     return NextResponse.json(

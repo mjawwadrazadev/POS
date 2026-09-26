@@ -44,11 +44,7 @@ interface TransferRecord {
 export default function StockTransferPage() {
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
-  const [branches, setBranches] = useState<BranchOption[]>([
-    { id: "branch-main", name: "Main Branch (Lahore)", code: "LHR-01" },
-    { id: "branch-dha", name: "DHA Branch", code: "LHR-02" },
-    { id: "branch-khi", name: "Karachi Central Branch", code: "KHI-01" },
-  ]);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,8 +53,8 @@ export default function StockTransferPage() {
   const [successMsg, setSuccessMsg] = useState("");
 
   // New transfer form state
-  const [fromBranch, setFromBranch] = useState(branches[0]?.id || "");
-  const [toBranch, setToBranch] = useState(branches[1]?.id || "");
+  const [fromBranch, setFromBranch] = useState("");
+  const [toBranch, setToBranch] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [transferQty, setTransferQty] = useState(1);
   const [transferNotes, setTransferNotes] = useState("");
@@ -75,6 +71,16 @@ export default function StockTransferPage() {
       const trData = await trRes.json();
       if (trData.success && trData.transfers) {
         setTransfers(trData.transfers);
+      }
+
+      // Fetch this organization's real branches
+      const brRes = await fetch("/api/branches");
+      const brData = await brRes.json();
+      if (brData.success && Array.isArray(brData.branches)) {
+        const list: BranchOption[] = brData.branches.map((b: any) => ({ id: b._id, name: b.name, code: b.code }));
+        setBranches(list);
+        setFromBranch((prev) => prev || list[0]?.id || "");
+        setToBranch((prev) => prev || list[1]?.id || "");
       }
 
       // Fetch products for dropdown
@@ -113,6 +119,11 @@ export default function StockTransferPage() {
     const targetProd = products.find((p) => p.id === selectedProductId);
     if (!targetProd) return;
 
+    if (!fromBranch || !toBranch || fromBranch === toBranch) {
+      setErrorMsg("Select two different branches. Add branches in Settings → Team & Branches.");
+      return;
+    }
+
     if (transferQty > targetProd.stock) {
       setErrorMsg(`Cannot transfer ${transferQty} units. Available stock: ${targetProd.stock}`);
       return;
@@ -129,13 +140,10 @@ export default function StockTransferPage() {
           items: [
             {
               productId: targetProd.id,
-              productName: targetProd.name,
-              sku: targetProd.sku,
               quantity: Number(transferQty),
             },
           ],
           notes: transferNotes,
-          requestedBy: "Store Manager",
         }),
       });
 
@@ -164,7 +172,6 @@ export default function StockTransferPage() {
         body: JSON.stringify({
           transferId,
           action,
-          approvedBy: "Warehouse Supervisor",
         }),
       });
 

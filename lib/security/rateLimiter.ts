@@ -1,51 +1,52 @@
-interface RateLimitRecord {
-  count: number;
-  firstAttemptTime: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitRecord>();
+import { dbConnect } from "@/lib/db/mongoose";
+import { RateLimitRecord } from "@/models/RateLimitRecord";
 
 /**
-  Sliding window rate limiter
-  @param key Unique identifier (e.g. IP + endpoint)
-  @param maxAttempts Maximum allowed attempts within window
-  @param windowMs Time window in milliseconds
+ * MongoDB-backed fixed-window rate limiter.
+ * Shared across server instances and survives restarts (unlike an in-memory Map).
+ *
+ * Usage: call `checkRateLimit` before an attempt, `recordFailedAttempt` only when the attempt fails,
+ * and `clearRateLimit` after a successful attempt — successful logins never count against the limit.
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   maxAttempts: number = 5,
-  windowMs: number = 15 * 60 * 1000 // 15 minutes default
-): { success: boolean; remaining: number; resetTime: number } {
+  windowMs: number = 15 * 60 * 1000
+): Promise<{ success: boolean; remaining: number; resetTime: number }> {
+  await dbConnect();
   const now = Date.now();
-  const record = rateLimitMap.get(key);
+  const record = await RateLimitRecord.findOne({ key }).lean();
 
-  if (!record) {
-    rateLimitMap.set(key, { count: 1, firstAttemptTime: now });
-    return { success: true, remaining: maxAttempts - 1, resetTime: now + windowMs };
+  if (!record || record.windowStart.getTime() + windowMs <= now) {
+    return { success: true, remaining: maxAttempts, resetTime: now + windowMs };
   }
 
-  // If window expired, reset counter
-  if (now - record.firstAttemptTime > windowMs) {
-    rateLimitMap.set(key, { count: 1, firstAttemptTime: now });
-    return { success: true, remaining: maxAttempts - 1, resetTime: now + windowMs };
-  }
-
-  // If limit exceeded
+  const resetTime = record.windowStart.getTime() + windowMs;
   if (record.count >= maxAttempts) {
-    return {
-      success: false,
-      remaining: 0,
-      resetTime: record.firstAttemptTime + windowMs,
-    };
+    return { success: false, remaining: 0, resetTime };
   }
 
-  // Increment count
-  record.count += 1;
-  rateLimitMap.set(key, record);
+  return { success: true, remaining: maxAttempts - record.count, resetTime };
+}
 
-  return {
-    success: true,
-    remaining: maxAttempts - record.count,
-    resetTime: record.firstAttemptTime + windowMs,
-  };
+export async function recordFailedAttempt(key: string, windowMs: number = 15 * 60 * 1000): Promise<void> {
+  await dbConnect();
+  const now = new Date();
+
+  // Drop a stale window first (the TTL monitor only runs about once a minute)
+  await RateLimitRecord.deleteOne({ key, expiresAt: { $lte: now } });
+
+  await RateLimitRecord.findOneAndUpdate(
+    { key },
+    {
+      $inc: { count: 1 },
+      $setOnInsert: { windowStart: now, expiresAt: new Date(now.getTime() + windowMs) },
+    },
+    { upsert: true }
+  );
+}
+
+export async function clearRateLimit(key: string): Promise<void> {
+  await dbConnect();
+  await RateLimitRecord.deleteOne({ key });
 }

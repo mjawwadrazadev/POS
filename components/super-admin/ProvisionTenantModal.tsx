@@ -18,7 +18,7 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
   const [businessType, setBusinessType] = useState("bakery");
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
-  const [adminPin, setAdminPin] = useState("1234");
+  const [adminPin, setAdminPin] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [taxRate, setTaxRate] = useState(16.0);
@@ -61,7 +61,13 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
 
       const data = await res.json();
       if (data.success) {
-        alert(`Tenant '${name}' provisioned successfully! Admin login: ${adminEmail}`);
+        const t = data.tenant || {};
+        alert(
+          `Tenant '${name}' provisioned successfully!\n\n` +
+            `Store code (for PIN login): ${t.code}\n` +
+            `Admin email: ${t.adminEmail}\n` +
+            (t.tempPassword ? `Temporary password: ${t.tempPassword}\n(shown only once — share it securely)` : "")
+        );
         onSuccess();
         onClose();
       } else {
@@ -185,9 +191,11 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">4-Digit PIN *</label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="\d{4}"
                   maxLength={4}
                   value={adminPin}
-                  onChange={(e) => setAdminPin(e.target.value)}
+                  onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ""))}
                   className="w-full px-3.5 py-2.5 border rounded-lg text-sm font-mono tracking-widest text-center"
                   required
                 />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -14,12 +14,26 @@ import {
   Sparkles,
   KeyRound,
   CheckCircle2,
+  Store,
 } from "lucide-react";
+
+// A terminal is set up for one store; its code is remembered on this device
+const STORE_CODE_KEY = "rst_pos_store_code";
 
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"pin" | "admin">("pin");
   const [pin, setPin] = useState("");
+  const [orgCode, setOrgCode] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORE_CODE_KEY);
+      if (saved) setOrgCode(saved);
+    } catch {
+      // storage unavailable — the code just has to be typed each time
+    }
+  }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,8 +43,8 @@ export default function LoginPage() {
     if (pin.length < 4) {
       const nextPin = pin + num;
       setPin(nextPin);
-      if (nextPin.length === 4) {
-        submitLogin({ pin: nextPin });
+      if (nextPin.length === 4 && orgCode.trim()) {
+        submitLogin({ pin: nextPin, orgCode: orgCode.trim() });
       }
     }
   }
@@ -40,13 +54,14 @@ export default function LoginPage() {
     setError("");
   }
 
-  function quickFill(presetEmail: string, presetPin: string) {
+  function quickFill(presetEmail: string, presetOrgCode: string) {
     setEmail(presetEmail);
-    setPin(presetPin);
+    setOrgCode(presetOrgCode);
+    setPin("");
     setError("");
   }
 
-  async function submitLogin(payload: { email?: string; password?: string; pin?: string }) {
+  async function submitLogin(payload: { email?: string; password?: string; pin?: string; orgCode?: string }) {
     setLoading(true);
     setError("");
 
@@ -60,6 +75,14 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Authentication failed");
+      }
+
+      if (payload.orgCode) {
+        try {
+          localStorage.setItem(STORE_CODE_KEY, payload.orgCode);
+        } catch {
+          // ignore
+        }
       }
 
       router.push("/");
@@ -117,12 +140,12 @@ export default function LoginPage() {
           {/* Quick Preset Accounts */}
           <div className="mt-12 pt-6 border-t border-white/15">
             <p className="font-accent text-[1.2rem] uppercase text-blue-200/80 mb-3 font-bold tracking-wider">
-              Quick Test Accounts (Click to Fill):
+              Seeded Demo Stores (Click to Fill Store Code / Email):
             </p>
             <div className="grid grid-cols-2 gap-3 text-[1.2rem] font-accent">
               <button
                 type="button"
-                onClick={() => quickFill("admin@rstpos.com", "1234")}
+                onClick={() => quickFill("admin@rstpos.com", "rst-bakery")}
                 className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
               >
                 <Cake className="w-4 h-4 text-amber-300 flex-shrink-0" />
@@ -131,7 +154,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => quickFill("restaurant@rstpos.com", "2222")}
+                onClick={() => quickFill("restaurant@rstpos.com", "royal-spice")}
                 className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
               >
                 <Utensils className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -140,7 +163,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => quickFill("pharmacy@rstpos.com", "3333")}
+                onClick={() => quickFill("pharmacy@rstpos.com", "health-plus")}
                 className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
               >
                 <Pill className="w-4 h-4 text-rose-300 flex-shrink-0" />
@@ -166,7 +189,7 @@ export default function LoginPage() {
               Terminal Login
             </h2>
             <p className="text-[1.3rem] text-[rgba(255,255,255,0.6)]">
-              Sign in with your 4-digit Cashier PIN or Admin credentials.
+              Sign in with your store code and 4-digit PIN, or with email and password.
             </p>
           </div>
 
@@ -211,6 +234,23 @@ export default function LoginPage() {
           {/* PIN MODE KEYPAD */}
           {mode === "pin" ? (
             <div className="space-y-6">
+              <div>
+                <label className="font-accent text-[1.2rem] uppercase text-[rgba(255,255,255,0.7)] mb-2 block font-semibold">
+                  Store Code
+                </label>
+                <div className="flex items-center gap-3 bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] px-4 py-3 focus-within:border-[#002bba]">
+                  <Store className="w-5 h-5 text-[rgba(255,255,255,0.4)] flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={orgCode}
+                    onChange={(e) => setOrgCode(e.target.value.toLowerCase())}
+                    placeholder="e.g. rst-bakery"
+                    autoCapitalize="none"
+                    className="bg-transparent text-white text-[1.5rem] outline-none w-full font-sans"
+                  />
+                </div>
+              </div>
+
               <div className="text-center space-y-3 bg-[#0b0b0d] border border-[rgba(255,255,255,0.08)] py-4">
                 <p className="text-[1.2rem] font-accent uppercase text-[rgba(255,255,255,0.6)]">
                   Enter 4-Digit Terminal PIN
@@ -260,8 +300,8 @@ export default function LoginPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => submitLogin({ pin })}
-                  disabled={pin.length !== 4 || loading}
+                  onClick={() => submitLogin({ pin, orgCode: orgCode.trim() })}
+                  disabled={pin.length !== 4 || !orgCode.trim() || loading}
                   className="py-4 bg-[#002bba] hover:bg-[#0035e0] text-white text-[1.3rem] font-bold uppercase disabled:opacity-40 transition-colors"
                 >
                   Enter

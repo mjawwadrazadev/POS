@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut, Eye, AlertTriangle } from "lucide-react";
 
 interface ImpersonationBannerProps {
@@ -10,7 +9,6 @@ interface ImpersonationBannerProps {
 
 export function ImpersonationBanner({ tenantName }: ImpersonationBannerProps) {
   const [exiting, setExiting] = useState(false);
-  const router = useRouter();
 
   const handleExit = async () => {
     setExiting(true);
@@ -19,12 +17,10 @@ export function ImpersonationBanner({ tenantName }: ImpersonationBannerProps) {
         method: "POST",
       });
 
-      if (res.ok) {
-        window.location.href = "/super-admin";
-      } else {
-        alert("Failed to exit impersonation session");
-        setExiting(false);
-      }
+      const data = await res.json().catch(() => ({}));
+      // On success we land back in the portal; if the window already expired the server
+      // clears the cookie and asks for a fresh super admin login instead.
+      window.location.href = data.redirectTo || (res.ok ? "/super-admin" : "/super-admin/login");
     } catch (err) {
       alert("Error exiting impersonation session");
       setExiting(false);

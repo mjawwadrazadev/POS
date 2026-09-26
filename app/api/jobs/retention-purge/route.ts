@@ -1,23 +1,30 @@
 import { NextResponse } from "next/server";
-import { dbConnect } from "@/lib/db/mongoose";
+import crypto from "crypto";
 import { runDataRetentionJob } from "@/lib/jobs/enforceDataRetention";
 import { getSession } from "@/lib/auth/session";
 
+function isValidCronSecret(provided: string | null): boolean {
+  const expected = process.env.CRON_SECRET;
+  if (!expected || !provided) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function POST(req: Request) {
   try {
-    await dbConnect();
-    const session = await getSession();
-
-    // Verify request originates from Super Admin or valid Cron secret header
-    const cronSecret = req.headers.get("x-cron-secret");
-    const isCronAuthorized = process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET;
-    const isSuperAdmin = session?.role === "super_admin";
+    // Authorized by the cron secret header, or by a logged-in super admin
+    const isCronAuthorized = isValidCronSecret(req.headers.get("x-cron-secret"));
+    const session = isCronAuthorized ? null : await getSession();
+    const isSuperAdmin = session?.role === "super_admin" && !session.isImpersonating;
 
     if (!isSuperAdmin && !isCronAuthorized) {
       return NextResponse.json({ error: "Forbidden — Unauthorized trigger" }, { status: 403 });
     }
 
-    const summaries = await runDataRetentionJob();
+    const summaries = await runDataRetentionJob(
+      session ? { userId: session.userId, name: session.fullName || session.email, role: session.role } : undefined
+    );
 
     return NextResponse.json({
       success: true,

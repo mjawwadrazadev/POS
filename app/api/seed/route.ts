@@ -5,30 +5,29 @@ import { Branch } from "@/models/Branch";
 import { User } from "@/models/User";
 import { Product } from "@/models/Product";
 import { Order } from "@/models/Order";
-import { getSession } from "@/lib/auth/session";
+import { Table } from "@/models/Table";
+import { PaymentHistory } from "@/models/PaymentHistory";
+import mongoose from "mongoose";
 
+/**
+ * DESTRUCTIVE: drops the whole database and loads demo data.
+ * Only runs when NODE_ENV is not "production" AND ALLOW_SEED=true is set explicitly,
+ * so a staging server with a mis-set NODE_ENV can never be wiped by a stray request.
+ */
 export async function GET() {
   try {
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ error: "Forbidden — Seed endpoint is disabled in production." }, { status: 403 });
+    if (process.env.NODE_ENV === "production" || process.env.ALLOW_SEED !== "true") {
+      return NextResponse.json(
+        { error: "Forbidden — Seeding is disabled. Set ALLOW_SEED=true in .env.local (development only)." },
+        { status: 403 }
+      );
     }
 
     await dbConnect();
 
-    // In production, require super_admin session authorization
-    if ((process.env.NODE_ENV as string) === "production") {
-      const session = await getSession();
-      if (!session || session.role !== "super_admin") {
-        return NextResponse.json({ error: "Forbidden — Super Admin authorization required to seed database." }, { status: 403 });
-      }
-    }
-
-    // Clear existing sample collections for clean seed
-    await Organization.deleteMany({});
-    await Branch.deleteMany({});
-    await User.deleteMany({});
-    await Product.deleteMany({});
-    await Order.deleteMany({});
+    // Start from an empty database so no orphaned orders, ledger entries or sessions survive
+    await mongoose.connection.dropDatabase();
+    await Promise.all([Organization, Branch, User, Product, Order, Table, PaymentHistory].map((m) => m.syncIndexes()));
 
     const now = new Date();
 
@@ -59,7 +58,7 @@ export async function GET() {
       isMain: true,
     });
 
-    await User.create({
+    const superAdmin = await User.create({
       organizationId: masterOrg._id,
       branchId: masterBranch._id,
       fullName: "System Super Admin",
@@ -304,16 +303,45 @@ export async function GET() {
       isActive: true,
     });
 
+    // Payment ledger records (PaymentHistory is the source of truth for subscription payments)
+    await PaymentHistory.insertMany(
+      [bakeryOrg, restOrg, pharmOrg, expiredOrg].map((org) => ({
+        organizationId: org._id,
+        tenantName: org.name,
+        amount: org.subscriptionFee,
+        currency: org.currency,
+        planTier: org.planTier,
+        billingCycle: org.subscriptionPlan,
+        monthsAdded: 1,
+        paymentMethod: "cash",
+        paidAt: org.lastPaymentDate,
+        expiresAt: org.expiryDate,
+        notes: "Monthly Subscription Fee",
+        createdBy: superAdmin._id,
+      }))
+    );
+
+    // Restaurant floor plan used by the POS table selector
+    await Table.insertMany(
+      ["Table 01", "Table 02", "Table 03", "Table 04", "Table 05", "Table 06"].map((label) => ({
+        organizationId: restOrg._id,
+        branchId: restBranch._id,
+        label,
+        capacity: 4,
+        status: "available",
+      }))
+    );
+
     return NextResponse.json({
       success: true,
       message: "Database seeded with Bcrypt Salted Hashed Passwords & PINs for Super Admin & Tenants!",
       data: {
-        superAdmin: "superadmin@rstpos.com (Password: admin123, PIN: 9999)",
+        superAdmin: "superadmin@rstpos.com (Password: admin123) — email login only at /super-admin/login",
         tenants: [
-          { name: bakeryOrg.name, email: bakeryAdmin.email, pin: "1234", fee: "5,000/mo" },
-          { name: restOrg.name, email: "restaurant@rstpos.com", pin: "2222", fee: "10,000/mo" },
-          { name: pharmOrg.name, email: "pharmacy@rstpos.com", pin: "3333", fee: "6,000/mo" },
-          { name: expiredOrg.name, email: "expired@rstpos.com", pin: "4444", fee: "8,000/mo" },
+          { name: bakeryOrg.name, storeCode: bakeryOrg.code, email: bakeryAdmin.email, pin: "1234", fee: "5,000/mo" },
+          { name: restOrg.name, storeCode: restOrg.code, email: "restaurant@rstpos.com", pin: "2222", fee: "10,000/mo" },
+          { name: pharmOrg.name, storeCode: pharmOrg.code, email: "pharmacy@rstpos.com", pin: "3333", fee: "6,000/mo" },
+          { name: expiredOrg.name, storeCode: expiredOrg.code, email: "expired@rstpos.com", pin: "4444", fee: "8,000/mo" },
         ],
       },
     });

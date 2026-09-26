@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IAuditLog extends Document {
   organizationId: mongoose.Types.ObjectId;
   branchId?: mongoose.Types.ObjectId;
-  actorId: mongoose.Types.ObjectId;
+  actorId?: mongoose.Types.ObjectId; // absent for automated system jobs
   actorName: string;
   actorRole: string;
   action: string; // "order.void", "product.price_change", "stock.adjust", "refund.approve", "login.success", "login.failed"
@@ -19,7 +19,7 @@ const AuditLogSchema: Schema<IAuditLog> = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true, index: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch" },
-    actorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    actorId: { type: Schema.Types.ObjectId, ref: "User" },
     actorName: { type: String, required: true },
     actorRole: { type: String, required: true },
     action: { type: String, required: true, index: true },

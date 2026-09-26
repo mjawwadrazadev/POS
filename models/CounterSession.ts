@@ -22,7 +22,7 @@ const CounterSessionSchema: Schema<ICounterSession> = new Schema(
     organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true, index: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
     cashierId: { type: Schema.Types.ObjectId, ref: "User" },
-    cashierName: { type: Schema.Types.ObjectId ? String : String, required: true, default: "Main Cashier" },
+    cashierName: { type: String, required: true },
     openedAt: { type: Date, default: Date.now },
     openingFloat: { type: Number, required: true, default: 0 },
     closedAt: { type: Date },

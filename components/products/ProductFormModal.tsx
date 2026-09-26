@@ -58,6 +58,8 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   function set(field: string, value: any) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -74,12 +76,15 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
     return Object.keys(newErrors).length === 0;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!validate()) return;
-    if (mode === "add") {
-      addItem(form);
-    } else if (editItem) {
-      updateItem(editItem.id, form);
+    setSaving(true);
+    setSaveError("");
+    const result = mode === "add" ? await addItem(form) : editItem ? await updateItem(editItem.id, form) : { ok: true as const };
+    setSaving(false);
+    if (!result.ok) {
+      setSaveError(result.error);
+      return;
     }
     onClose();
   }
@@ -301,13 +306,18 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
         </div>
 
         {/* Footer */}
+        {saveError && (
+          <div className="mx-5 mb-0 mt-3 bg-red-500/15 border border-red-500/30 text-red-400 px-3 py-2 text-[1.2rem]">
+            {saveError}
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 p-5 border-t border-[rgba(255,255,255,0.08)]">
           <button onClick={onClose} className="btn btn-secondary py-2.5 px-6 text-[1.3rem] bg-[#0b0b0d] border-[rgba(255,255,255,0.15)] text-white">
             Cancel
           </button>
-          <button onClick={handleSubmit} className="btn btn-primary py-2.5 px-8 text-[1.3rem]">
+          <button onClick={handleSubmit} disabled={saving} className="btn btn-primary py-2.5 px-8 text-[1.3rem] disabled:opacity-50">
             <Save className="w-4 h-4" />
-            <span>{mode === "add" ? "Save Product" : "Update Product"}</span>
+            <span>{saving ? "Saving..." : mode === "add" ? "Save Product" : "Update Product"}</span>
           </button>
         </div>
       </div>

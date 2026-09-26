@@ -12,6 +12,7 @@ export interface IUser extends Document {
   pin: string; // 4-digit cashier quick switch pin (hashed)
   role: UserRole;
   isActive: boolean;
+  baseSalary?: number; // monthly base salary used by payroll
   avatar?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -27,15 +28,17 @@ const UserSchema: Schema<IUser> = new Schema(
     fullName: { type: String, required: true },
     email: { type: String, required: true, lowercase: true, trim: true },
     password: { type: String, select: false }, // Hashed password, excluded from queries by default
-    pin: { type: String, required: true, default: "1234", select: false }, // Hashed PIN, excluded by default
+    pin: { type: String, required: true, select: false }, // Hashed 4-digit PIN, excluded by default
     role: { type: String, enum: ["super_admin", "platform_support", "admin", "manager", "cashier"], default: "cashier" },
     isActive: { type: Boolean, default: true },
+    baseSalary: { type: Number, min: 0 },
     avatar: { type: String },
   },
   { timestamps: true }
 );
 
-UserSchema.index({ organizationId: 1, email: 1 }, { unique: true });
+// Email is the global login identifier, so it must be unique across the whole platform
+UserSchema.index({ email: 1 }, { unique: true });
 
 // Pre-save hook to hash password and PIN
 UserSchema.pre("save", async function (next) {

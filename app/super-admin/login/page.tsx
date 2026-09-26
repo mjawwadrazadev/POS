@@ -19,8 +19,6 @@ export default function SuperAdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [pin, setPin] = useState("");
-  const [usePin, setUsePin] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -30,9 +28,8 @@ export default function SuperAdminLoginPage() {
     setError("");
 
     try {
-      const payload = usePin
-        ? { pin, isSuperAdminPortal: true }
-        : { email, password, isSuperAdminPortal: true };
+      // Platform accounts sign in with email + password only (no PIN access to the platform)
+      const payload = { email, password, isSuperAdminPortal: true };
 
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -117,20 +114,7 @@ export default function SuperAdminLoginPage() {
             </div>
           )}
 
-          {/* Auth Method Switch */}
-          <div className="flex justify-end gap-3 text-[1.2rem] font-accent">
-            <button
-              type="button"
-              onClick={() => setUsePin(!usePin)}
-              className="text-accent hover:underline flex items-center gap-1"
-            >
-              <span>{usePin ? "Use Email & Password" : "Use Super PIN (9999)"}</span>
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!usePin ? (
-              <>
                 <div>
                   <label className="font-accent text-[1.2rem] uppercase text-[rgba(255,255,255,0.7)] mb-2 block font-semibold">
                     Super Admin Email Address
@@ -169,22 +153,6 @@ export default function SuperAdminLoginPage() {
                     />
                   </div>
                 </div>
-              </>
-            ) : (
-              <div>
-                <label className="font-accent text-[1.2rem] uppercase text-[rgba(255,255,255,0.7)] mb-2 block font-semibold">
-                  Super Admin 4-Digit PIN
-                </label>
-                <input
-                  type="text"
-                  maxLength={4}
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder="9999"
-                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-amber-300 font-mono font-bold px-4 py-3.5 text-[2rem] text-center outline-none focus:border-[#002bba]"
-                />
-              </div>
-            )}
 
             <button
               type="submit"

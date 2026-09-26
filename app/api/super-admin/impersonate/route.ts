@@ -1,23 +1,28 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
 import { User } from "@/models/User";
 import { ImpersonationSession } from "@/models/ImpersonationSession";
-import { AuditLog } from "@/models/AuditLog";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
-import { signToken } from "@/lib/auth/session";
+import { signToken, setSessionCookie, IMPERSONATION_MAX_AGE_SECONDS, SessionPayload } from "@/lib/auth/session";
+import { logAudit } from "@/lib/audit/logger";
+import { getClientIp } from "@/lib/utils/server";
 
 export async function POST(req: Request) {
   try {
     const auth = await requireSuperAdminAction("impersonate_tenant");
     if (!auth.authorized) return auth.response;
+    const superAdmin = auth.session!;
+
+    if (superAdmin.isImpersonating) {
+      return NextResponse.json({ error: "Exit the current impersonation session first" }, { status: 400 });
+    }
 
     await dbConnect();
-    const body = await req.json();
-    const { organizationId, reason } = body;
+    const { organizationId, reason } = await req.json();
 
-    if (!organizationId || !reason || reason.trim().length < 5) {
+    if (!mongoose.isValidObjectId(organizationId) || !reason || String(reason).trim().length < 5) {
       return NextResponse.json(
         { error: "Organization ID and a detailed reason (at least 5 characters) are mandatory for impersonation" },
         { status: 400 }
@@ -25,80 +30,72 @@ export async function POST(req: Request) {
     }
 
     const targetOrg = await Organization.findById(organizationId);
-    if (!targetOrg) {
-      return NextResponse.json({ error: "Target organization not found" }, { status: 404 });
+    if (!targetOrg) return NextResponse.json({ error: "Target organization not found" }, { status: 404 });
+    if (targetOrg.subscriptionStatus === "terminated") {
+      return NextResponse.json({ error: "Cannot impersonate a terminated tenant" }, { status: 400 });
     }
 
-    // Find tenant admin user
-    const targetUser = await User.findOne({ organizationId, role: "admin" }).select("+pin");
+    const targetUser = await User.findOne({ organizationId, role: "admin", isActive: true });
     if (!targetUser) {
-      return NextResponse.json({ error: "No admin user found for target organization" }, { status: 404 });
+      return NextResponse.json({ error: "No active admin user found for target organization" }, { status: 404 });
     }
+
+    // Close any impersonation sessions this super admin left open
+    await ImpersonationSession.updateMany(
+      { superAdminId: superAdmin.userId, isActive: true },
+      { $set: { isActive: false, endedAt: new Date() } }
+    );
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes hard cap
+    const expiresAt = new Date(now.getTime() + IMPERSONATION_MAX_AGE_SECONDS * 1000);
 
-    // 1. Create ImpersonationSession record
     const impersonation = await ImpersonationSession.create({
-      superAdminId: auth.session!.userId,
+      superAdminId: superAdmin.userId,
       targetOrganizationId: targetOrg._id,
       targetUserId: targetUser._id,
-      reason,
+      reason: String(reason).trim(),
       startedAt: now,
       expiresAt,
       isActive: true,
     });
 
-    // 2. Log in AuditLog
-    await AuditLog.create({
-      organizationId: targetOrg._id,
-      actorId: auth.session!.userId,
-      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
-      actorRole: auth.session!.role,
+    await logAudit({
+      organizationId: targetOrg._id as any,
+      actorId: superAdmin.userId,
+      actorName: superAdmin.fullName || superAdmin.name || superAdmin.email,
+      actorRole: superAdmin.role,
       action: "SUPER_ADMIN_IMPERSONATE_START",
       targetCollection: "ImpersonationSession",
-      targetId: impersonation._id,
+      targetId: impersonation._id as any,
       after: { reason, targetOrgCode: targetOrg.code, expiresAt },
-      ipAddress: "127.0.0.1",
+      ipAddress: getClientIp(req),
     });
 
-    // 3. Create impersonation JWT payload
-    const tokenPayload = {
-      userId: targetUser._id.toString(),
-      organizationId: targetOrg._id.toString(),
-      branchId: targetUser.branchId ? targetUser.branchId.toString() : "",
+    const tokenPayload: SessionPayload = {
+      userId: (targetUser._id as any).toString(),
+      organizationId: (targetOrg._id as any).toString(),
+      branchId: targetUser.branchId ? targetUser.branchId.toString() : undefined,
       role: "admin",
-      name: targetUser.fullName,
+      fullName: targetUser.fullName,
       email: targetUser.email,
-      orgName: targetOrg.name,
+      organizationName: targetOrg.name,
       orgCode: targetOrg.code,
       businessType: targetOrg.businessType,
-      planTier: targetOrg.planTier || "billing_accounting",
-      // Impersonation flags
+      planTier: targetOrg.planTier || "billing_only",
       isImpersonating: true,
-      originalSuperAdminId: auth.session!.userId,
-      impersonationSessionId: impersonation._id.toString(),
-      impersonationExpiresAt: expiresAt.toISOString(),
+      originalSuperAdminId: superAdmin.userId,
+      impersonationSessionId: (impersonation._id as any).toString(),
       targetOrgName: targetOrg.name,
     };
 
-    const token = await signToken(tokenPayload);
-
-    // 4. Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 30 * 60, // 30 minutes max age
-      path: "/",
-    });
-
-    return NextResponse.json({
+    // The token itself expires with the impersonation window (not the normal 12h)
+    const response = NextResponse.json({
       success: true,
       message: `Now impersonating '${targetOrg.name}'. Session expires in 30 minutes.`,
       targetOrgName: targetOrg.name,
     });
+    setSessionCookie(response, signToken(tokenPayload, IMPERSONATION_MAX_AGE_SECONDS), IMPERSONATION_MAX_AGE_SECONDS);
+    return response;
   } catch (error: any) {
     return NextResponse.json(
       { error: process.env.NODE_ENV === "production" ? "Failed to start impersonation" : error.message },

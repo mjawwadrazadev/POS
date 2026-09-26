@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
 import { auditLedgerBalance } from "@/lib/accounting/auditBalance";
 import { requireAccountingPlan } from "@/lib/middleware/requireAccountingPlan";
@@ -10,18 +11,19 @@ export async function GET(req: Request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const targetOrgId = session.role === "super_admin"
-      ? (new URL(req.url).searchParams.get("organizationId") || session.organizationId)
-      : session.organizationId;
-
-    if (targetOrgId) {
-      const guard = await requireAccountingPlan(targetOrgId);
-      if (!guard.allowed) {
-        return guard.response!;
-      }
+    const isPlatform = (session.role === "super_admin" || session.role === "platform_support") && !session.isImpersonating;
+    if (!isPlatform && session.role !== "admin" && session.role !== "manager") {
+      return NextResponse.json({ error: "Forbidden — Manager or Admin required" }, { status: 403 });
     }
 
-    const result = await auditLedgerBalance(targetOrgId || undefined);
+    // Platform staff may audit any tenant; store users only their own books
+    const requestedOrg = new URL(req.url).searchParams.get("organizationId");
+    const targetOrgId = isPlatform && requestedOrg && mongoose.isValidObjectId(requestedOrg) ? requestedOrg : session.organizationId;
+
+    const guard = await requireAccountingPlan(targetOrgId);
+    if (!guard.allowed) return guard.response!;
+
+    const result = await auditLedgerBalance(targetOrgId);
 
     return NextResponse.json({
       success: true,

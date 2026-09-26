@@ -26,6 +26,7 @@ interface ThermalReceiptModalProps {
   grandTotal: number;
   paymentMethod: string;
   branchName: string;
+  taxRate?: number;
   // Hospital Consultation Specific Props
   isHospitalBill?: boolean;
   perchiNumber?: number;
@@ -52,6 +53,7 @@ export function ThermalReceiptModal({
   grandTotal,
   paymentMethod,
   branchName,
+  taxRate,
   isHospitalBill,
   perchiNumber,
   consultationTime,
@@ -271,7 +273,7 @@ export function ThermalReceiptModal({
                   <span>PKR {subtotal}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Sales Tax (16%):</span>
+                  <span>Sales Tax{taxRate !== undefined ? ` (${taxRate}%)` : ""}:</span>
                   <span>PKR {taxAmount}</span>
                 </div>
                 {discountTotal > 0 && (

@@ -3,6 +3,7 @@ import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
 import { AuditLog } from "@/models/AuditLog";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
+import { getClientIp } from "@/lib/utils/server";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -28,6 +29,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Tenant organization not found" }, { status: 404 });
     }
 
+    if (org.subscriptionStatus === "terminated") {
+      return NextResponse.json({ error: "Terminated tenants cannot be reactivated from here" }, { status: 400 });
+    }
+    if (status === "active" && org.expiryDate && new Date(org.expiryDate) < new Date()) {
+      return NextResponse.json(
+        { error: "Subscription has expired — record a payment to extend access instead of reactivating" },
+        { status: 400 }
+      );
+    }
+
     const oldStatus = org.subscriptionStatus;
     org.subscriptionStatus = status;
     await org.save();
@@ -35,14 +46,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     await AuditLog.create({
       organizationId: org._id,
       actorId: auth.session!.userId,
-      actorName: auth.session!.name || auth.session!.fullName || auth.session!.email,
+      actorName: auth.session!.fullName || auth.session!.name || auth.session!.email,
       actorRole: auth.session!.role,
       action: status === "suspended_manual" ? "TENANT_MANUAL_SUSPEND" : "TENANT_REACTIVATE",
       targetCollection: "Organization",
       targetId: org._id,
       before: { status: oldStatus },
       after: { status, reason },
-      ipAddress: "127.0.0.1",
+      ipAddress: getClientIp(req),
     });
 
     return NextResponse.json({

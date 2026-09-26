@@ -43,21 +43,41 @@ export default function ReportsPage() {
         setReportData(data);
       }
     } catch {
-      // Fallback sample data if DB is offline
+      setReportData(null);
     } finally {
       setLoading(false);
     }
   }
 
-  // Pre-configured historical months sample comparison
-  const monthlyHistory = [
-    { month: "September 2026 (Current)", orders: 148, revenue: "PKR 184,570", tax: "PKR 29,531", profit: "PKR 54,200", growth: "+14.2%" },
-    { month: "August 2026 (Last Month)", orders: 420, revenue: "PKR 512,000", tax: "PKR 81,920", profit: "PKR 148,000", growth: "+11.5%" },
-    { month: "July 2026", orders: 390, revenue: "PKR 468,000", tax: "PKR 74,880", profit: "PKR 132,000", growth: "+8.9%" },
-    { month: "June 2026", orders: 365, revenue: "PKR 430,000", tax: "PKR 68,800", profit: "PKR 119,000", growth: "+5.4%" },
-    { month: "May 2026", orders: 340, revenue: "PKR 395,000", tax: "PKR 63,200", profit: "PKR 108,000", growth: "+12.1%" },
-    { month: "Year 2025 (Annual Total)", orders: 4120, revenue: "PKR 4,890,000", tax: "PKR 782,400", profit: "PKR 1,350,000", growth: "+24.5%" },
-  ];
+  const fmt = (n: number) => `PKR ${Math.round(Number(n) || 0).toLocaleString()}`;
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const summary = reportData?.summary || {};
+  const netRevenue = summary.netRevenue ?? summary.totalRevenue ?? 0;
+  const netTax = summary.netTax ?? summary.totalTax ?? 0;
+  const grossProfit = netRevenue - netTax - (summary.totalCogs || 0);
+  const margin = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0;
+
+  // Real month-by-month history from the sales-summary API (newest first)
+  const breakdown: any[] = reportData?.monthlyBreakdown || [];
+  const monthlyHistory = breakdown.map((m, idx) => {
+    const revenue = m.monthlyRevenue || 0;
+    const tax = m.monthlyTax || 0;
+    const profit = revenue - tax - (m.monthlyCogs || 0);
+    const previous = breakdown[idx + 1];
+    const growth =
+      previous && previous.monthlyRevenue > 0
+        ? `${revenue >= previous.monthlyRevenue ? "+" : ""}${(((revenue - previous.monthlyRevenue) / previous.monthlyRevenue) * 100).toFixed(1)}%`
+        : "—";
+    return {
+      month: `${MONTHS[(m._id?.month || 1) - 1]} ${m._id?.year}`,
+      orders: m.ordersCount || 0,
+      revenue: fmt(revenue),
+      tax: fmt(tax),
+      profit: fmt(profit),
+      growth,
+    };
+  });
 
   const handleExportCSV = () => {
     const headers = ["Historical Period", "Total Orders", "Gross Revenue", "FBR Sales Tax", "Net Profit", "Growth Rate"];
@@ -178,10 +198,12 @@ export default function ReportsPage() {
             <span className="stat-card__label">Selected Period Revenue</span>
             <DollarSign className="w-5 h-5 text-accent" />
           </div>
-          <div className="stat-card__value">PKR 696,570</div>
+          <div className="stat-card__value">{fmt(netRevenue)}</div>
           <div className="flex items-center gap-1 font-accent text-[1.2rem] text-success">
             <TrendingUp className="w-4 h-4" />
-            <span>+12.8% vs prior period</span>
+            <span>
+              Gross {fmt(summary.totalRevenue || 0)} − Refunds {fmt(summary.totalRefunds || 0)}
+            </span>
           </div>
         </div>
 
@@ -190,20 +212,20 @@ export default function ReportsPage() {
             <span className="stat-card__label">FBR Sales Tax Collected</span>
             <FileSpreadsheet className="w-5 h-5 text-blue-500" />
           </div>
-          <div className="stat-card__value text-blue-500">PKR 111,451</div>
+          <div className="stat-card__value text-blue-500">{fmt(netTax)}</div>
           <div className="font-accent text-[1.2rem] text-muted">
-            16% Statutory Tax Accrued
+            Net of refunded tax
           </div>
         </div>
 
         <div className="stat-card">
           <div className="flex items-center justify-between">
-            <span className="stat-card__label">Net Operating Profit</span>
+            <span className="stat-card__label">Gross Profit (after COGS)</span>
             <ArrowUpRight className="w-5 h-5 text-emerald-500" />
           </div>
-          <div className="stat-card__value text-emerald-500">PKR 202,200</div>
+          <div className="stat-card__value text-emerald-500">{fmt(grossProfit)}</div>
           <div className="font-accent text-[1.2rem] text-emerald-500 font-bold">
-            29.0% Net Margin
+            {margin.toFixed(1)}% Gross Margin
           </div>
         </div>
 
@@ -212,9 +234,9 @@ export default function ReportsPage() {
             <span className="stat-card__label">Total Orders Processed</span>
             <PieChart className="w-5 h-5 text-purple-500" />
           </div>
-          <div className="stat-card__value">568</div>
+          <div className="stat-card__value">{(summary.totalOrders || 0).toLocaleString()}</div>
           <div className="font-accent text-[1.2rem] text-muted">
-            Across Lahore & Karachi Branches
+            {summary.refundCount ? `${summary.refundCount} refund(s) in period` : "In selected period"}
           </div>
         </div>
       </div>
@@ -244,6 +266,11 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
+              {!loading && monthlyHistory.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center text-muted p-6">No sales in the selected period.</td>
+                </tr>
+              )}
               {monthlyHistory.map((row, idx) => (
                 <tr key={idx}>
                   <td className="font-accent font-bold text-bright">{row.month}</td>

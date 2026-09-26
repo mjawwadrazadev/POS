@@ -1,56 +1,65 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
-import { CounterSession } from "@/models/CounterSession";
+import { CounterSession, ICounterSession } from "@/models/CounterSession";
 import { Order } from "@/models/Order";
-import { Organization } from "@/models/Organization";
-import { Branch } from "@/models/Branch";
+import { Refund } from "@/models/Refund";
 import { getSession } from "@/lib/auth/session";
+import { resolveBranch } from "@/lib/tenant/resolveBranch";
+import { roundMoney } from "@/lib/utils/server";
 
-export async function GET(req: Request) {
+// Cash collected by sales in this shift minus cash paid back through refunds during the shift
+async function computeShiftCash(shift: ICounterSession, until: Date) {
+  const orders = await Order.find({
+    counterSessionId: shift._id,
+    status: { $in: ["completed", "partially_refunded", "refunded"] },
+  }).select("paymentMethod grandTotal payments");
+
+  let cashSalesTotal = 0;
+  for (const order of orders) {
+    if (order.paymentMethod === "cash") {
+      cashSalesTotal += order.grandTotal;
+    } else if (order.paymentMethod === "split" && order.payments) {
+      cashSalesTotal += order.payments.filter((p) => p.method === "cash").reduce((s, p) => s + p.amount, 0);
+    }
+  }
+
+  const cashRefunds = await Refund.find({
+    organizationId: shift.organizationId,
+    branchId: shift.branchId,
+    refundMethod: "cash",
+    status: "completed",
+    updatedAt: { $gte: shift.openedAt, $lte: until },
+  }).select("totalRefundAmount");
+  const cashRefundTotal = cashRefunds.reduce((s, r) => s + r.totalRefundAmount, 0);
+
+  return {
+    cashSalesTotal: roundMoney(cashSalesTotal),
+    cashRefundTotal: roundMoney(cashRefundTotal),
+    expectedCashInDrawer: roundMoney(shift.openingFloat + cashSalesTotal - cashRefundTotal),
+    orderCount: orders.length,
+  };
+}
+
+export async function GET() {
   try {
     await dbConnect();
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { searchParams } = new URL(req.url);
-    const cashierName = searchParams.get("cashierName") || "Main Cashier";
+    const branch = await resolveBranch(session);
+    if (!branch) return NextResponse.json({ success: true, activeSession: null });
 
     const activeSession = await CounterSession.findOne({
       organizationId: session.organizationId,
+      branchId: branch._id,
       status: "open",
     }).sort({ openedAt: -1 });
 
-    if (!activeSession) {
-      return NextResponse.json({ success: true, activeSession: null });
-    }
+    if (!activeSession) return NextResponse.json({ success: true, activeSession: null });
 
-    // Calculate current cash sales within this session
-    const cashOrders = await Order.find({
-      counterSessionId: activeSession._id,
-      status: "completed",
-    });
-
-    let cashSalesTotal = 0;
-    for (const order of cashOrders) {
-      if (order.paymentMethod === "cash") {
-        cashSalesTotal += order.grandTotal;
-      } else if (order.paymentMethod === "split" && order.payments) {
-        const cashPart = order.payments.find((p) => p.method === "cash");
-        if (cashPart) cashSalesTotal += cashPart.amount;
-      }
-    }
-
-    const expectedCashInDrawer = activeSession.openingFloat + cashSalesTotal;
-
-    return NextResponse.json({
-      success: true,
-      activeSession: {
-        ...activeSession.toObject(),
-        cashSalesTotal,
-        expectedCashInDrawer,
-        orderCount: cashOrders.length,
-      },
-    });
+    const totals = await computeShiftCash(activeSession, new Date());
+    return NextResponse.json({ success: true, activeSession: { ...activeSession.toObject(), ...totals } });
   } catch (error: any) {
     return NextResponse.json(
       { error: process.env.NODE_ENV === "production" ? "Failed to fetch counter session" : error.message },
@@ -65,51 +74,37 @@ export async function POST(req: Request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await req.json();
-    const { action, openingFloat, cashierName = "Main Cashier", notes } = body;
+    const { action, openingFloat, notes } = await req.json();
+    if (action !== "open") return NextResponse.json({ error: "Invalid action specified" }, { status: 400 });
 
-    const org = await Organization.findById(session.organizationId);
-    const branch = await Branch.findOne({ organizationId: session.organizationId, isMain: true })
-      || await Branch.findOne({ organizationId: session.organizationId });
+    const float = Number(openingFloat);
+    if (!Number.isFinite(float) || float < 0) {
+      return NextResponse.json({ error: "Opening float must be zero or a positive amount" }, { status: 400 });
+    }
 
-    if (!org || !branch) {
+    const branch = await resolveBranch(session);
+    if (!branch) return NextResponse.json({ error: "No branch found." }, { status: 400 });
+
+    const existingOpen = await CounterSession.exists({ branchId: branch._id, status: "open" });
+    if (existingOpen) {
       return NextResponse.json(
-        { error: "No organization or branch found." },
+        { error: "A counter session is already open. Close it before opening a new shift." },
         { status: 400 }
       );
     }
 
-    if (action === "open") {
-      // Check if session is already open
-      const existingOpen = await CounterSession.findOne({
-        branchId: branch._id,
-        status: "open",
-      });
+    const counterSession = await CounterSession.create({
+      organizationId: session.organizationId,
+      branchId: branch._id,
+      cashierId: session.userId,
+      cashierName: session.fullName || session.email,
+      openingFloat: roundMoney(float),
+      openedAt: new Date(),
+      status: "open",
+      notes,
+    });
 
-      if (existingOpen) {
-        return NextResponse.json(
-          { error: "A counter session is already open. Close it before opening a new shift." },
-          { status: 400 }
-        );
-      }
-
-      const counterSession = await CounterSession.create({
-        organizationId: org._id,
-        branchId: branch._id,
-        cashierName: session.fullName || cashierName,
-        openingFloat: Number(openingFloat) || 0,
-        openedAt: new Date(),
-        status: "open",
-        notes,
-      });
-
-      return NextResponse.json(
-        { success: true, message: "Shift opened successfully!", session: counterSession },
-        { status: 201 }
-      );
-    }
-
-    return NextResponse.json({ error: "Invalid action specified" }, { status: 400 });
+    return NextResponse.json({ success: true, message: "Shift opened successfully!", session: counterSession }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
       { error: process.env.NODE_ENV === "production" ? "Failed to process counter session action" : error.message },
@@ -124,67 +119,63 @@ export async function PATCH(req: Request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await req.json();
-    const { sessionId, actualCountedCash, notes } = body;
-
-    if (!sessionId) {
+    const { sessionId, actualCountedCash, notes } = await req.json();
+    if (!mongoose.isValidObjectId(sessionId)) {
       return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
     }
 
-    const counterSession = await CounterSession.findOne({
-      _id: sessionId,
-      organizationId: session.organizationId,
-    });
+    const actualCash = Number(actualCountedCash);
+    if (!Number.isFinite(actualCash) || actualCash < 0) {
+      return NextResponse.json({ error: "Counted cash must be zero or a positive amount" }, { status: 400 });
+    }
 
+    const counterSession = await CounterSession.findOne({ _id: sessionId, organizationId: session.organizationId });
     if (!counterSession || counterSession.status !== "open") {
-      return NextResponse.json(
-        { error: "Open counter session not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Open counter session not found" }, { status: 404 });
     }
 
-    // Calculate total cash collected during session
-    const cashOrders = await Order.find({
-      counterSessionId: counterSession._id,
-      status: "completed",
-    });
-
-    let cashSalesTotal = 0;
-    for (const order of cashOrders) {
-      if (order.paymentMethod === "cash") {
-        cashSalesTotal += order.grandTotal;
-      } else if (order.paymentMethod === "split" && order.payments) {
-        const cashPart = order.payments.find((p: any) => p.method === "cash");
-        if (cashPart) cashSalesTotal += cashPart.amount;
-      }
+    // A shift is closed by the cashier who opened it, or by a manager/admin
+    const isOwner = counterSession.cashierId?.toString() === session.userId;
+    if (!isOwner && session.role !== "admin" && session.role !== "manager") {
+      return NextResponse.json({ error: "Only the shift owner or a Manager/Admin can close this shift" }, { status: 403 });
     }
 
-    const expectedCashInDrawer = counterSession.openingFloat + cashSalesTotal;
-    const actualCash = Number(actualCountedCash) || 0;
-    const variance = actualCash - expectedCashInDrawer;
+    const closedAt = new Date();
+    const totals = await computeShiftCash(counterSession, closedAt);
+    const variance = roundMoney(actualCash - totals.expectedCashInDrawer);
 
-    counterSession.closedAt = new Date();
-    counterSession.expectedCashInDrawer = expectedCashInDrawer;
-    counterSession.actualCountedCash = actualCash;
-    counterSession.variance = variance;
-    counterSession.notes = notes || counterSession.notes;
-    counterSession.status = "closed";
-    await counterSession.save();
+    // Atomic close so two terminals cannot close the same shift twice
+    const closed = await CounterSession.findOneAndUpdate(
+      { _id: counterSession._id, status: "open" },
+      {
+        $set: {
+          closedAt,
+          expectedCashInDrawer: totals.expectedCashInDrawer,
+          actualCountedCash: actualCash,
+          variance,
+          notes: notes || counterSession.notes,
+          status: "closed",
+        },
+      },
+      { new: true }
+    );
+    if (!closed) return NextResponse.json({ error: "Shift was already closed" }, { status: 409 });
 
     return NextResponse.json({
       success: true,
       message: "Shift closed & EOD report calculated successfully!",
       summary: {
-        sessionId: counterSession._id,
-        cashierName: counterSession.cashierName,
-        openedAt: counterSession.openedAt,
-        closedAt: counterSession.closedAt,
-        openingFloat: counterSession.openingFloat,
-        cashSalesTotal,
-        expectedCashInDrawer,
+        sessionId: closed._id,
+        cashierName: closed.cashierName,
+        openedAt: closed.openedAt,
+        closedAt: closed.closedAt,
+        openingFloat: closed.openingFloat,
+        cashSalesTotal: totals.cashSalesTotal,
+        cashRefundTotal: totals.cashRefundTotal,
+        expectedCashInDrawer: totals.expectedCashInDrawer,
         actualCountedCash: actualCash,
         variance,
-        status: counterSession.status,
+        status: closed.status,
       },
     });
   } catch (error: any) {

@@ -37,7 +37,7 @@ interface OrderRecord {
   subtotal: number;
   tax: number;
   total: number;
-  status: "completed" | "held" | "cancelled";
+  status: "completed" | "held" | "voided" | "partially_refunded" | "refunded";
   cashier: string;
 }
 
@@ -68,13 +68,16 @@ export default function OrdersPage() {
               payment: o.paymentMethod ? o.paymentMethod.toUpperCase() : "CASH",
               itemsCount: Array.isArray(o.items) ? o.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) : 0,
               itemsList: Array.isArray(o.items)
-                ? o.items.map((i: any) => ({
-                    id: i.productId || i.sku,
-                    name: i.productName || "Product",
-                    sku: i.sku || "N/A",
-                    price: i.unitPrice || 0,
-                    quantity: i.quantity || 1,
-                  }))
+                ? o.items
+                    .map((i: any) => ({
+                      id: i.productId || i.sku,
+                      name: i.productName || "Product",
+                      sku: i.sku || "N/A",
+                      price: i.unitPrice || 0,
+                      // Only units that have not been refunded yet can be refunded again
+                      quantity: (i.quantity || 1) - (i.refundedQuantity || 0),
+                    }))
+                    .filter((i: OrderItem) => i.quantity > 0)
                 : [],
               subtotal: o.subtotal || 0,
               tax: o.taxAmount || 0,
@@ -108,11 +111,7 @@ export default function OrdersPage() {
           originalOrderId: refundOrder.id,
           items: refundOrder.itemsList.map((i) => ({
             productId: i.id,
-            productName: i.name,
-            sku: i.sku,
             quantity: i.quantity,
-            unitPrice: i.price,
-            refundAmount: i.price * i.quantity,
             restockFlag,
             reason: refundReason,
           })),
@@ -126,12 +125,14 @@ export default function OrdersPage() {
         throw new Error(data.error || "Failed to process refund");
       }
 
-      // Update local order status to cancelled/refunded
-      setOrdersList((prev) =>
-        prev.map((o) => (o.id === refundOrder.id ? { ...o, status: "cancelled" } : o))
-      );
-
-      setRefundSuccessMsg(`Refund for Order #${refundOrder.orderNumber} completed! Inventory restocked & reversing ledger entry posted.`);
+      if (data.refund?.status === "pending_approval") {
+        setRefundSuccessMsg(`Refund request for Order #${refundOrder.orderNumber} sent for Manager approval.`);
+      } else {
+        setOrdersList((prev) =>
+          prev.map((o) => (o.id === refundOrder.id ? { ...o, status: "refunded", itemsList: [] } : o))
+        );
+        setRefundSuccessMsg(data.message || `Refund for Order #${refundOrder.orderNumber} completed!`);
+      }
       setTimeout(() => {
         setRefundSuccessMsg("");
         setRefundOrder(null);
@@ -220,7 +221,7 @@ export default function OrdersPage() {
           </thead>
           <tbody>
             {filteredOrders.map((order) => (
-              <tr key={order.id} className={order.status === "cancelled" ? "bg-red-500/5 opacity-70" : ""}>
+              <tr key={order.id} className={order.status === "refunded" ? "bg-red-500/5 opacity-70" : ""}>
                 <td className="font-accent font-bold text-accent">{order.orderNumber}</td>
                 <td className="font-accent text-muted">{order.date}</td>
                 <td className="font-medium">{order.type}</td>
@@ -237,10 +238,10 @@ export default function OrdersPage() {
                       <CheckCircle2 className="w-3 h-3" />
                       <span>COMPLETED</span>
                     </span>
-                  ) : order.status === "cancelled" ? (
+                  ) : order.status === "refunded" || order.status === "partially_refunded" ? (
                     <span className="badge badge-error flex items-center gap-1 w-fit">
                       <RotateCcw className="w-3 h-3" />
-                      <span>REFUNDED</span>
+                      <span>{order.status === "refunded" ? "REFUNDED" : "PARTIAL REFUND"}</span>
                     </span>
                   ) : (
                     <span className="badge badge-warning flex items-center gap-1 w-fit">
@@ -251,7 +252,7 @@ export default function OrdersPage() {
                 </td>
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {order.status !== "cancelled" && (
+                    {(order.status === "completed" || order.status === "partially_refunded") && order.itemsList.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setRefundOrder(order)}
@@ -354,7 +355,7 @@ export default function OrdersPage() {
                 disabled={submittingRefund}
                 className="flex-1 btn btn-primary py-3 bg-red-600 hover:bg-red-700 text-white font-bold"
               >
-                {submittingRefund ? "Processing Refund..." : `Confirm Refund PKR ${refundOrder.total.toLocaleString()}`}
+                {submittingRefund ? "Processing Refund..." : `Confirm Refund (${refundOrder.itemsList.reduce((sum, i) => sum + i.quantity, 0)} item(s))`}
               </button>
             </div>
           </div>

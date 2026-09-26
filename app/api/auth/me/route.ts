@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { getSession, clearSessionCookies } from "@/lib/auth/session";
 
 // GET: Check current session
 export async function GET() {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+    const response = NextResponse.json({ authenticated: false }, { status: 401 });
+    clearSessionCookies(response);
+    return response;
   }
   return NextResponse.json({ authenticated: true, user: session });
 }
 
-// POST: Logout — clear JWT cookie with all required security flags
+// POST: Logout — clear every session cookie (including legacy impersonation cookie)
 export async function POST() {
   const response = NextResponse.json({ success: true });
-  response.cookies.set("rst_pos_token", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  });
+  clearSessionCookies(response);
   return response;
 }

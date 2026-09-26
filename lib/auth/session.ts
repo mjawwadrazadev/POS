@@ -1,8 +1,11 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { BusinessType } from "@/lib/config/verticals";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
+import { User } from "@/models/User";
+import { ImpersonationSession } from "@/models/ImpersonationSession";
 
 // Fail-hard on startup if JWT_SECRET is missing — no silent fallback to any default.
 // If this throws, it means the environment is misconfigured. Fix .env.local, do NOT add a fallback.
@@ -15,12 +18,25 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// Single session cookie for every kind of session (tenant, platform, impersonation).
+export const SESSION_COOKIE = "rst_pos_token";
+// Legacy cookie written by older impersonation code — only ever cleared, never read.
+const LEGACY_SESSION_COOKIE = "auth_token";
+
+export const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
+export const IMPERSONATION_MAX_AGE_SECONDS = 30 * 60;
+
+// Tenant statuses that must never be granted a session.
+const BLOCKED_TENANT_STATUSES = ["suspended", "suspended_manual", "expired", "terminated"];
+
+export type SessionRole = "super_admin" | "platform_support" | "admin" | "manager" | "cashier";
+
 export interface SessionPayload {
   userId: string;
   fullName?: string;
   name?: string;
   email: string;
-  role: "super_admin" | "platform_support" | "admin" | "manager" | "cashier";
+  role: SessionRole;
   organizationId: string;
   organizationName?: string;
   orgName?: string;
@@ -30,6 +46,7 @@ export interface SessionPayload {
   branchName?: string;
   planTier?: "billing_only" | "billing_accounting";
   subscriptionStatus?: string;
+  taxRate?: number;
   // Impersonation fields
   isImpersonating?: boolean;
   originalSuperAdminId?: string;
@@ -37,8 +54,12 @@ export interface SessionPayload {
   targetOrgName?: string;
 }
 
-export function signToken(payload: any): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "12h" });
+export function isPlatformRole(role?: string) {
+  return role === "super_admin" || role === "platform_support";
+}
+
+export function signToken(payload: object, expiresInSeconds: number = SESSION_MAX_AGE_SECONDS): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: expiresInSeconds });
 }
 
 export function verifyToken(token: string): SessionPayload | null {
@@ -49,41 +70,111 @@ export function verifyToken(token: string): SessionPayload | null {
   }
 }
 
+export function setSessionCookie(response: NextResponse, token: string, maxAgeSeconds: number = SESSION_MAX_AGE_SECONDS) {
+  response.cookies.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: maxAgeSeconds,
+    path: "/",
+  });
+  clearLegacyCookie(response);
+}
+
+export function clearSessionCookies(response: NextResponse) {
+  response.cookies.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+  clearLegacyCookie(response);
+}
+
+function clearLegacyCookie(response: NextResponse) {
+  response.cookies.set(LEGACY_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+}
+
+/**
+ * Reads the session cookie, verifies the JWT and re-validates it against the database on every call
+ * (fail-closed). A token is only honoured while:
+ *  - the user still exists, is active and still holds the role in the token
+ *  - for tenant users: the organization is not suspended / expired / terminated and not past expiryDate
+ *  - for impersonation: the ImpersonationSession is still active, unexpired, and the super admin is still active
+ */
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("rst_pos_token")?.value || cookieStore.get("auth_token")?.value;
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
   const payload = verifyToken(token);
   if (!payload) return null;
 
-  // Live Subscription Status & Plan Tier Verification (Session Revocation Guard)
-  // Non-super_admin / non-platform_support requests always hit DB to catch mid-session suspension/expiry.
-  if (payload.role !== "super_admin" && payload.role !== "platform_support" && !payload.isImpersonating && payload.organizationId) {
-    try {
-      await dbConnect();
-      const org = await Organization.findById(payload.organizationId)
-        .select("subscriptionStatus planTier")
-        .lean();
+  try {
+    await dbConnect();
 
-      if (!org || org.subscriptionStatus === "suspended" || org.subscriptionStatus === "expired") {
-        console.warn(
-          `[Session Revoked] Access blocked for tenant '${payload.organizationId}' ` +
-          `(Status: ${org?.subscriptionStatus || "org missing from DB"})`
-        );
-        return null;
-      }
+    if (payload.isImpersonating) {
+      if (!payload.impersonationSessionId || !payload.originalSuperAdminId) return null;
 
+      const [imp, superAdmin] = await Promise.all([
+        ImpersonationSession.findById(payload.impersonationSessionId).lean(),
+        User.findById(payload.originalSuperAdminId).select("isActive role").lean(),
+      ]);
+
+      if (!imp || !imp.isActive || new Date(imp.expiresAt) <= new Date()) return null;
+      if (imp.targetOrganizationId.toString() !== payload.organizationId) return null;
+      if (!superAdmin || !superAdmin.isActive || superAdmin.role !== "super_admin") return null;
+
+      const org = await Organization.findById(payload.organizationId).select("planTier taxRate subscriptionStatus").lean();
+      if (!org) return null;
       payload.planTier = org.planTier || "billing_only";
+      payload.taxRate = org.taxRate;
       payload.subscriptionStatus = org.subscriptionStatus;
-    } catch (err) {
-      // Fail CLOSED: if the DB check cannot complete for any reason
-      // (timeout, connection glitch, network issue), deny access.
-      // Never grant a session on an unverified check.
-      console.error("[Session Guard] DB lookup failed — denying access (fail-closed):", err);
+      return payload;
+    }
+
+    const user = await User.findById(payload.userId).select("isActive role organizationId").lean();
+    if (!user || !user.isActive || user.role !== payload.role) return null;
+
+    if (isPlatformRole(payload.role)) {
+      return payload;
+    }
+
+    if (!payload.organizationId || user.organizationId.toString() !== payload.organizationId) return null;
+
+    const org = await Organization.findById(payload.organizationId)
+      .select("subscriptionStatus planTier expiryDate taxRate")
+      .lean();
+
+    if (!org) return null;
+
+    const isPastExpiry = org.expiryDate && new Date(org.expiryDate) < new Date();
+    if (BLOCKED_TENANT_STATUSES.includes(org.subscriptionStatus) || isPastExpiry) {
+      console.warn(
+        `[Session Revoked] Access blocked for tenant '${payload.organizationId}' ` +
+        `(Status: ${org.subscriptionStatus}${isPastExpiry ? ", past expiry date" : ""})`
+      );
       return null;
     }
-  }
 
-  return payload;
+    payload.planTier = org.planTier || "billing_only";
+    payload.subscriptionStatus = org.subscriptionStatus;
+    payload.taxRate = org.taxRate;
+    return payload;
+  } catch (err) {
+    // Fail CLOSED: if the DB check cannot complete for any reason, deny access.
+    console.error("[Session Guard] DB lookup failed — denying access (fail-closed):", err);
+    return null;
+  }
+}
+
+export function isBlockedTenantStatus(status?: string) {
+  return !!status && BLOCKED_TENANT_STATUSES.includes(status);
 }

@@ -17,6 +17,7 @@ export interface IJournalEntry extends Document {
   totalDebit: number;
   totalCredit: number;
   isBalanced: boolean;
+  archivedAt?: Date; // set by the retention job; archived entries are hidden, never deleted
   createdAt: Date;
 }
 
@@ -38,9 +39,12 @@ const JournalEntrySchema: Schema<IJournalEntry> = new Schema(
     totalDebit: { type: Number, required: true },
     totalCredit: { type: Number, required: true },
     isBalanced: { type: Boolean, required: true, default: true },
+    archivedAt: { type: Date, index: true },
   },
   { timestamps: true }
 );
+
+JournalEntrySchema.index({ organizationId: 1, createdAt: -1 });
 
 export const JournalEntry: Model<IJournalEntry> =
   mongoose.models.JournalEntry || mongoose.model<IJournalEntry>("JournalEntry", JournalEntrySchema);

@@ -9,6 +9,13 @@ import { BarcodeScannerListener } from "@/components/pos/BarcodeScannerListener"
 import { CameraBarcodeScannerModal } from "@/components/pos/CameraBarcodeScannerModal";
 import { playScanSuccessBeep, playScanErrorBeep } from "@/lib/audio/scanBeep";
 import {
+  saveOfflineOrder,
+  syncOfflineOrders,
+  getPendingOfflineOrders,
+  newClientRef,
+  isNetworkError,
+} from "@/lib/db/indexeddb";
+import {
   Search,
   ShoppingCart,
   Plus,
@@ -64,8 +71,8 @@ export default function PosBillingPage() {
     setSelectedTable,
     discountGlobalPercent,
     setDiscount,
-    shiftCashier,
-    selectedBranch,
+    taxRate,
+    setTaxRate,
   } = usePosStore();
 
   const { items: inventoryItems, adjustStock, fetchFromApi } = useInventoryStore();
@@ -75,12 +82,66 @@ export default function PosBillingPage() {
     fetchFromApi();
   }, []);
 
+  // Session context (tax rate, role, names) + restaurant tables + offline queue sync
+  const [userRole, setUserRole] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
+  const [branchLabel, setBranchLabel] = useState<string>("");
+  const [tableOptions, setTableOptions] = useState<string[]>([]);
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0);
+  const [offlineNotice, setOfflineNotice] = useState("");
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.authenticated) return;
+        setTaxRate(Number(d.user.taxRate) || 0);
+        setUserRole(d.user.role);
+        setUserName(d.user.fullName || d.user.name || d.user.email);
+        setBranchLabel(d.user.branchName || d.user.organizationName || "");
+      })
+      .catch(() => {});
+
+    fetch("/api/tables")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.tables)) {
+          const labels = d.tables.map((t: any) => t.label);
+          setTableOptions(labels);
+          if (labels.length > 0 && !selectedTable) setSelectedTable(labels[0]);
+        }
+      })
+      .catch(() => {});
+
+    async function runSync() {
+      try {
+        const result = await syncOfflineOrders();
+        const queue = await getPendingOfflineOrders();
+        setOfflineQueueCount(queue.length);
+        if (result.synced > 0) {
+          setOfflineNotice(`${result.synced} offline sale(s) synced to the server.`);
+          fetchFromApi();
+        }
+        if (result.failed > 0) {
+          setOfflineNotice(`${result.failed} offline sale(s) were rejected by the server and need review.`);
+        }
+      } catch {
+        // IndexedDB unavailable — offline mode disabled on this browser
+      }
+    }
+    runSync();
+    window.addEventListener("online", runSync);
+    return () => window.removeEventListener("online", runSync);
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("cash");
   const [customerName, setCustomerName] = useState("Walk-in Customer");
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastOrderNumber, setLastOrderNumber] = useState("");
+  // Server-confirmed order shown on the receipt (the cart is cleared right after checkout)
+  const [lastOrder, setLastOrder] = useState<any | null>(null);
   const [stockError, setStockError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
@@ -96,6 +157,7 @@ export default function PosBillingPage() {
   const [managerPin, setManagerPin] = useState("");
   const [managerPinError, setManagerPinError] = useState("");
   const [isManagerAuthorized, setIsManagerAuthorized] = useState(false);
+  const [overrideToken, setOverrideToken] = useState<string>("");
   const [verifyingPin, setVerifyingPin] = useState(false);
 
   // Counter Session (EOD Shift Float) State
@@ -168,7 +230,7 @@ export default function PosBillingPage() {
         body: JSON.stringify({
           action: "open",
           openingFloat: openingFloatInput,
-          cashierName: shiftCashier || "Main Cashier",
+          cashierName: userName,
           notes: shiftNotes,
         }),
       });
@@ -232,7 +294,8 @@ export default function PosBillingPage() {
   }
 
   function handleDiscountChange(val: number) {
-    if (val > 10 && !isManagerAuthorized) {
+    // Only cashiers need a manager override; the server enforces the same rule
+    if (val > 10 && !isManagerAuthorized && userRole === "cashier") {
       setPendingDiscountVal(val);
       setManagerPin("");
       setManagerPinError("");
@@ -246,7 +309,8 @@ export default function PosBillingPage() {
     setManagerPinError("");
 
     try {
-      const res = await fetch("/api/auth/login", {
+      // Verifies the PIN inside this store only — does NOT change who is logged in
+      const res = await fetch("/api/auth/verify-pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: managerPin }),
@@ -254,13 +318,10 @@ export default function PosBillingPage() {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error("Invalid Manager PIN");
+        throw new Error(data.error || "Invalid Manager PIN");
       }
 
-      if (data.user.role === "cashier") {
-        throw new Error("Cashier PIN entered. Manager or Admin PIN required for > 10% discount override.");
-      }
-
+      setOverrideToken(data.overrideToken);
       setIsManagerAuthorized(true);
       if (pendingDiscountVal !== null) {
         setDiscount(pendingDiscountVal);
@@ -285,30 +346,51 @@ export default function PosBillingPage() {
     if (cart.length === 0) return;
 
     setCheckoutLoading(true);
-    try {
-      const checkoutPayload = {
-        items: cart.map((c) => ({
-          id: c.id,
-          name: c.name,
-          sku: c.sku,
-          price: c.price,
-          quantity: c.quantity,
-          discount: c.discount,
-        })),
-        orderType,
-        tableNumber: selectedTable,
-        cashierName: shiftCashier || "Ahmed Ali",
-        customerName: customerName || "Walk-in Customer",
-        paymentMethod: selectedPayment,
-        payments: selectedPayment === "split" ? paymentsBreakdown : undefined,
-        discountGlobalPercent,
-      };
+    // Prices, tax and totals are computed by the server; the client only sends what was picked
+    const clientRef = newClientRef();
+    const checkoutPayload = {
+      items: cart.map((c) => ({
+        id: c.id,
+        name: c.name,
+        quantity: c.quantity,
+        discount: c.discount,
+      })),
+      orderType,
+      tableNumber: orderType === "dine_in" ? selectedTable : undefined,
+      customerName: customerName || "Walk-in Customer",
+      paymentMethod: selectedPayment,
+      payments: selectedPayment === "split" ? paymentsBreakdown : undefined,
+      discountGlobalPercent,
+      overrideToken: overrideToken || undefined,
+      clientRef,
+    };
 
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(checkoutPayload),
-      });
+    try {
+      let res: Response;
+      try {
+        res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(checkoutPayload),
+        });
+      } catch (networkErr) {
+        if (!isNetworkError(networkErr)) throw networkErr;
+        // Offline — queue the sale; it is replayed (idempotently) when the connection returns
+        await saveOfflineOrder({
+          id: clientRef,
+          payload: checkoutPayload,
+          grandTotal,
+          createdAt: new Date().toISOString(),
+        });
+        setOfflineQueueCount((n) => n + 1);
+        setOfflineNotice("Offline: sale saved on this terminal and will sync automatically when back online.");
+        clearCart();
+        setIsSplitModalOpen(false);
+        setIsManagerAuthorized(false);
+        setOverrideToken("");
+        setDiscount(0);
+        return;
+      }
 
       const data = await res.json();
       if (!res.ok) {
@@ -326,18 +408,11 @@ export default function PosBillingPage() {
           await fetch("/api/kot", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            // The server builds the ticket from the saved order
             body: JSON.stringify({
               orderId: data.order?._id,
-              orderNumber: data.order?.orderNumber || `ORD-${Date.now().toString().slice(-6)}`,
-              tableNumber: selectedTable,
+              tableNumber: orderType === "dine_in" ? selectedTable : undefined,
               orderType,
-              items: cart.map((c) => ({
-                productId: c.id,
-                productName: c.name,
-                quantity: c.quantity,
-                notes: "",
-                station: "mains",
-              })),
             }),
           });
         } catch (kotErr) {
@@ -345,9 +420,13 @@ export default function PosBillingPage() {
         }
       }
 
-      setLastOrderNumber(data.order?.orderNumber || `ORD-${Date.now().toString().slice(-6)}`);
+      setLastOrderNumber(data.order?.orderNumber || "");
+      setLastOrder(data.order || null);
       setShowReceipt(true);
       clearCart();
+      setIsManagerAuthorized(false);
+      setOverrideToken("");
+      setDiscount(0);
       setCustomerName("Walk-in Customer");
       setIsSplitModalOpen(false);
       fetchActiveCounterSession();
@@ -379,9 +458,15 @@ export default function PosBillingPage() {
         {/* Top Shift Counter Bar */}
         <div className="bg-[#0b0b0d] border border-stroke-muted p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-3">
-            <span className="text-gray-400 uppercase tracking-wider">Branch: <b className="text-white">{selectedBranch}</b></span>
+            <span className="text-gray-400 uppercase tracking-wider">Branch: <b className="text-white">{branchLabel || "—"}</b></span>
             <span className="text-gray-600">|</span>
-            <span className="text-gray-400 uppercase tracking-wider">Cashier: <b className="text-white">{shiftCashier}</b></span>
+            <span className="text-gray-400 uppercase tracking-wider">Cashier: <b className="text-white">{userName || "—"}</b></span>
+            {offlineQueueCount > 0 && (
+              <>
+                <span className="text-gray-600">|</span>
+                <span className="text-amber-400 uppercase tracking-wider font-bold">Offline queue: {offlineQueueCount}</span>
+              </>
+            )}
             <span className="text-gray-600">|</span>
             {activeSession ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
@@ -446,6 +531,15 @@ export default function PosBillingPage() {
               </button>
             </div>
 
+            {offlineNotice && (
+              <div className="flex items-center justify-between gap-2 bg-amber-500/15 border border-amber-500/30 text-amber-300 px-4 py-2.5 font-accent text-[1.2rem]">
+                <span>{offlineNotice}</span>
+                <button type="button" onClick={() => setOfflineNotice("")} aria-label="Dismiss">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Stock error banner */}
             {stockError && (
               <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-4 py-2.5 font-accent text-[1.2rem]">
@@ -482,7 +576,8 @@ export default function PosBillingPage() {
                     onChange={(e) => setSelectedTable(e.target.value)}
                     className="bg-base-bright border border-stroke-muted px-2 py-1 text-[1.2rem] text-bright outline-none font-bold"
                   >
-                    {["Table 01","Table 02","Table 03","Table 04","Table 05","Table 06","Table 07","Table 08"].map((t) => (
+                    {tableOptions.length === 0 && <option value="">No tables configured</option>}
+                    {tableOptions.map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
@@ -673,7 +768,7 @@ export default function PosBillingPage() {
                   <span className="text-bright">PKR {subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-muted">
-                  <span>Sales Tax (16%):</span>
+                  <span>Sales Tax ({taxRate}%):</span>
                   <span className="text-bright">PKR {taxAmount.toLocaleString()}</span>
                 </div>
                 {discountTotal > 0 && (
@@ -1116,22 +1211,23 @@ export default function PosBillingPage() {
         isOpen={showReceipt}
         onClose={() => setShowReceipt(false)}
         orderNumber={lastOrderNumber}
-        dateStr={new Date().toLocaleString("en-PK")}
-        cashierName={shiftCashier}
-        customerName={customerName}
-        items={cart.map((c) => ({
-          name: c.name,
-          sku: c.sku,
-          quantity: c.quantity,
-          unitPrice: c.price,
-          total: c.price * c.quantity - c.discount,
+        dateStr={new Date(lastOrder?.createdAt || Date.now()).toLocaleString("en-PK")}
+        cashierName={lastOrder?.cashierName || userName}
+        customerName={lastOrder?.customerName || customerName}
+        items={(lastOrder?.items || []).map((i: any) => ({
+          name: i.productName,
+          sku: i.sku,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          total: i.total,
         }))}
-        subtotal={subtotal}
-        taxAmount={taxAmount}
-        discountTotal={discountTotal}
-        grandTotal={grandTotal}
-        paymentMethod={selectedPayment}
-        branchName={selectedBranch}
+        subtotal={lastOrder?.subtotal || 0}
+        taxAmount={lastOrder?.taxAmount || 0}
+        discountTotal={lastOrder?.discountTotal || 0}
+        grandTotal={lastOrder?.grandTotal || 0}
+        paymentMethod={lastOrder?.paymentMethod || selectedPayment}
+        branchName={branchLabel}
+        taxRate={lastOrder?.taxRate}
       />
 
       {/* Global Hardware Barcode Scanner Listener */}

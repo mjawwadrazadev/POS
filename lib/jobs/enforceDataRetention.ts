@@ -1,7 +1,7 @@
 import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
 import { JournalEntry } from "@/models/JournalEntry";
-import { AuditLog } from "@/models/AuditLog";
+import { logAudit } from "@/lib/audit/logger";
 
 export interface DataRetentionPurgeSummary {
   orgId: string;
@@ -12,43 +12,37 @@ export interface DataRetentionPurgeSummary {
 }
 
 /**
- * Enforces organizational data retention policy by archiving and purging old accounting ledger records.
+ * Enforces each organization's data-retention window on the general ledger.
+ *
+ * Financial records are ARCHIVED (flagged with `archivedAt` and hidden from the in-app ledger),
+ * never deleted — businesses are legally required to keep books for years, and the data stays
+ * available through the tenant export. `dataRetentionMonths = 0` means lifetime visibility.
  */
-export async function runDataRetentionJob(): Promise<DataRetentionPurgeSummary[]> {
+export async function runDataRetentionJob(triggeredBy?: { userId: string; name: string; role: string }): Promise<DataRetentionPurgeSummary[]> {
   await dbConnect();
 
-  const orgs = await Organization.find({
-    dataRetentionMonths: { $gt: 0 },
-  });
-
+  const orgs = await Organization.find({ dataRetentionMonths: { $gt: 0 } });
   const summaries: DataRetentionPurgeSummary[] = [];
 
   for (const org of orgs) {
-    const months = org.dataRetentionMonths || 6;
+    const months = org.dataRetentionMonths;
     const cutoffDate = new Date();
     cutoffDate.setMonth(cutoffDate.getMonth() - months);
 
-    const oldEntries = await JournalEntry.find({
-      organizationId: org._id,
-      createdAt: { $lt: cutoffDate },
-    });
+    const result = await JournalEntry.updateMany(
+      { organizationId: org._id, createdAt: { $lt: cutoffDate }, archivedAt: { $exists: false } },
+      { $set: { archivedAt: new Date() } }
+    );
 
-    if (oldEntries.length > 0) {
-      // Archive to Audit Log before removing
-      await AuditLog.create({
-        organizationId: org._id,
-        action: "data_retention.purge",
+    if (result.modifiedCount > 0) {
+      await logAudit({
+        organizationId: org._id as any,
+        actorId: triggeredBy?.userId,
+        actorName: triggeredBy?.name || "System (Data Retention Job)",
+        actorRole: triggeredBy?.role || "system",
+        action: "data_retention.archive",
         targetCollection: "JournalEntry",
-        details: {
-          purgedCount: oldEntries.length,
-          retentionMonths: months,
-          cutoffDate,
-        },
-      });
-
-      await JournalEntry.deleteMany({
-        organizationId: org._id,
-        createdAt: { $lt: cutoffDate },
+        after: { archivedCount: result.modifiedCount, retentionMonths: months, cutoffDate },
       });
     }
 
@@ -57,7 +51,7 @@ export async function runDataRetentionJob(): Promise<DataRetentionPurgeSummary[]
       orgName: org.name,
       retentionMonths: months,
       cutoffDate,
-      archivedCount: oldEntries.length,
+      archivedCount: result.modifiedCount,
     });
   }
 

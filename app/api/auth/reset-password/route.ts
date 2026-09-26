@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { PasswordResetToken } from "@/models/PasswordResetToken";
+import { isPinTakenInOrg } from "@/lib/auth/pinUniqueness";
+import { isValidPin } from "@/lib/utils/server";
 
 export async function POST(req: Request) {
   try {
@@ -40,24 +42,26 @@ export async function POST(req: Request) {
 
     // Update password or PIN (Mongoose pre-save hook will hash password/PIN with bcrypt)
     if (newPassword) {
-      if (newPassword.length < 6) {
-        return NextResponse.json({ error: "New password must be at least 6 characters long" }, { status: 400 });
+      if (String(newPassword).length < 8) {
+        return NextResponse.json({ error: "New password must be at least 8 characters long" }, { status: 400 });
       }
-      user.password = newPassword;
+      user.password = String(newPassword);
     }
 
     if (newPin) {
-      if (newPin.length !== 4 || isNaN(Number(newPin))) {
+      if (!isValidPin(String(newPin))) {
         return NextResponse.json({ error: "PIN must be a 4-digit number" }, { status: 400 });
       }
-      user.pin = newPin;
+      if (await isPinTakenInOrg(user.organizationId, String(newPin), (user._id as any).toString())) {
+        return NextResponse.json({ error: "This PIN is already used by another staff member. Choose a different PIN." }, { status: 400 });
+      }
+      user.pin = String(newPin);
     }
 
     await user.save();
 
-    // Mark token as used
-    tokenDoc.used = true;
-    await tokenDoc.save();
+    // Single use: mark this and any other outstanding tokens for the user as used
+    await PasswordResetToken.updateMany({ userId: user._id, used: false }, { used: true });
 
     return NextResponse.json({
       success: true,

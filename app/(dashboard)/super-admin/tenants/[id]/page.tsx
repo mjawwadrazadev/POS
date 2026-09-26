@@ -42,7 +42,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
   const [showResetPinModal, setShowResetPinModal] = useState(false);
   const [selectedStaffUser, setSelectedStaffUser] = useState<any>(null);
-  const [newPin, setNewPin] = useState("1234");
+  const [newPin, setNewPin] = useState("");
 
   const [showTerminateModal, setShowTerminateModal] = useState(false);
   const [confirmName, setConfirmName] = useState("");
@@ -455,11 +455,12 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
               <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex justify-between items-center">
                 <div>
                   <div className="font-bold text-white">{tenant.adminName} (Tenant Owner Admin)</div>
-                  <div className="text-xs text-slate-400">{tenant.adminEmail} · Current PIN: {tenant.adminPin}</div>
+                  <div className="text-xs text-slate-400">{tenant.adminEmail} · Store code: <span className="font-mono">{tenant.code}</span></div>
                 </div>
                 <button
+                  disabled={!tenant.adminUserId}
                   onClick={() => {
-                    setSelectedStaffUser({ id: id, name: tenant.adminName });
+                    setSelectedStaffUser({ id: tenant.adminUserId, name: tenant.adminName });
                     setShowResetPinModal(true);
                   }}
                   className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1.5"

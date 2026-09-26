@@ -26,6 +26,10 @@ import {
   Building2,
   Stethoscope,
   Store,
+  ChefHat,
+  Settings,
+  Printer,
+  Receipt,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -47,7 +51,8 @@ export function Sidebar() {
         const data = await res.json();
         if (data.authenticated && data.user) {
           setUserSession(data.user);
-          if (data.user.role !== "super_admin" && data.user.businessType) {
+          const platform = data.user.role === "super_admin" || data.user.role === "platform_support";
+          if ((!platform || data.user.isImpersonating) && data.user.businessType) {
             setVertical(data.user.businessType);
           }
         }
@@ -59,13 +64,13 @@ export function Sidebar() {
   }, [setVertical]);
 
   async function handleLogout() {
+    const loginPath = isSuperAdmin ? "/super-admin/login" : "/login";
     try {
       await fetch("/api/auth/me", { method: "POST" });
-      window.location.href = "/login";
     } catch (e) {
       console.error("Logout failed", e);
-      window.location.href = "/login";
     }
+    window.location.href = loginPath;
   }
 
   const verticalIcons: Record<BusinessType, React.ReactNode> = {
@@ -82,8 +87,12 @@ export function Sidebar() {
   };
 
   const isActive = (path: string) => pathname === path;
-  const isSuperAdmin = userSession?.role === "super_admin";
-  const isAccountingEnabled = userSession?.planTier === "billing_accounting" || isSuperAdmin;
+  // Platform staff (super admin / support) see the platform menu unless they are impersonating a store
+  const isSuperAdmin =
+    (userSession?.role === "super_admin" || userSession?.role === "platform_support") && !userSession?.isImpersonating;
+  const isStoreManager = userSession?.role === "admin" || userSession?.role === "manager";
+  const isAccountingEnabled = userSession?.planTier === "billing_accounting" && isStoreManager;
+  const hasKitchen = currentVertical === "restaurant" || currentVertical === "cafe" || currentVertical === "bakery";
 
   return (
     <aside className="sidebar">
@@ -192,6 +201,15 @@ export function Sidebar() {
                   <Clock className="w-4 h-4 flex-shrink-0" />
                   <span className="truncate">Orders & Receipts</span>
                 </Link>
+                {hasKitchen && (
+                  <Link
+                    href="/kds"
+                    className={`sidebar__link ${isActive("/kds") ? "sidebar__link--active" : ""}`}
+                  >
+                    <ChefHat className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">Kitchen Display</span>
+                  </Link>
+                )}
               </div>
             )}
 
@@ -201,6 +219,13 @@ export function Sidebar() {
                 <div className="text-[1rem] font-accent uppercase text-cyan-400 font-bold px-3 py-1 tracking-wider">
                   Hospital Operations
                 </div>
+                <Link
+                  href="/consultations"
+                  className={`sidebar__link ${isActive("/consultations") ? "sidebar__link--active" : ""}`}
+                >
+                  <Receipt className="w-4 h-4 flex-shrink-0 text-cyan-400" />
+                  <span className="truncate">Consultation Billing</span>
+                </Link>
                 <Link
                   href="/doctors"
                   className={`sidebar__link ${isActive("/doctors") ? "sidebar__link--active" : ""}`}
@@ -287,11 +312,11 @@ export function Sidebar() {
 
             {/* HRMS & Staff */}
             <Link
-              href="/staff"
-              className={`sidebar__link mt-2 ${isActive("/staff") ? "sidebar__link--active" : ""}`}
+              href="/hr"
+              className={`sidebar__link mt-2 ${isActive("/hr") ? "sidebar__link--active" : ""}`}
             >
               <Users className="w-4 h-4 flex-shrink-0" />
-              <span>Staff & Payroll</span>
+              <span>Attendance & Payroll</span>
             </Link>
 
             {/* Analytics */}
@@ -302,6 +327,26 @@ export function Sidebar() {
               <BarChart3 className="w-4 h-4 flex-shrink-0" />
               <span>EOD & Sales Reports</span>
             </Link>
+
+            {/* Store Settings */}
+            {isStoreManager && (
+              <>
+                <Link
+                  href="/settings/team"
+                  className={`sidebar__link mt-2 ${isActive("/settings/team") ? "sidebar__link--active" : ""}`}
+                >
+                  <Settings className="w-4 h-4 flex-shrink-0" />
+                  <span>Team, Branches & Tables</span>
+                </Link>
+                <Link
+                  href="/settings/printers"
+                  className={`sidebar__link ${isActive("/settings/printers") ? "sidebar__link--active" : ""}`}
+                >
+                  <Printer className="w-4 h-4 flex-shrink-0" />
+                  <span>Printers</span>
+                </Link>
+              </>
+            )}
 
             {/* Platform Support Desk */}
             <Link

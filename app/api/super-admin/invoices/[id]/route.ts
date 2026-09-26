@@ -3,6 +3,7 @@ import { dbConnect } from "@/lib/db/mongoose";
 import { PaymentHistory } from "@/models/PaymentHistory";
 import { Organization } from "@/models/Organization";
 import { getSession } from "@/lib/auth/session";
+import { escapeHtml as e } from "@/lib/utils/server";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -82,17 +83,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     <div class="grid">
       <div>
         <div class="meta-title">Billed To (Tenant Business)</div>
-        <div class="meta-value" style="font-size: 18px; color: #1e3a8a;">${payment.tenantName}</div>
-        <div style="font-size: 14px; color: #475569; margin-top: 4px;">Business Type: ${org?.businessType ? org.businessType.toUpperCase() : "POS"}</div>
-        <div style="font-size: 14px; color: #475569;">Email: ${org?.email || "N/A"}</div>
-        <div style="font-size: 14px; color: #475569;">Phone: ${org?.phone || "N/A"}</div>
+        <div class="meta-value" style="font-size: 18px; color: #1e3a8a;">${e(payment.tenantName)}</div>
+        <div style="font-size: 14px; color: #475569; margin-top: 4px;">Business Type: ${e(org?.businessType ? org.businessType.toUpperCase() : "POS")}</div>
+        <div style="font-size: 14px; color: #475569;">Email: ${e(org?.email || "N/A")}</div>
+        <div style="font-size: 14px; color: #475569;">Phone: ${e(org?.phone || "N/A")}</div>
       </div>
       <div style="text-align: right;">
         <div class="meta-title">Invoice Details</div>
         <div style="font-size: 14px; color: #475569; margin-bottom: 4px;"><strong>Payment Date:</strong> ${paidDateStr}</div>
         <div style="font-size: 14px; color: #475569; margin-bottom: 4px;"><strong>Access Period:</strong> ${payment.monthsAdded} Month(s)</div>
         <div style="font-size: 14px; color: #475569; margin-bottom: 4px;"><strong>Subscription Expiry:</strong> ${expiresDateStr}</div>
-        <div style="font-size: 14px; color: #475569;"><strong>Payment Method:</strong> ${payment.paymentMethod.toUpperCase()}</div>
+        <div style="font-size: 14px; color: #475569;"><strong>Payment Method:</strong> ${e(String(payment.paymentMethod).toUpperCase())}</div>
       </div>
     </div>
 
@@ -102,7 +103,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           <th>Description</th>
           <th>Plan Tier</th>
           <th>Billing Cycle</th>
-          <th style="text-align: right;">Amount (${payment.currency || "PKR"})</th>
+          <th style="text-align: right;">Amount (${e(payment.currency || "PKR")})</th>
         </tr>
       </thead>
       <tbody>
@@ -112,17 +113,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             <span style="font-size: 13px; color: #64748b;">Includes full POS access, multi-branch, inventory, HR & accounting engine</span>
           </td>
           <td>${payment.planTier === "billing_accounting" ? "Billing + Accounting Pro" : "Standard Billing"}</td>
-          <td>${payment.billingCycle} (${payment.monthsAdded} mo)</td>
+          <td>${e(payment.billingCycle)} (${e(payment.monthsAdded)} mo)</td>
           <td style="text-align: right; font-weight: 700;">${payment.amount.toLocaleString()}</td>
         </tr>
         <tr class="total-row">
           <td colspan="3" style="text-align: right;">Total Amount Paid:</td>
-          <td style="text-align: right;">${payment.currency || "PKR"} ${payment.amount.toLocaleString()}</td>
+          <td style="text-align: right;">${e(payment.currency || "PKR")} ${payment.amount.toLocaleString()}</td>
         </tr>
       </tbody>
     </table>
 
-    ${payment.notes ? `<div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 12px 16px; margin-bottom: 32px; font-size: 14px; color: #475569;"><strong>Notes / Reference:</strong> ${payment.notes}</div>` : ""}
+    ${payment.notes ? `<div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 12px 16px; margin-bottom: 32px; font-size: 14px; color: #475569;"><strong>Notes / Reference:</strong> ${e(payment.notes)}</div>` : ""}
 
     <div class="footer">
       <p>Thank you for choosing <strong>RST POS System</strong> for your business operations!</p>
@@ -133,7 +134,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 </html>`;
 
     return new Response(html, {
-      headers: { "Content-Type": "text/html" },
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        // Only the inline print button script is needed
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+      },
     });
   } catch (error: any) {
     return NextResponse.json(

@@ -22,8 +22,10 @@ interface PosState {
   orderType: "dine_in" | "takeaway" | "delivery" | "retail_sale" | "prescription";
   selectedTable: string;
   discountGlobalPercent: number;
+  taxRate: number; // store sales-tax % from the organization settings
 
   // Actions
+  setTaxRate: (rate: number) => void;
   setVertical: (type: BusinessType) => void;
   setBranch: (branch: string) => void;
   toggleShift: () => void;
@@ -49,9 +51,11 @@ export const usePosStore = create<PosState>((set, get) => ({
   shiftCashier: "",
   cart: [],
   orderType: "retail_sale",
-  selectedTable: "Table 01",
+  selectedTable: "",
   discountGlobalPercent: 0,
+  taxRate: 0,
 
+  setTaxRate: (rate) => set({ taxRate: Number.isFinite(rate) ? rate : 0 }),
   setVertical: (type) => set({ currentVertical: type }),
   setBranch: (branch) => set({ selectedBranch: branch }),
   toggleShift: () => set((state) => ({ activeShiftOpen: !state.activeShiftOpen })),
@@ -104,24 +108,27 @@ export const usePosStore = create<PosState>((set, get) => ({
 
   getSubtotal: () => {
     const { cart } = get();
-    return cart.reduce((sum, item) => sum + item.price * item.quantity - item.discount, 0);
+    return roundMoney(cart.reduce((sum, item) => sum + item.price * item.quantity - item.discount, 0));
   },
 
-  getTaxTotal: () => {
-    const subtotal = get().getSubtotal();
-    return Math.round(subtotal * 0.16); // 16% sales tax
-  },
-
+  // Mirrors the server calculation in /api/orders: tax is charged on the discounted amount
   getDiscountTotal: () => {
     const subtotal = get().getSubtotal();
     const { discountGlobalPercent } = get();
-    return Math.round(subtotal * (discountGlobalPercent / 100));
+    return roundMoney(subtotal * (discountGlobalPercent / 100));
+  },
+
+  getTaxTotal: () => {
+    const taxable = get().getSubtotal() - get().getDiscountTotal();
+    return roundMoney(taxable * (get().taxRate / 100));
   },
 
   getGrandTotal: () => {
-    const subtotal = get().getSubtotal();
-    const tax = get().getTaxTotal();
-    const discount = get().getDiscountTotal();
-    return Math.max(0, subtotal + tax - discount);
+    const taxable = get().getSubtotal() - get().getDiscountTotal();
+    return Math.max(0, roundMoney(taxable + get().getTaxTotal()));
   },
 }));
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}

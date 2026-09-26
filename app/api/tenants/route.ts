@@ -5,43 +5,59 @@ import { Branch } from "@/models/Branch";
 import { User } from "@/models/User";
 import { Product } from "@/models/Product";
 import { Doctor } from "@/models/Doctor";
+import { PaymentHistory } from "@/models/PaymentHistory";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
-import { getSession } from "@/lib/auth/session";
+import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
+import { logAudit } from "@/lib/audit/logger";
+import { generateTempPassword, isValidPin } from "@/lib/utils/server";
+import { TENANT_TEMPLATE_ITEMS, HOSPITAL_TEMPLATE_DOCTORS } from "@/lib/config/tenantTemplates";
 
-// GET: Fetch all tenant organizations with subscription details and stats
+const BUSINESS_TYPES = Object.keys(VERTICAL_CONFIGS);
+const PLAN_TIERS = ["billing_only", "billing_accounting"];
+const SUBSCRIPTION_PLANS = ["monthly", "yearly", "custom"];
+const RETENTION_OPTIONS = [0, 6, 12, 24];
+
+// GET: All tenant organizations with subscription details and stats (platform staff only)
 export async function GET() {
   try {
-    await dbConnect();
-    const session = await getSession();
-    if (!session || session.role !== "super_admin") {
-      return NextResponse.json({ error: "Forbidden — Super Admin access required" }, { status: 403 });
-    }
+    const auth = await requireSuperAdminAction("read_analytics");
+    if (!auth.authorized) return auth.response;
 
+    await dbConnect();
     const orgs = await Organization.find({}).sort({ createdAt: -1 }).lean();
     const now = new Date();
 
     const tenants = await Promise.all(
       orgs.map(async (org: any) => {
-        const branchCount = await Branch.countDocuments({ organizationId: org._id });
-        const userCount = await User.countDocuments({ organizationId: org._id });
-        const productCount = await Product.countDocuments({ organizationId: org._id });
-        const adminUser = await User.findOne({ organizationId: org._id, role: "admin" }).lean();
+        const [branchCount, userCount, productCount, adminUser, payments] = await Promise.all([
+          Branch.countDocuments({ organizationId: org._id }),
+          User.countDocuments({ organizationId: org._id }),
+          Product.countDocuments({ organizationId: org._id }),
+          User.findOne({ organizationId: org._id, role: "admin" }).sort({ createdAt: 1 }).select("fullName email").lean(),
+          PaymentHistory.find({ organizationId: org._id }).sort({ paidAt: -1 }).lean(),
+        ]);
 
-        // Compute subscription status & days remaining
-        const expiryDate = org.expiryDate ? new Date(org.expiryDate) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-        const diffMs = expiryDate.getTime() - now.getTime();
-        const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const expiryDate = org.expiryDate ? new Date(org.expiryDate) : now;
+        const daysRemaining = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
+        // Manual states always win over the date-derived status
         let computedStatus = org.subscriptionStatus || "active";
-        if (computedStatus !== "suspended") {
-          if (daysRemaining <= 0) {
-            computedStatus = "expired";
-          } else if (daysRemaining <= 7) {
-            computedStatus = "expiring_soon";
-          } else {
-            computedStatus = "active";
-          }
+        if (!["suspended", "suspended_manual", "terminated"].includes(computedStatus)) {
+          computedStatus = daysRemaining <= 0 ? "expired" : daysRemaining <= 7 ? "expiring_soon" : "active";
         }
+
+        // PaymentHistory collection is the source of truth; the embedded array is legacy data only
+        const paymentHistory =
+          payments.length > 0
+            ? payments.map((p: any) => ({
+                id: p._id.toString(),
+                amount: p.amount,
+                paymentDate: p.paidAt,
+                monthsAdded: p.monthsAdded,
+                paymentMethod: p.paymentMethod,
+                notes: p.notes,
+              }))
+            : (org.paymentHistory || []).map((p: any) => ({ ...p, id: undefined }));
 
         return {
           id: org._id.toString(),
@@ -53,50 +69,46 @@ export async function GET() {
           phone: org.phone || "",
           email: org.email || adminUser?.email || "",
           address: org.address || "",
+          adminUserId: adminUser?._id?.toString() || null,
           adminName: adminUser?.fullName || "Not Set",
           adminEmail: adminUser?.email || "Not Set",
-          adminPin: adminUser?.pin || "1234",
-          // Plan Tier & Retention
-          planTier: org.planTier || "billing_accounting",
-          accountingEnabled: org.accountingEnabled !== false,
-          dataRetentionMonths: org.dataRetentionMonths || 6,
-          planPriceAtSelection: org.planPriceAtSelection || org.subscriptionFee || 5000,
-          // Subscription & Fee Data
+          planTier: org.planTier || "billing_only",
+          accountingEnabled: org.planTier === "billing_accounting",
+          dataRetentionMonths: org.dataRetentionMonths ?? 0,
+          planLimits: org.planLimits,
+          planPriceAtSelection: org.planPriceAtSelection ?? org.subscriptionFee ?? 0,
           subscriptionPlan: org.subscriptionPlan || "monthly",
-          subscriptionFee: org.subscriptionFee || 5000,
+          subscriptionFee: org.subscriptionFee ?? 0,
           subscriptionStatus: computedStatus,
           startDate: org.startDate || org.createdAt,
           expiryDate: expiryDate.toISOString(),
           lastPaymentDate: org.lastPaymentDate || org.createdAt,
           daysRemaining,
-          paymentHistory: org.paymentHistory || [],
+          paymentHistory,
           branchCount,
           userCount,
           productCount,
           createdAt: org.createdAt,
+          isPlatformOrg: !!(await User.exists({ organizationId: org._id, role: { $in: ["super_admin", "platform_support"] } })),
         };
       })
     );
 
-    // Calculate MRR (Monthly Recurring Revenue)
-    const totalMRR = tenants.reduce((sum, t) => {
-      if (t.code === "rst-hq") return sum; // Skip HQ master org
-      const monthlyEquiv = t.subscriptionPlan === "yearly" ? t.subscriptionFee / 12 : t.subscriptionFee;
-      return sum + monthlyEquiv;
-    }, 0);
+    const billable = tenants.filter((t) => !t.isPlatformOrg && t.subscriptionStatus !== "terminated");
 
-    const activeCount = tenants.filter((t) => t.subscriptionStatus === "active" && t.code !== "rst-hq").length;
-    const expiringSoonCount = tenants.filter((t) => t.subscriptionStatus === "expiring_soon" && t.code !== "rst-hq").length;
-    const expiredCount = tenants.filter((t) => (t.subscriptionStatus === "expired" || t.subscriptionStatus === "suspended") && t.code !== "rst-hq").length;
+    const totalMRR = billable.reduce(
+      (sum, t) => sum + (t.subscriptionPlan === "yearly" ? t.subscriptionFee / 12 : t.subscriptionFee),
+      0
+    );
 
     return NextResponse.json({
       success: true,
       tenants,
       stats: {
         totalMRR,
-        activeCount,
-        expiringSoonCount,
-        expiredCount,
+        activeCount: billable.filter((t) => t.subscriptionStatus === "active").length,
+        expiringSoonCount: billable.filter((t) => t.subscriptionStatus === "expiring_soon").length,
+        expiredCount: billable.filter((t) => ["expired", "suspended", "suspended_manual"].includes(t.subscriptionStatus)).length,
       },
     });
   } catch (error: any) {
@@ -107,15 +119,16 @@ export async function GET() {
   }
 }
 
-// POST: Provision a new tenant organization with subscription fee
+// POST: Provision a new tenant organization (super admin only)
 export async function POST(req: Request) {
-  try {
-    await dbConnect();
-    const session = await getSession();
-    if (!session || session.role !== "super_admin") {
-      return NextResponse.json({ error: "Forbidden — Super Admin access required" }, { status: 403 });
-    }
+  const created: { org?: any; branch?: any; user?: any } = {};
 
+  try {
+    const auth = await requireSuperAdminAction("manage_pricing");
+    if (!auth.authorized) return auth.response;
+    const session = auth.session!;
+
+    await dbConnect();
     const body = await req.json();
 
     const {
@@ -124,177 +137,156 @@ export async function POST(req: Request) {
       adminName,
       adminEmail,
       adminPin,
+      adminPassword,
       phone,
       address,
+      city,
       taxRate = 16.0,
       planTier = "billing_accounting",
-      dataRetentionMonths = 6,
+      dataRetentionMonths = 0,
+      planLimits,
       subscriptionPlan = "monthly",
       subscriptionFee = 5000,
       durationMonths = 1,
       createSampleMenu = true,
     } = body;
 
+    // ─── Validation ───
     if (!name || !businessType || !adminEmail || !adminPin) {
       return NextResponse.json(
         { error: "Business Name, Business Type, Admin Email, and Admin PIN are required" },
         { status: 400 }
       );
     }
-
-    // Check if email already exists
-    const existingUser = await User.findOne({ email: adminEmail.toLowerCase() });
-    if (existingUser) {
-      return NextResponse.json(
-        { error: `An account with email '${adminEmail}' already exists` },
-        { status: 400 }
-      );
+    if (!BUSINESS_TYPES.includes(businessType)) return NextResponse.json({ error: "Invalid business type" }, { status: 400 });
+    if (!PLAN_TIERS.includes(planTier)) return NextResponse.json({ error: "Invalid plan tier" }, { status: 400 });
+    if (!SUBSCRIPTION_PLANS.includes(subscriptionPlan)) return NextResponse.json({ error: "Invalid subscription plan" }, { status: 400 });
+    if (!RETENTION_OPTIONS.includes(Number(dataRetentionMonths))) {
+      return NextResponse.json({ error: "Data retention must be 0 (lifetime), 6, 12 or 24 months" }, { status: 400 });
+    }
+    if (!isValidPin(String(adminPin))) return NextResponse.json({ error: "Admin PIN must be exactly 4 digits" }, { status: 400 });
+    if (adminPassword && String(adminPassword).length < 8) {
+      return NextResponse.json({ error: "Admin password must be at least 8 characters" }, { status: 400 });
     }
 
-    // Generate unique code
-    const code = name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-") + "-" + Date.now().toString().slice(-4);
+    const fee = Number(subscriptionFee);
+    const months = Number(durationMonths);
+    const tax = Number(taxRate);
+    if (!Number.isFinite(fee) || fee < 0) return NextResponse.json({ error: "Invalid subscription fee" }, { status: 400 });
+    if (!Number.isInteger(months) || months < 1 || months > 36) return NextResponse.json({ error: "Duration must be 1–36 months" }, { status: 400 });
+    if (!Number.isFinite(tax) || tax < 0 || tax > 100) return NextResponse.json({ error: "Tax rate must be 0–100%" }, { status: 400 });
 
-    // Calculate Expiry Date based on durationMonths
+    const normalizedEmail = String(adminEmail).toLowerCase().trim();
+    if (await User.exists({ email: normalizedEmail })) {
+      return NextResponse.json({ error: `An account with email '${normalizedEmail}' already exists` }, { status: 400 });
+    }
+
+    const slug = String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "store";
+    const code = `${slug}-${Date.now().toString(36).slice(-4)}`;
+
     const now = new Date();
-    const expiryDate = new Date(now.getTime() + Number(durationMonths) * 30 * 24 * 60 * 60 * 1000);
+    const expiryDate = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000);
 
-    // 1. Create Organization with Plan Tier & Retention Info
-    const org = await Organization.create({
-      name,
+    // ─── 1. Organization ───
+    created.org = await Organization.create({
+      name: String(name).trim(),
       code,
       businessType: businessType as BusinessType,
       currency: "PKR",
-      taxRate: Number(taxRate),
+      taxRate: tax,
       phone,
-      email: adminEmail,
+      email: normalizedEmail,
       address,
       planTier,
       accountingEnabled: planTier === "billing_accounting",
       dataRetentionMonths: Number(dataRetentionMonths),
-      planPriceAtSelection: Number(subscriptionFee),
+      planLimits: {
+        maxBranches: Math.max(1, Number(planLimits?.maxBranches) || 5),
+        maxStaffUsers: Math.max(1, Number(planLimits?.maxStaffUsers) || 20),
+      },
+      planPriceAtSelection: fee,
       subscriptionPlan,
-      subscriptionFee: Number(subscriptionFee),
+      subscriptionFee: fee,
       subscriptionStatus: "active",
       startDate: now,
       expiryDate,
       lastPaymentDate: now,
-      paymentHistory: [
-        {
-          amount: Number(subscriptionFee),
-          paymentDate: now,
-          monthsAdded: Number(durationMonths),
-          notes: `Initial Signup (${durationMonths} month access)`,
-        },
-      ],
     });
+    const org = created.org;
 
-    // 2. Create Main Branch
-    const branch = await Branch.create({
+    // ─── 2. Main Branch ───
+    created.branch = await Branch.create({
       organizationId: org._id,
       name: `${name} - Main Branch`,
       code: "MAIN-01",
-      city: "Lahore",
-      address: address || "Main Branch Address",
-      phone: phone || "+92 42 111 222 333",
+      city: city ? String(city) : "Main",
+      address: address || "",
+      phone: phone || "",
       isMain: true,
     });
 
-    // 3. Create Tenant Admin User
-    const adminUser = await User.create({
+    // ─── 3. Tenant Admin (always gets a password so email login and password reset work) ───
+    const tempPassword = adminPassword ? undefined : generateTempPassword();
+    created.user = await User.create({
       organizationId: org._id,
-      branchId: branch._id,
+      branchId: created.branch._id,
       fullName: adminName || `${name} Owner`,
-      email: adminEmail.toLowerCase().trim(),
-      pin: adminPin,
+      email: normalizedEmail,
+      password: adminPassword || tempPassword,
+      pin: String(adminPin),
       role: "admin",
       isActive: true,
     });
 
-    // 4. Optionally seed template items based on Business Type
+    // ─── 4. Initial payment record ───
+    if (fee > 0) {
+      await PaymentHistory.create({
+        organizationId: org._id,
+        tenantName: org.name,
+        amount: fee * (subscriptionPlan === "yearly" ? 1 : months),
+        currency: org.currency,
+        planTier,
+        billingCycle: subscriptionPlan,
+        monthsAdded: months,
+        paymentMethod: "manual",
+        paidAt: now,
+        expiresAt: expiryDate,
+        notes: `Initial signup (${months} month access)`,
+        createdBy: session.userId,
+      });
+    }
+
+    // ─── 5. Optional starter catalogue ───
     let sampleProductsCount = 0;
     if (createSampleMenu) {
-      const templateItems: Record<BusinessType, any[]> = {
-        bakery: [
-          { name: "Special Cream Fudge Cake (2 Pound)", sku: "BAK-101", category: "Cakes", price: 2400, costPrice: 1400, stock: 15, unit: "Pcs", flavour: "Chocolate Cream", weightGrams: 900, expiryTime: "48 Hours", isPerishable: true },
-          { name: "Butter Milk Croissant", sku: "BAK-102", category: "Pastries & Breads", price: 300, costPrice: 160, stock: 40, unit: "Pcs", expiryTime: "24 Hours", isPerishable: true },
-          { name: "Garlic Toast Slices", sku: "BAK-103", category: "Breads", price: 350, costPrice: 180, stock: 25, unit: "Pack", expiryTime: "3 Days" },
-        ],
-        restaurant: [
-          { name: "Special Chicken Karahi (1KG)", sku: "FD-101", category: "Main Course", price: 1950, costPrice: 1250, stock: 50, unit: "KG", preparationTime: 25 },
-          { name: "Special Beef Seekh Kabab (6 Pcs)", sku: "FD-102", category: "Appetizers", price: 1200, costPrice: 750, stock: 30, unit: "Plate", preparationTime: 20 },
-          { name: "Fresh Mint Lemonade", sku: "BV-101", category: "Beverages", price: 350, costPrice: 150, stock: 100, unit: "Glass", preparationTime: 5 },
-        ],
-        cafe: [
-          { name: "Double Shot Espresso", sku: "CAF-101", category: "Hot Drinks", price: 450, costPrice: 180, stock: 100, unit: "Cup", preparationTime: 5 },
-          { name: "Spanish Latte Iced Coffee", sku: "CAF-102", category: "Cold Drinks", price: 680, costPrice: 320, stock: 80, unit: "Cup", preparationTime: 5 },
-          { name: "Club Sandwich with Fries", sku: "CAF-103", category: "Snacks", price: 850, costPrice: 450, stock: 30, unit: "Plate", preparationTime: 15 },
-        ],
-        pharmacy: [
-          { name: "Panadol Extra 500mg (Strip)", sku: "MED-101", category: "Medicines", price: 120, costPrice: 85, stock: 200, unit: "Pcs", batchNumber: "BCH-001", genericName: "Paracetamol" },
-          { name: "Augmentin 625mg Tablets", sku: "MED-102", category: "Medicines", price: 550, costPrice: 420, stock: 60, unit: "Box", batchNumber: "BCH-002", genericName: "Co-amoxiclav" },
-        ],
-        retail: [
-          { name: "Cotton Casual T-Shirt", sku: "RTL-101", category: "Apparel", price: 1490, costPrice: 850, stock: 45, unit: "Pcs" },
-          { name: "Leather Wallet Premium", sku: "RTL-102", category: "Accessories", price: 2200, costPrice: 1200, stock: 20, unit: "Pcs" },
-        ],
-        supermarket: [
-          { name: "Basmati Rice Extra Long (5KG)", sku: "GR-101", category: "Groceries", price: 2100, costPrice: 1750, stock: 50, unit: "Pack" },
-          { name: "Pure Cooking Oil (5 Litre)", sku: "GR-102", category: "Groceries", price: 2850, costPrice: 2450, stock: 40, unit: "Bottle" },
-        ],
-        electronics: [
-          { name: "Fast Charging Type-C Cable (65W)", sku: "ELE-101", category: "Accessories", price: 1250, costPrice: 700, stock: 35, unit: "Pcs", warrantyMonths: 6 },
-          { name: "Wireless Earbuds Noise Cancelling", sku: "ELE-102", category: "Audio", price: 4500, costPrice: 3100, stock: 15, unit: "Pcs", serialNumber: "SN-EAR-99", warrantyMonths: 12 },
-        ],
-        clothing: [
-          { name: "Embroidered Kurta Casual", sku: "CLO-101", category: "Men's Wear", price: 3800, costPrice: 2400, stock: 25, unit: "Pcs", size: "L", color: "White" },
-          { name: "Designer Linen Dupatta", sku: "CLO-102", category: "Women's Wear", price: 2200, costPrice: 1300, stock: 30, unit: "Pcs", size: "Free Size", color: "Multicolor" },
-        ],
-        salon: [
-          { name: "Gentleman Haircut & Beard Styling", sku: "SLN-101", category: "Hair Services", price: 1500, costPrice: 400, stock: 999, unit: "Service" },
-          { name: "Deep Cleansing Facial Treatment", sku: "SLN-102", category: "Skin Services", price: 3500, costPrice: 1200, stock: 999, unit: "Service" },
-        ],
-        hospital: [
-          { name: "General OPD Medical Kit", sku: "HOSP-101", category: "Hospital Supplies", price: 500, costPrice: 200, stock: 100, unit: "Kit" },
-          { name: "Patient Registration File", sku: "HOSP-102", category: "Stationery", price: 100, costPrice: 30, stock: 500, unit: "File" },
-        ],
-      };
-
       if (businessType === "hospital") {
-        await Doctor.insertMany([
-          {
-            organizationId: org._id,
-            name: "Dr. Ahmed Khan",
-            specialization: "Cardiologist",
-            registrationNumber: "PMC-78910-K",
-            photo: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80",
-            fees: { newPatient: 2000, followUp: 1000, emergency: 3500 },
-            hospitalCommissionPercent: 20,
-            paymentArrangement: "revenue_share",
-            status: "active",
-          },
-          {
-            organizationId: org._id,
-            name: "Dr. Sara Ali",
-            specialization: "Pediatrician",
-            registrationNumber: "PMC-65432-A",
-            photo: "https://images.unsplash.com/photo-1594824813566-78a9c394d210?w=150&auto=format&fit=crop&q=80",
-            fees: { newPatient: 1500, followUp: 800, emergency: 2500 },
-            hospitalCommissionPercent: 25,
-            paymentArrangement: "revenue_share",
-            status: "active",
-          },
-        ]);
+        await Doctor.insertMany(
+          HOSPITAL_TEMPLATE_DOCTORS.map((d) => ({ ...d, organizationId: org._id, branchId: created.branch._id }))
+        );
       }
-
-      const productsToCreate = (templateItems[businessType as BusinessType] || templateItems.bakery).map((item) => ({
-        ...item,
-        organizationId: org._id,
-        barcode: `890${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`,
-      }));
-
-      const createdProds = await Product.insertMany(productsToCreate);
-      sampleProductsCount = createdProds.length;
+      const template = TENANT_TEMPLATE_ITEMS[businessType as BusinessType] || [];
+      if (template.length > 0) {
+        const createdProds = await Product.insertMany(
+          template.map((item, idx) => ({
+            ...item,
+            organizationId: org._id,
+            barcode: `890${Date.now().toString().slice(-6)}${String(idx).padStart(2, "0")}`,
+          }))
+        );
+        sampleProductsCount = createdProds.length;
+      }
     }
+
+    await logAudit({
+      organizationId: org._id,
+      actorId: session.userId,
+      actorName: session.fullName || session.email,
+      actorRole: session.role,
+      action: "TENANT_PROVISIONED",
+      targetCollection: "Organization",
+      targetId: org._id,
+      after: { code, planTier, subscriptionFee: fee, months },
+    });
 
     return NextResponse.json({
       success: true,
@@ -302,15 +294,28 @@ export async function POST(req: Request) {
       tenant: {
         id: org._id.toString(),
         name: org.name,
+        code: org.code, // store code used for PIN login at /login
         businessType: org.businessType,
-        adminEmail: adminUser.email,
-        adminPin: adminUser.pin,
-        subscriptionFee,
+        adminEmail: normalizedEmail,
+        tempPassword, // shown once; the admin should change it via "Forgot Password"
+        subscriptionFee: fee,
         expiryDate: expiryDate.toISOString(),
         sampleProductsCount,
       },
     });
   } catch (error: any) {
+    // Roll back partially provisioned tenant so a retry starts clean
+    if (created.org) {
+      const orgId = created.org._id;
+      await Promise.allSettled([
+        Organization.deleteOne({ _id: orgId }),
+        Branch.deleteMany({ organizationId: orgId }),
+        User.deleteMany({ organizationId: orgId }),
+        Product.deleteMany({ organizationId: orgId }),
+        Doctor.deleteMany({ organizationId: orgId }),
+        PaymentHistory.deleteMany({ organizationId: orgId }),
+      ]);
+    }
     return NextResponse.json(
       { error: process.env.NODE_ENV === "production" ? "Failed to create tenant" : error.message },
       { status: 500 }

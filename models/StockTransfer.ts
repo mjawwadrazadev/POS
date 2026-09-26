@@ -1,10 +1,19 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export interface IStockTransferBatchMove {
+  batchId: mongoose.Types.ObjectId; // source batch at fromBranch
+  batchNumber: string;
+  expiryDate: Date;
+  costPrice: number;
+  quantity: number;
+}
+
 export interface IStockTransferItem {
   productId: mongoose.Types.ObjectId;
   productName: string;
   sku: string;
   quantity: number;
+  batchMoves: IStockTransferBatchMove[];
 }
 
 export interface IStockTransfer extends Document {
@@ -16,17 +25,30 @@ export interface IStockTransfer extends Document {
   status: "pending" | "in_transit" | "received" | "cancelled";
   notes?: string;
   requestedBy: string;
+  requestedById?: mongoose.Types.ObjectId;
   approvedBy?: string;
   receivedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
+const StockTransferBatchMoveSchema = new Schema(
+  {
+    batchId: { type: Schema.Types.ObjectId, ref: "Batch", required: true },
+    batchNumber: { type: String, required: true },
+    expiryDate: { type: Date, required: true },
+    costPrice: { type: Number, default: 0 },
+    quantity: { type: Number, required: true, min: 1 },
+  },
+  { _id: false }
+);
+
 const StockTransferItemSchema = new Schema({
   productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
   productName: { type: String, required: true },
   sku: { type: String, required: true },
   quantity: { type: Number, required: true, min: 1 },
+  batchMoves: { type: [StockTransferBatchMoveSchema], default: [] },
 });
 
 const StockTransferSchema: Schema<IStockTransfer> = new Schema(
@@ -42,7 +64,8 @@ const StockTransferSchema: Schema<IStockTransfer> = new Schema(
       default: "pending",
     },
     notes: { type: String },
-    requestedBy: { type: String, default: "Manager" },
+    requestedBy: { type: String, required: true },
+    requestedById: { type: Schema.Types.ObjectId, ref: "User" },
     approvedBy: { type: String },
     receivedAt: { type: Date },
   },
