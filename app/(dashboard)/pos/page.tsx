@@ -1225,6 +1225,9 @@ export default function PosBillingPage() {
         paymentMethod={lastOrder?.paymentMethod || selectedPayment}
         branchName={branchLabel}
         taxRate={lastOrder?.taxRate}
+        fbrStatus={lastOrder?.fbr?.status}
+        fbrInvoiceNumber={lastOrder?.fbr?.invoiceNumber}
+        fbrSandbox={lastOrder?.fbr?.environment === "sandbox"}
       />
 
       {/* Global Hardware Barcode Scanner Listener */}

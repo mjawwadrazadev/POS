@@ -40,7 +40,8 @@ export type PlatformAction =
   | "impersonate_tenant"
   | "terminate_tenant"
   | "manage_pricing"
-  | "manage_integrations";
+  | "manage_integrations"
+  | "manage_fbr";
 
 // Everything else is open to both platform roles
 const SUPER_ADMIN_ONLY_ACTIONS: PlatformAction[] = [
@@ -48,6 +49,7 @@ const SUPER_ADMIN_ONLY_ACTIONS: PlatformAction[] = [
   "terminate_tenant",
   "manage_pricing",
   "manage_integrations",
+  "manage_fbr", // tax credentials of a tenant
 ];
 
 export function canPerformPlatformAction(role: string | undefined, action: PlatformAction): boolean {
@@ -111,6 +113,7 @@ const STORE_API_PREFIXES = [
   "/api/reports",
   "/api/accounting/ledger",
   "/api/auth/verify-pin",
+  "/api/fbr",
 ];
 
 export function isStoreApi(pathname: string): boolean {

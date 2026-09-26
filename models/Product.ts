@@ -5,6 +5,7 @@ export interface IProduct extends Document {
   name: string;
   sku: string;
   barcode?: string;
+  hsCode?: string; // HS / PCT code reported to FBR
   category: string;
   price: number;
   costPrice: number;
@@ -35,6 +36,7 @@ const ProductSchema: Schema<IProduct> = new Schema(
     name: { type: String, required: true, trim: true },
     sku: { type: String, required: true, uppercase: true, trim: true },
     barcode: { type: String, trim: true },
+    hsCode: { type: String, trim: true },
     category: { type: String, default: "General" },
     price: { type: Number, required: true, min: 0 },
     costPrice: { type: Number, default: 0, min: 0 },

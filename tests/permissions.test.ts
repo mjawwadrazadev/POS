@@ -47,7 +47,7 @@ describe("platform actions", () => {
   it("keeps platform support out of super-admin-only actions", () => {
     expect(canPerformPlatformAction("platform_support", "read_analytics")).toBe(true);
     expect(canPerformPlatformAction("platform_support", "record_payment")).toBe(true);
-    for (const action of ["impersonate_tenant", "terminate_tenant", "manage_pricing", "manage_integrations"] as const) {
+    for (const action of ["impersonate_tenant", "terminate_tenant", "manage_pricing", "manage_integrations", "manage_fbr"] as const) {
       expect(canPerformPlatformAction("platform_support", action)).toBe(false);
     }
   });

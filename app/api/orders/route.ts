@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { reportOrderToFbr } from "@/lib/fbr/client";
 import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Order } from "@/models/Order";
@@ -251,8 +252,15 @@ export async function POST(req: Request) {
       }
     }
 
+    // ─── 8. Report to FBR (tenants with the FBR integration only) ───
+    // The sale is already final; a failed report is kept on the order and can be resent from Orders.
+    const reportedOrder = await reportOrderToFbr(newOrder).catch((fbrErr) => {
+      console.error(`[FBR] Reporting failed for ${newOrder.orderNumber}:`, fbrErr);
+      return newOrder;
+    });
+
     return NextResponse.json(
-      { success: true, message: "Order completed & stock updated!", order: newOrder },
+      { success: true, message: "Order completed & stock updated!", order: reportedOrder },
       { status: 201 }
     );
   } catch (error: any) {

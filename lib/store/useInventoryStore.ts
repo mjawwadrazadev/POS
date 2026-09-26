@@ -4,6 +4,7 @@ export interface InventoryItem {
   id: string;
   sku: string;
   barcode?: string;
+  hsCode?: string; // FBR HS / PCT code
   name: string;
   category: string;
   price: number;
@@ -48,6 +49,7 @@ function toInventoryItem(p: any): InventoryItem {
     id: p._id,
     sku: p.sku || "",
     barcode: p.barcode,
+    hsCode: p.hsCode,
     name: p.name,
     category: p.category || "General",
     price: p.price || 0,

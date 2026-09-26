@@ -2,7 +2,7 @@
 // Anything else in the request body (organizationId, _id, timestamps…) is ignored.
 
 const STRING_FIELDS = [
-  "name", "sku", "barcode", "category", "unit", "batchNumber", "genericName",
+  "name", "sku", "barcode", "hsCode", "category", "unit", "batchNumber", "genericName",
   "serialNumber", "size", "color", "expiryTime", "flavour",
 ] as const;
 const NUMBER_FIELDS = ["price", "costPrice", "warrantyMonths", "preparationTime", "weightGrams"] as const;
@@ -32,6 +32,10 @@ export function sanitizeProductInput(body: any, { partial }: { partial: boolean 
     data[f] = d;
   }
   if (body.isPerishable !== undefined) data.isPerishable = !!body.isPerishable;
+  // HS / PCT code reported to FBR — optional, but must look like a code when given
+  if (data.hsCode && !/^\d{4}(\.?\d{2,6})?$/.test(data.hsCode)) {
+    return { data, error: "HS code must look like 2106.9090" };
+  }
 
   if (!partial) {
     if (!data.name) return { data, error: "Product name is required" };

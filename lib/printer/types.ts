@@ -34,5 +34,9 @@ export interface PrintOrderData {
   discountTotal: number;
   grandTotal: number;
   paymentMethod: string;
+  taxRate?: number;
+  // FBR fiscal invoice (only for stores reporting to FBR)
+  fbrInvoiceNumber?: string;
+  fbrSandbox?: boolean;
   paperWidth?: PrinterPaperWidth;
 }

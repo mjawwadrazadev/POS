@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { Printer, X, CheckCircle2, Share2 } from "lucide-react";
 import { PrinterService } from "@/lib/printer/PrinterService";
 
@@ -27,6 +28,10 @@ interface ThermalReceiptModalProps {
   paymentMethod: string;
   branchName: string;
   taxRate?: number;
+  // FBR fiscal invoice (stores reporting to FBR only)
+  fbrStatus?: "pending" | "reported" | "failed";
+  fbrInvoiceNumber?: string;
+  fbrSandbox?: boolean;
   // Hospital Consultation Specific Props
   isHospitalBill?: boolean;
   perchiNumber?: number;
@@ -54,6 +59,9 @@ export function ThermalReceiptModal({
   paymentMethod,
   branchName,
   taxRate,
+  fbrStatus,
+  fbrInvoiceNumber,
+  fbrSandbox,
   isHospitalBill,
   perchiNumber,
   consultationTime,
@@ -66,6 +74,22 @@ export function ThermalReceiptModal({
 }: ThermalReceiptModalProps) {
   const [printing, setPrinting] = useState(false);
   const [printNotice, setPrintNotice] = useState("");
+  const [fbrQr, setFbrQr] = useState("");
+
+  // QR code of the FBR invoice number, so customers can verify the invoice
+  useEffect(() => {
+    if (!isOpen || !fbrInvoiceNumber) {
+      setFbrQr("");
+      return;
+    }
+    let cancelled = false;
+    QRCode.toDataURL(fbrInvoiceNumber, { margin: 1, width: 160 })
+      .then((url) => !cancelled && setFbrQr(url))
+      .catch(() => !cancelled && setFbrQr(""));
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, fbrInvoiceNumber]);
 
   if (!isOpen) return null;
 
@@ -86,6 +110,9 @@ export function ThermalReceiptModal({
         discountTotal,
         grandTotal,
         paymentMethod,
+        taxRate,
+        fbrInvoiceNumber,
+        fbrSandbox,
       });
 
       setPrintNotice(`Printed via ${res.transportUsed.toUpperCase()}`);
@@ -294,11 +321,33 @@ export function ThermalReceiptModal({
 
               <div className="border-b border-dashed border-black my-2" />
 
-              {/* Barcode & Footer */}
-              <div className="text-center space-y-2 pt-1">
-                <div className="font-bold text-[1.4rem] tracking-widest font-mono">
-                  ||||| | |||||| || |||||||
+              {/* FBR fiscal invoice */}
+              {fbrInvoiceNumber ? (
+                <div className="text-center space-y-1 py-1">
+                  <div className="font-extrabold text-[1.2rem] uppercase">
+                    {fbrSandbox ? "FBR Sandbox — Test Invoice" : "FBR POS Invoice"}
+                  </div>
+                  <div className="font-mono text-[1.1rem] break-all">FBR Inv #: {fbrInvoiceNumber}</div>
+                  {fbrQr && (
+                    // eslint-disable-next-line @next/next/no-img-element -- generated data URL, nothing to optimise
+                    <img src={fbrQr} alt={`QR code for FBR invoice ${fbrInvoiceNumber}`} className="mx-auto w-32 h-32" />
+                  )}
+                  <div className="text-[1rem]">Verify via FBR Tax Asaan app</div>
+                  <div className="border-b border-dashed border-black my-2" />
                 </div>
+              ) : (
+                fbrStatus &&
+                fbrStatus !== "reported" && (
+                  <div className="text-center text-[1rem] font-bold uppercase py-1">
+                    FBR reporting pending — invoice will be resent
+                    <div className="border-b border-dashed border-black my-2" />
+                  </div>
+                )
+              )}
+
+              {/* Footer */}
+              <div className="text-center space-y-2 pt-1">
+                <div className="font-bold text-[1.2rem] font-mono">{orderNumber}</div>
                 <p className="text-[1rem] uppercase font-bold">
                   Software Powered by NIB IT Solutions
                 </p>

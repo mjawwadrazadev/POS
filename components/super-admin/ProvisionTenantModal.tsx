@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, Building2, UserCheck, CreditCard } from "lucide-react";
+import { X, Building2, UserCheck, CreditCard, Landmark } from "lucide-react";
+import { EMPTY_FBR_FORM, FbrFormValue, FbrSettingsFields } from "@/components/super-admin/FbrSettingsFields";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 
 interface ProvisionTenantModalProps {
@@ -12,6 +13,7 @@ interface ProvisionTenantModalProps {
 
 export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTenantModalProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [fbr, setFbr] = useState<FbrFormValue>(EMPTY_FBR_FORM);
 
   // Form Fields
   const [name, setName] = useState("");
@@ -57,6 +59,8 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
           subscriptionFee,
           durationMonths,
           createSampleMenu,
+          // Only businesses registered with FBR send their FBR details
+          fbr: fbr.enabled ? fbr : { enabled: false },
         }),
       });
 
@@ -252,6 +256,14 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
                 />
               </div>
             </div>
+          </div>
+
+          {/* Section 4: FBR (optional) */}
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-[1.4rem] font-bold text-muted uppercase tracking-wider flex items-center gap-2">
+              <Landmark className="w-4 h-4 text-emerald-600" /> 4. FBR Integration (Optional)
+            </h3>
+            <FbrSettingsFields value={fbr} onChange={setFbr} />
           </div>
 
           {/* Form Actions */}

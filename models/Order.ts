@@ -13,6 +13,17 @@ export interface IOrderItem {
   refundedQuantity: number;
 }
 
+export interface IOrderFbr {
+  status: "pending" | "reported" | "failed";
+  mode: "pos_ims" | "digital_invoicing";
+  environment: "sandbox" | "production";
+  invoiceNumber?: string; // fiscal invoice number issued by FBR
+  error?: string;
+  attempts: number;
+  lastAttemptAt?: Date;
+  reportedAt?: Date;
+}
+
 export interface IOrder extends Document {
   organizationId: mongoose.Types.ObjectId;
   branchId: mongoose.Types.ObjectId;
@@ -40,6 +51,7 @@ export interface IOrder extends Document {
   status: "completed" | "held" | "voided" | "partially_refunded" | "refunded";
   journalEntryId?: mongoose.Types.ObjectId;
   clientRef?: string; // idempotency key for offline-queued orders
+  fbr?: IOrderFbr;
   syncedOffline: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -97,12 +109,24 @@ const OrderSchema: Schema<IOrder> = new Schema(
     journalEntryId: { type: Schema.Types.ObjectId, ref: "JournalEntry" },
     clientRef: { type: String },
     syncedOffline: { type: Boolean, default: false },
+    // FBR reporting result (only for tenants with the FBR integration enabled)
+    fbr: {
+      status: { type: String, enum: ["pending", "reported", "failed"] },
+      mode: { type: String, enum: ["pos_ims", "digital_invoicing"] },
+      environment: { type: String, enum: ["sandbox", "production"] },
+      invoiceNumber: { type: String },
+      error: { type: String },
+      attempts: { type: Number }, // no default: orders of stores without FBR must not get an fbr object
+      lastAttemptAt: { type: Date },
+      reportedAt: { type: Date },
+    },
   },
   { timestamps: true }
 );
 
 OrderSchema.index({ organizationId: 1, branchId: 1, createdAt: -1 });
 OrderSchema.index({ organizationId: 1, orderNumber: 1 }, { unique: true });
+OrderSchema.index({ organizationId: 1, "fbr.status": 1 });
 OrderSchema.index(
   { organizationId: 1, clientRef: 1 },
   { unique: true, partialFilterExpression: { clientRef: { $type: "string" } } }

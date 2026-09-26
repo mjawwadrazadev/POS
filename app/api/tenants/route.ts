@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeFbrSettings } from "@/lib/fbr/settings";
 import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
 import { Branch } from "@/models/Branch";
@@ -89,6 +90,9 @@ export async function GET() {
           userCount,
           productCount,
           createdAt: org.createdAt,
+          fbr: org.fbr?.enabled
+            ? { enabled: true, mode: org.fbr.mode, environment: org.fbr.environment }
+            : { enabled: false },
           isPlatformOrg: !!(await User.exists({ organizationId: org._id, role: { $in: ["super_admin", "platform_support"] } })),
         };
       })
@@ -152,6 +156,7 @@ export async function POST(req: Request) {
       subscriptionFee = 5000,
       durationMonths = 1,
       createSampleMenu = true,
+      fbr,
     } = body;
 
     // ─── Validation ───
@@ -178,6 +183,10 @@ export async function POST(req: Request) {
     if (!Number.isFinite(fee) || fee < 0) return NextResponse.json({ error: "Invalid subscription fee" }, { status: 400 });
     if (!Number.isInteger(months) || months < 1 || months > 36) return NextResponse.json({ error: "Duration must be 1–36 months" }, { status: 400 });
     if (!Number.isFinite(tax) || tax < 0 || tax > 100) return NextResponse.json({ error: "Tax rate must be 0–100%" }, { status: 400 });
+
+    // Optional: only businesses registered with FBR send these details
+    const fbrResult = normalizeFbrSettings(fbr);
+    if (fbrResult.error) return NextResponse.json({ error: `FBR: ${fbrResult.error}`, field: "fbr" }, { status: 400 });
 
     const normalizedEmail = String(adminEmail).toLowerCase().trim();
     if (await User.exists({ email: normalizedEmail })) {
@@ -214,6 +223,7 @@ export async function POST(req: Request) {
       startDate: now,
       expiryDate,
       lastPaymentDate: now,
+      fbr: fbrResult.settings,
     });
     const org = created.org;
 

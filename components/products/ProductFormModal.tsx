@@ -36,6 +36,7 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
 
   const [form, setForm] = useState<Omit<InventoryItem, "id">>({
     sku: editItem?.sku || "",
+    hsCode: editItem?.hsCode || "",
     name: editItem?.name || "",
     category: editItem?.category || categories[0],
     price: editItem?.price || 0,
@@ -139,6 +140,18 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* FBR HS / PCT code */}
+          <div>
+            <label className="form-label text-[rgba(255,255,255,0.6)]">HS / PCT Code (FBR, optional)</label>
+            <input
+              type="text"
+              value={form.hsCode || ""}
+              onChange={(e) => set("hsCode", e.target.value)}
+              placeholder="e.g. 2106.9090 — only needed for stores reporting to FBR"
+              className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2.5 text-[1.4rem] outline-none focus:border-[#002bba]"
+            />
           </div>
 
           {/* Product Name */}

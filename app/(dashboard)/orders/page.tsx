@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { useSessionUser } from "@/components/layout/SessionContext";
+import { isStoreManagerRole } from "@/lib/auth/permissions";
 import {
   Clock,
   Printer,
@@ -9,6 +11,7 @@ import {
   AlertTriangle,
   RotateCcw,
   X,
+  RefreshCw,
 } from "lucide-react";
 
 interface OrderItem {
@@ -33,6 +36,7 @@ interface OrderRecord {
   total: number;
   status: "completed" | "held" | "voided" | "partially_refunded" | "refunded";
   cashier: string;
+  fbr?: { status: "pending" | "reported" | "failed"; invoiceNumber?: string; error?: string; environment?: string };
 }
 
 export default function OrdersPage() {
@@ -46,51 +50,85 @@ export default function OrdersPage() {
 
   const [ordersList, setOrdersList] = useState<OrderRecord[]>([]);
 
-  useEffect(() => {
-    async function fetchOrders() {
-      try {
-        const res = await fetch("/api/orders");
-        const data = await res.json();
-        if (data.success && Array.isArray(data.orders)) {
-          setOrdersList(
-            data.orders.map((o: any) => ({
-              id: o._id,
-              orderNumber: o.orderNumber,
-              date: new Date(o.createdAt).toLocaleString("en-PK"),
-              customer: o.customerName || "Walk-in Guest",
-              type: o.orderType ? o.orderType.replace("_", " ").toUpperCase() + (o.tableNumber ? ` (${o.tableNumber})` : "") : "Order",
-              payment: o.paymentMethod ? o.paymentMethod.toUpperCase() : "CASH",
-              itemsCount: Array.isArray(o.items) ? o.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) : 0,
-              itemsList: Array.isArray(o.items)
-                ? o.items
-                    .map((i: any) => ({
-                      id: i.productId || i.sku,
-                      name: i.productName || "Product",
-                      sku: i.sku || "N/A",
-                      price: i.unitPrice || 0,
-                      // Only units that have not been refunded yet can be refunded again
-                      quantity: (i.quantity || 1) - (i.refundedQuantity || 0),
-                    }))
-                    .filter((i: OrderItem) => i.quantity > 0)
-                : [],
-              subtotal: o.subtotal || 0,
-              tax: o.taxAmount || 0,
-              total: o.grandTotal || 0,
-              status: o.status || "completed",
-              cashier: o.cashierName || "Cashier",
-            }))
-          );
-        } else {
-          setOrdersList([]);
-        }
-      } catch (e) {
-        console.error("Failed to fetch orders:", e);
+  const sessionUser = useSessionUser();
+  const canResendFbr = isStoreManagerRole(sessionUser?.role);
+  const [fbrBusy, setFbrBusy] = useState<string | null>(null);
+  const [fbrNotice, setFbrNotice] = useState("");
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        setOrdersList(
+          data.orders.map((o: any) => ({
+            id: o._id,
+            orderNumber: o.orderNumber,
+            date: new Date(o.createdAt).toLocaleString("en-PK"),
+            customer: o.customerName || "Walk-in Guest",
+            type: o.orderType ? o.orderType.replace("_", " ").toUpperCase() + (o.tableNumber ? ` (${o.tableNumber})` : "") : "Order",
+            payment: o.paymentMethod ? o.paymentMethod.toUpperCase() : "CASH",
+            itemsCount: Array.isArray(o.items) ? o.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) : 0,
+            itemsList: Array.isArray(o.items)
+              ? o.items
+                  .map((i: any) => ({
+                    id: i.productId || i.sku,
+                    name: i.productName || "Product",
+                    sku: i.sku || "N/A",
+                    price: i.unitPrice || 0,
+                    // Only units that have not been refunded yet can be refunded again
+                    quantity: (i.quantity || 1) - (i.refundedQuantity || 0),
+                  }))
+                  .filter((i: OrderItem) => i.quantity > 0)
+              : [],
+            subtotal: o.subtotal || 0,
+            tax: o.taxAmount || 0,
+            total: o.grandTotal || 0,
+            status: o.status || "completed",
+            cashier: o.cashierName || "Cashier",
+            fbr: o.fbr?.status ? o.fbr : undefined,
+          }))
+        );
+      } else {
         setOrdersList([]);
       }
+    } catch (e) {
+      console.error("Failed to fetch orders:", e);
+      setOrdersList([]);
     }
-
-    fetchOrders();
   }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  // Resend sales that FBR has not accepted yet (one order, or all of them)
+  async function resendToFbr(orderId?: string) {
+    setFbrBusy(orderId || "all");
+    setFbrNotice("");
+    try {
+      const res = await fetch("/api/fbr/retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderId ? { orderId } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Resend failed");
+      setFbrNotice(
+        data.reported === data.attempted
+          ? `${data.reported} sale(s) accepted by FBR.`
+          : `${data.reported} of ${data.attempted} accepted. ${data.errors?.[0]?.error ? `FBR says: ${data.errors[0].error}` : ""}`
+      );
+      await fetchOrders();
+    } catch (err: any) {
+      setFbrNotice(err.message || "Resend failed");
+    } finally {
+      setFbrBusy(null);
+    }
+  }
+
+  const fbrEnabled = ordersList.some((o) => o.fbr);
+  const fbrUnsent = ordersList.filter((o) => o.fbr && o.fbr.status !== "reported").length;
 
   async function handleConfirmRefund() {
     if (!refundOrder) return;
@@ -190,11 +228,23 @@ export default function OrdersPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {canResendFbr && fbrUnsent > 0 && (
+            <button type="button" onClick={() => resendToFbr()} disabled={!!fbrBusy} className="btn btn-danger py-2 px-3 text-[1.2rem]">
+              <RefreshCw className={`w-4 h-4 ${fbrBusy === "all" ? "animate-spin" : ""}`} />
+              Resend {fbrUnsent} to FBR
+            </button>
+          )}
           <span className="font-accent text-[1.2rem] text-muted border border-stroke-muted px-3 py-2 bg-base-bright">
             {filteredOrders.length} orders
           </span>
         </div>
       </div>
+
+      {fbrNotice && (
+        <div className="bg-base-tint border border-stroke-muted p-3 text-[1.3rem] text-bright break-all">{fbrNotice}</div>
+      )}
+
+
 
       {/* Orders Data Table */}
       <div className="data-table-wrapper">
@@ -210,6 +260,7 @@ export default function OrdersPage() {
               <th>Grand Total</th>
               <th>Cashier</th>
               <th>Status</th>
+              {fbrEnabled && <th>FBR</th>}
               <th className="text-right">Actions</th>
             </tr>
           </thead>
@@ -244,6 +295,34 @@ export default function OrdersPage() {
                     </span>
                   )}
                 </td>
+                {fbrEnabled && (
+                  <td>
+                    {order.fbr?.status === "reported" ? (
+                      <span className="badge badge-success w-fit" title={order.fbr.invoiceNumber}>
+                        FBR ✓{order.fbr.environment === "sandbox" ? " (TEST)" : ""}
+                      </span>
+                    ) : order.fbr ? (
+                      <div className="flex items-center gap-2">
+                        <span className="badge badge-error w-fit" title={order.fbr.error}>
+                          NOT SENT
+                        </span>
+                        {canResendFbr && (
+                          <button
+                            type="button"
+                            onClick={() => resendToFbr(order.id)}
+                            disabled={!!fbrBusy}
+                            className="p-1.5 text-accent hover:bg-accent-subtle border border-stroke-muted"
+                            title={`Resend to FBR${order.fbr.error ? ` — last error: ${order.fbr.error}` : ""}`}
+                          >
+                            <RefreshCw className={`w-4 h-4 ${fbrBusy === order.id ? "animate-spin" : ""}`} />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted text-[1.2rem]">—</span>
+                    )}
+                  </td>
+                )}
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
                     {(order.status === "completed" || order.status === "partially_refunded") && order.itemsList.length > 0 && (

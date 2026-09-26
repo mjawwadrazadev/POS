@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, use } from "react";
+import { TenantFbrPanel } from "@/components/super-admin/TenantFbrPanel";
 import { useSessionUser } from "@/components/layout/SessionContext";
 import { canPerformPlatformAction } from "@/lib/auth/permissions";
 import Link from "next/link";
@@ -16,18 +17,20 @@ import {
   KeyRound,
   Printer,
   ShieldAlert,
+  Landmark,
 } from "lucide-react";
 
 export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const sessionUser = useSessionUser();
   const canImpersonate = canPerformPlatformAction(sessionUser?.role, "impersonate_tenant");
   const canTerminate = canPerformPlatformAction(sessionUser?.role, "terminate_tenant");
+  const canManageFbr = canPerformPlatformAction(sessionUser?.role, "manage_fbr");
   const { id } = use(params);
   const router = useRouter();
 
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "subscription" | "staff" | "usage" | "danger">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "subscription" | "staff" | "fbr" | "usage" | "danger">("overview");
 
   // Modals
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -290,6 +293,20 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             <span>Tab 3: Staff & Branches</span>
           </button>
 
+          {canManageFbr && (
+            <button
+              onClick={() => setActiveTab("fbr")}
+              className={`px-4 py-3 text-[1.4rem] font-bold border-b-2 transition flex items-center space-x-2 whitespace-nowrap ${
+                activeTab === "fbr"
+                  ? "border-accent text-accent bg-base-tint"
+                  : "border-transparent text-muted hover:text-bright"
+              }`}
+            >
+              <Landmark className="w-4 h-4" />
+              <span>FBR Integration{tenant.fbr?.enabled ? " ✓" : ""}</span>
+            </button>
+          )}
+
           <button
             onClick={() => setActiveTab("usage")}
             className={`px-4 py-3 text-[1.4rem] font-bold border-b-2 transition flex items-center space-x-2 whitespace-nowrap ${
@@ -476,6 +493,9 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
         )}
+
+        {/* FBR Integration */}
+        {canManageFbr && activeTab === "fbr" && <TenantFbrPanel tenantId={id} />}
 
         {/* Tab 4: Usage & Activity */}
         {activeTab === "usage" && (
