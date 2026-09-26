@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Stethoscope,
   Plus,
@@ -9,12 +10,9 @@ import {
   UserX,
   Edit,
   DollarSign,
-  Calendar,
-  CheckCircle2,
   X,
   RefreshCw,
   AlertCircle,
-  Image as ImageIcon,
 } from "lucide-react";
 
 interface Doctor {
@@ -275,9 +273,12 @@ export default function DoctorManagementPage() {
                   <td className="font-bold text-bright">
                     <div className="flex items-center gap-3">
                       {doc.photo ? (
-                        <img
+                        <Image
                           src={doc.photo}
                           alt={doc.name}
+                          width={40}
+                          height={40}
+                          unoptimized
                           className="w-10 h-10 object-cover border border-blue-500/50"
                         />
                       ) : (

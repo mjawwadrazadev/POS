@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, Search, Filter, ArrowUpDown, ChevronRight, CheckCircle, AlertTriangle, XCircle, ShieldAlert } from "lucide-react";
+import { Building2, Search, Filter, ArrowUpDown, ChevronRight, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 import { SuperAdminHeader } from "@/components/super-admin/SuperAdminHeader";
 import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";

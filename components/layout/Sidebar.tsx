@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { usePosStore } from "@/lib/store/usePosStore";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import {
@@ -34,7 +34,6 @@ import {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { currentVertical, setVertical } = usePosStore();
 
   const [userSession, setUserSession] = useState<any | null>(null);

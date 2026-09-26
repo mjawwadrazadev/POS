@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Lock, KeyRound, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const token = searchParams.get("token") || "";
   const email = searchParams.get("email") || "";

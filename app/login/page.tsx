@@ -12,7 +12,6 @@ import {
   Utensils,
   Pill,
   Sparkles,
-  KeyRound,
   CheckCircle2,
   Store,
 } from "lucide-react";

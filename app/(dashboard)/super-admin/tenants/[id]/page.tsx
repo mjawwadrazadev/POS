@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useCallback, useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,13 +10,10 @@ import {
   Users,
   Activity,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
   Eye,
   KeyRound,
   Printer,
   ShieldAlert,
-  RefreshCw,
 } from "lucide-react";
 import { SuperAdminHeader } from "@/components/super-admin/SuperAdminHeader";
 import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
@@ -48,7 +45,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const [confirmName, setConfirmName] = useState("");
   const [terminateReason, setTerminateReason] = useState("");
 
-  const fetchTenantDetail = async () => {
+  const fetchTenantDetail = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/tenants");
@@ -62,11 +59,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchTenantDetail();
-  }, [id]);
+  }, [fetchTenantDetail]);
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +88,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       } else {
         alert(data.error || "Failed to record payment");
       }
-    } catch (err) {
+    } catch {
       alert("Error recording payment");
     }
   };
@@ -116,7 +113,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       } else {
         alert(data.error || "Impersonation failed");
       }
-    } catch (err) {
+    } catch {
       alert("Error starting impersonation");
     }
   };
@@ -135,7 +132,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       } else {
         alert(data.error || "Failed to update status");
       }
-    } catch (err) {
+    } catch {
       alert("Error updating status");
     }
   };
@@ -162,7 +159,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       } else {
         alert(data.error || "Failed to reset PIN");
       }
-    } catch (err) {
+    } catch {
       alert("Error resetting PIN");
     }
   };
@@ -182,7 +179,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       } else {
         alert(data.error || "Failed to terminate tenant");
       }
-    } catch (err) {
+    } catch {
       alert("Error terminating tenant");
     }
   };
@@ -554,6 +551,17 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                   <option value="cheque">Cheque</option>
                   <option value="stripe">Stripe Card</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Notes (optional)</label>
+                <input
+                  type="text"
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="e.g. Receipt #, bank reference"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white"
+                />
               </div>
 
               <div className="flex justify-end space-x-3 pt-3">

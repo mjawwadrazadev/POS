@@ -2,15 +2,11 @@
 
 import { useState, useEffect } from "react";
 import {
-  Utensils,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   RefreshCw,
   Flame,
   ChefHat,
   Bell,
-  Coffee,
   Check,
 } from "lucide-react";
 

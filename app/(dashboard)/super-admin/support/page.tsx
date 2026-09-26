@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LifeBuoy, Megaphone, Send, CheckCircle, Clock, MessageSquare, Plus, AlertTriangle } from "lucide-react";
+import { LifeBuoy, Megaphone, Send, MessageSquare } from "lucide-react";
 import { SuperAdminHeader } from "@/components/super-admin/SuperAdminHeader";
 import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 
 export default function SuperAdminSupportPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"tickets" | "announcements">("tickets");
   const [showProvisionModal, setShowProvisionModal] = useState(false);
 
@@ -25,7 +24,6 @@ export default function SuperAdminSupportPage() {
   const [annType, setAnnType] = useState<"info" | "warning" | "maintenance" | "feature">("info");
 
   const fetchSupportData = async () => {
-    setLoading(true);
     try {
       const [ticketsRes, annRes] = await Promise.all([
         fetch("/api/support"),
@@ -39,8 +37,6 @@ export default function SuperAdminSupportPage() {
       if (annJson.success) setAnnouncements(annJson.announcements);
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -56,7 +52,7 @@ export default function SuperAdminSupportPage() {
         setSelectedTicket(data.ticket);
         setNewStatus(data.ticket.status);
       }
-    } catch (err) {
+    } catch {
       alert("Failed to load ticket");
     }
   };
@@ -77,7 +73,7 @@ export default function SuperAdminSupportPage() {
         openTicketDetail(selectedTicket.id);
         fetchSupportData();
       }
-    } catch (err) {
+    } catch {
       alert("Failed to send reply");
     } finally {
       setReplying(false);
@@ -99,7 +95,7 @@ export default function SuperAdminSupportPage() {
         setAnnContent("");
         fetchSupportData();
       }
-    } catch (err) {
+    } catch {
       alert("Failed to create announcement");
     }
   };

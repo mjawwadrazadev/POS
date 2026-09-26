@@ -1,6 +1,6 @@
 "use client";
 
-import { Printer, X, Barcode, Tag } from "lucide-react";
+import { Printer, X, Tag } from "lucide-react";
 
 interface BarcodeLabelModalProps {
   isOpen: boolean;

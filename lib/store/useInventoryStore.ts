@@ -83,7 +83,7 @@ async function callApi(url: string, method: string, body?: unknown): Promise<{ o
   }
 }
 
-export const useInventoryStore = create<InventoryState>((set, get) => ({
+export const useInventoryStore = create<InventoryState>((set) => ({
   items: [], // Completely clean by default — 0 dummy products
 
   fetchFromApi: async () => {

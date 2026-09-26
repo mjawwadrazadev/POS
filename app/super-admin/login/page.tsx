@@ -8,10 +8,8 @@ import {
   Lock,
   User,
   ArrowRight,
-  Sparkles,
   KeyRound,
   CheckCircle2,
-  Building2,
   AlertCircle,
 } from "lucide-react";
 

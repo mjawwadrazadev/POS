@@ -17,7 +17,6 @@ import {
   Tv,
   Cake,
   Utensils,
-  Coffee,
   AlertTriangle,
   ChevronDown,
   RefreshCw,
@@ -31,7 +30,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchFromApi();
-  }, []);
+  }, [fetchFromApi]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");

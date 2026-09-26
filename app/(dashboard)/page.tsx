@@ -13,9 +13,7 @@ import {
   Plus,
   CheckCircle2,
   AlertTriangle,
-  BarChart3,
   Clock,
-  Sparkles,
 } from "lucide-react";
 
 interface Transaction {

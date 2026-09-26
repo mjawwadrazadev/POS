@@ -8,7 +8,6 @@ import {
   X,
   Save,
   Package,
-  AlertTriangle,
 } from "lucide-react";
 
 interface ProductFormModalProps {

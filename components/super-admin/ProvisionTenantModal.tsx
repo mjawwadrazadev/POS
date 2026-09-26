@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Building2, ShieldCheck, UserCheck, CreditCard, Sparkles } from "lucide-react";
+import { X, Building2, UserCheck, CreditCard } from "lucide-react";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 
 interface ProvisionTenantModalProps {
@@ -20,16 +20,17 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPin, setAdminPin] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  // Not editable in this form yet — sent with their defaults
+  const address = "";
+  const dataRetentionMonths = 6;
+  const subscriptionPlan = "monthly";
+  const durationMonths = 1;
+  const createSampleMenu = true;
   const [taxRate, setTaxRate] = useState(16.0);
   const [planTier, setPlanTier] = useState<"billing_only" | "billing_accounting">("billing_accounting");
-  const [dataRetentionMonths, setDataRetentionMonths] = useState(6);
   const [maxBranches, setMaxBranches] = useState(5);
   const [maxStaffUsers, setMaxStaffUsers] = useState(20);
-  const [subscriptionPlan, setSubscriptionPlan] = useState("monthly");
   const [subscriptionFee, setSubscriptionFee] = useState(5000);
-  const [durationMonths, setDurationMonths] = useState(1);
-  const [createSampleMenu, setCreateSampleMenu] = useState(true);
 
   if (!isOpen) return null;
 
@@ -73,7 +74,7 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
       } else {
         alert(data.error || "Failed to provision tenant");
       }
-    } catch (err) {
+    } catch {
       alert("Error provisioning tenant");
     } finally {
       setSubmitting(false);

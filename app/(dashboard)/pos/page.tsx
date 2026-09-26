@@ -26,7 +26,6 @@ import {
   QrCode,
   CheckCircle2,
   PauseCircle,
-  Barcode,
   Cake,
   Utensils,
   Pill,
@@ -36,9 +35,7 @@ import {
   Split,
   Lock,
   Unlock,
-  DollarSign,
   Printer,
-  LayoutGrid,
   Camera,
 } from "lucide-react";
 
@@ -80,7 +77,7 @@ export default function PosBillingPage() {
 
   useEffect(() => {
     fetchFromApi();
-  }, []);
+  }, [fetchFromApi]);
 
   // Session context (tax rate, role, names) + restaurant tables + offline queue sync
   const [userRole, setUserRole] = useState<string>("");
@@ -108,7 +105,8 @@ export default function PosBillingPage() {
         if (d.success && Array.isArray(d.tables)) {
           const labels = d.tables.map((t: any) => t.label);
           setTableOptions(labels);
-          if (labels.length > 0 && !selectedTable) setSelectedTable(labels[0]);
+          // Read the live value so picking a table later does not re-run this one-time setup
+          if (labels.length > 0 && !usePosStore.getState().selectedTable) setSelectedTable(labels[0]);
         }
       })
       .catch(() => {});
@@ -132,7 +130,7 @@ export default function PosBillingPage() {
     runSync();
     window.addEventListener("online", runSync);
     return () => window.removeEventListener("online", runSync);
-  }, []);
+  }, [fetchFromApi, setSelectedTable, setTaxRate]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -169,7 +167,6 @@ export default function PosBillingPage() {
   const [shiftNotes, setShiftNotes] = useState("");
   const [eodSummaryReport, setEodSummaryReport] = useState<any | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
-  const [isFloorPlanOpen, setIsFloorPlanOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   const subtotal = getSubtotal();

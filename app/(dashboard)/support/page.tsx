@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LifeBuoy, Plus, MessageSquare, Clock, CheckCircle, Send, AlertCircle } from "lucide-react";
+import { LifeBuoy, Plus, MessageSquare, Send } from "lucide-react";
 
 interface Ticket {
   id: string;
@@ -70,7 +70,7 @@ export default function TenantSupportPage() {
       } else {
         alert(data.error || "Failed to submit support ticket");
       }
-    } catch (err) {
+    } catch {
       alert("Error submitting ticket");
     } finally {
       setSubmitting(false);
@@ -84,7 +84,7 @@ export default function TenantSupportPage() {
       if (data.success) {
         setSelectedTicket(data.ticket);
       }
-    } catch (err) {
+    } catch {
       alert("Failed to load ticket conversation");
     }
   };
@@ -105,7 +105,7 @@ export default function TenantSupportPage() {
         openTicketDetail(selectedTicket.id);
         fetchTickets();
       }
-    } catch (err) {
+    } catch {
       alert("Failed to send reply");
     } finally {
       setReplying(false);

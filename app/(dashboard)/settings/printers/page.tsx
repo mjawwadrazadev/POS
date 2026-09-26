@@ -5,7 +5,6 @@ import { PrinterConfig, PrinterRole, PrinterPaperWidth } from "@/lib/printer/typ
 import { PrinterService } from "@/lib/printer/PrinterService";
 import {
   Printer,
-  Plus,
   Wifi,
   Bluetooth,
   Usb,
@@ -13,7 +12,6 @@ import {
   AlertCircle,
   Trash2,
   Play,
-  RefreshCw,
 } from "lucide-react";
 
 export default function PrinterSettingsPage() {

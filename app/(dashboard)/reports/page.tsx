@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePosStore } from "@/lib/store/usePosStore";
-import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
+import { useCallback, useEffect, useState } from "react";
 import {
   BarChart3,
   Calendar,
@@ -11,17 +9,12 @@ import {
   TrendingUp,
   DollarSign,
   FileSpreadsheet,
-  Building2,
-  Filter,
-  Layers,
   ArrowUpRight,
   PieChart,
   CheckCircle2,
 } from "lucide-react";
 
 export default function ReportsPage() {
-  const { currentVertical, selectedBranch } = usePosStore();
-  const config = VERTICAL_CONFIGS[currentVertical];
 
   const [datePreset, setDatePreset] = useState<"today" | "7days" | "30days" | "last_month" | "last_year">("30days");
   const [startDate, setStartDate] = useState("2026-08-01");
@@ -30,11 +23,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [exportNotice, setExportNotice] = useState("");
 
-  useEffect(() => {
-    fetchReport();
-  }, [datePreset, startDate, endDate]);
-
-  async function fetchReport() {
+  const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/reports/sales-summary?startDate=${startDate}&endDate=${endDate}`);
@@ -47,7 +36,11 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
 
   const fmt = (n: number) => `PKR ${Math.round(Number(n) || 0).toLocaleString()}`;
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

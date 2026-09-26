@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { BusinessType, getVerticalConfig } from "@/lib/config/verticals";
+import { BusinessType } from "@/lib/config/verticals";
 
 export interface CartItem {
   id: string;

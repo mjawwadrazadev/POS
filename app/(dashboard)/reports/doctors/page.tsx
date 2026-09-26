@@ -3,15 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   Stethoscope,
-  BarChart3,
-  Calendar,
-  DollarSign,
-  Users,
   RefreshCw,
-  FileSpreadsheet,
-  Printer,
   Sparkles,
-  TrendingUp,
 } from "lucide-react";
 
 interface ConsultationBill {

@@ -4,27 +4,22 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
-  TrendingUp,
   AlertTriangle,
   DollarSign,
-  Users,
   CheckCircle,
   Activity,
   ArrowRight,
-  ShieldCheck,
 } from "lucide-react";
 import { SuperAdminHeader } from "@/components/super-admin/SuperAdminHeader";
 import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 
 export default function SuperAdminDashboardPage() {
-  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
   const [revenueData, setRevenueData] = useState<any>(null);
   const [showProvisionModal, setShowProvisionModal] = useState(false);
 
   const fetchDashboardData = async () => {
-    setLoading(true);
     try {
       const [tenantsRes, healthRes, revenueRes] = await Promise.all([
         fetch("/api/tenants"),
@@ -41,8 +36,6 @@ export default function SuperAdminDashboardPage() {
       if (revenueJson.success) setRevenueData(revenueJson.data);
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 

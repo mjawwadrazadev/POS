@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, X, RefreshCw, AlertCircle, Barcode } from "lucide-react";
-import { playScanSuccessBeep, playScanErrorBeep } from "@/lib/audio/scanBeep";
+import { Camera, AlertCircle } from "lucide-react";
+import { playScanSuccessBeep } from "@/lib/audio/scanBeep";
 
 interface CameraBarcodeScannerModalProps {
   isOpen: boolean;
@@ -32,6 +32,8 @@ export function CameraBarcodeScannerModal({
     return () => {
       stopCamera();
     };
+    // Start/stop only when the modal opens or closes; the camera helpers are recreated every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const startCamera = async () => {
