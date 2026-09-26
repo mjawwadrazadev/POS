@@ -6,17 +6,11 @@ import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
 import { User } from "@/models/User";
 import { ImpersonationSession } from "@/models/ImpersonationSession";
+import { getJwtSecret } from "@/lib/config/platformConfig";
 
-// Fail-hard on startup if JWT_SECRET is missing — no silent fallback to any default.
-// If this throws, it means the environment is misconfigured. Fix .env.local, do NOT add a fallback.
-if (!process.env.JWT_SECRET) {
-  throw new Error(
-    "[FATAL] JWT_SECRET environment variable is not set. " +
-    "Refusing to start with an insecure default. " +
-    "Set a strong random secret in .env.local: JWT_SECRET=<your-random-64-char-hex>"
-  );
-}
-const JWT_SECRET = process.env.JWT_SECRET;
+// The signing secret is read on every call (never cached at module load) so a rotation from the
+// super admin Integrations tab takes effect immediately. It is never a hard-coded default:
+// getJwtSecret() generates and saves a random one on first use.
 
 // Single session cookie for every kind of session (tenant, platform, impersonation).
 export const SESSION_COOKIE = "rst_pos_token";
@@ -59,12 +53,12 @@ export function isPlatformRole(role?: string) {
 }
 
 export function signToken(payload: object, expiresInSeconds: number = SESSION_MAX_AGE_SECONDS): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: expiresInSeconds });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: expiresInSeconds });
 }
 
 export function verifyToken(token: string): SessionPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as SessionPayload;
+    return jwt.verify(token, getJwtSecret()) as SessionPayload;
   } catch {
     return null;
   }

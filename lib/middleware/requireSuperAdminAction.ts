@@ -9,7 +9,8 @@ export type SuperAdminActionLevel =
   | "reset_user_pin"       // super_admin + platform_support
   | "impersonate_tenant"   // super_admin only
   | "terminate_tenant"     // super_admin only
-  | "manage_pricing";      // super_admin only
+  | "manage_pricing"       // super_admin only
+  | "manage_integrations"; // super_admin only
 
 export async function requireSuperAdminAction(requiredLevel: SuperAdminActionLevel) {
   const session = await getSession();
@@ -39,6 +40,7 @@ export async function requireSuperAdminAction(requiredLevel: SuperAdminActionLev
     "impersonate_tenant",
     "terminate_tenant",
     "manage_pricing",
+    "manage_integrations",
   ];
 
   if (superAdminOnlyActions.includes(requiredLevel) && !isSuperAdmin) {

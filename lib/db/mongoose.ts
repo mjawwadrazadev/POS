@@ -1,14 +1,17 @@
 import mongoose from "mongoose";
+import { getConfigValue } from "@/lib/config/platformConfig";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/masterpos";
-
-if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
+/** Thrown when no MongoDB URL has been set yet — the app sends visitors to /setup in that case. */
+export class DatabaseNotConfiguredError extends Error {
+  constructor() {
+    super("MongoDB is not configured yet. Open /setup (first run) or the super admin Integrations tab.");
+  }
 }
 
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
+  uri: string | null;
 }
 
 declare global {
@@ -19,10 +22,18 @@ declare global {
 let cached = global.mongooseCache;
 
 if (!cached) {
-  cached = global.mongooseCache = { conn: null, promise: null };
+  cached = global.mongooseCache = { conn: null, promise: null, uri: null };
 }
 
 export async function dbConnect() {
+  const uri = getConfigValue("mongodbUri");
+  if (!uri) throw new DatabaseNotConfiguredError();
+
+  // The super admin switched databases from the Integrations tab — drop the old connection
+  if (cached.uri && cached.uri !== uri) {
+    await resetDbConnection();
+  }
+
   if (cached.conn) {
     return cached.conn;
   }
@@ -32,7 +43,8 @@ export async function dbConnect() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
+    cached.uri = uri;
+    cached.promise = mongoose.connect(uri, opts).then((m) => {
       return m;
     });
   }
@@ -41,8 +53,35 @@ export async function dbConnect() {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
+    cached.uri = null;
     throw e;
   }
 
   return cached.conn;
+}
+
+export async function resetDbConnection() {
+  cached.conn = null;
+  cached.promise = null;
+  cached.uri = null;
+  await mongoose.disconnect().catch(() => {});
+}
+
+/** Opens a throwaway connection to check a URL before it is saved. Never touches the shared connection. */
+export async function testMongoConnection(
+  uri: string
+): Promise<{ ok: boolean; dbName?: string; superAdminCount?: number; error?: string }> {
+  let conn: mongoose.Connection | null = null;
+  try {
+    conn = mongoose.createConnection(uri, { serverSelectionTimeoutMS: 8000 });
+    await conn.asPromise();
+    await conn.db!.admin().ping();
+    // Tells the caller whether switching to this database would leave the platform without a super admin
+    const superAdminCount = await conn.db!.collection("users").countDocuments({ role: "super_admin" });
+    return { ok: true, dbName: conn.name, superAdminCount };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Connection failed" };
+  } finally {
+    await conn?.close().catch(() => {});
+  }
 }

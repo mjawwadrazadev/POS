@@ -29,6 +29,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# platform config saved from the super admin Integrations tab (DB URL, secrets) — DO NOT COMMIT
+/.data/
+
 # vercel
 .vercel
 

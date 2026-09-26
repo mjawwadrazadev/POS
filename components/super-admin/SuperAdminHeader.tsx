@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, LifeBuoy, Plus, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Building2, LifeBuoy, Plug, Plus, ShieldAlert } from "lucide-react";
 
 interface SuperAdminHeaderProps {
   onOpenNewTenantModal: () => void;
@@ -15,6 +15,7 @@ export function SuperAdminHeader({ onOpenNewTenantModal }: SuperAdminHeaderProps
     { label: "Dashboard", href: "/super-admin", icon: LayoutDashboard, exact: true },
     { label: "Tenants", href: "/super-admin/tenants", icon: Building2, exact: false },
     { label: "Support Tickets", href: "/super-admin/support", icon: LifeBuoy, exact: false },
+    { label: "Integrations", href: "/super-admin/integrations", icon: Plug, exact: false },
   ];
 
   return (

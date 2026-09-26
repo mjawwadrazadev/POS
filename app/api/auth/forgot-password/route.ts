@@ -5,6 +5,8 @@ import { PasswordResetToken } from "@/models/PasswordResetToken";
 import crypto from "crypto";
 import { checkRateLimit, recordFailedAttempt } from "@/lib/security/rateLimiter";
 import { getClientIp, escapeHtml } from "@/lib/utils/server";
+import { getConfigValue } from "@/lib/config/platformConfig";
+import { sendEmail } from "@/lib/email/resend";
 
 const GENERIC_RESPONSE = {
   success: true,
@@ -55,49 +57,31 @@ export async function POST(req: Request) {
       used: false,
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = getConfigValue("appUrl") || "http://localhost:3000";
     const resetUrl = `${appUrl}/reset-password?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
 
-    // If Resend API Key is configured, send actual email
-    const resendApiKey = process.env.RESEND_API_KEY;
-    let emailSent = false;
-
-    if (resendApiKey) {
-      try {
-        const resendRes = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${resendApiKey}`,
-          },
-          body: JSON.stringify({
-            from: process.env.RESEND_FROM_EMAIL || "RST POS Security <onboarding@resend.dev>",
-            to: [normalizedEmail],
-            subject: "🔑 Reset Your RST POS Account Password",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #141417; color: #ffffff; padding: 30px; border: 1px solid #002bba;">
-                <h1 style="color: #819ffe; margin-bottom: 10px;">RST POS</h1>
-                <p style="text-transform: uppercase; font-size: 12px; color: #888888; letter-spacing: 2px;">NIB IT Enterprise Platform</p>
-                <hr style="border-color: #333333; margin: 20px 0;" />
-                <h2 style="color: #ffffff;">Password Reset Request</h2>
-                <p style="font-size: 15px; color: #cccccc; line-height: 1.6;">Hello <strong>${escapeHtml(user.fullName)}</strong>,</p>
-                <p style="font-size: 15px; color: #cccccc; line-height: 1.6;">We received a request to reset your password for your RST POS account (${normalizedEmail}). Click the button below to set a new password:</p>
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${resetUrl}" style="background-color: #002bba; color: #ffffff; text-decoration: none; padding: 14px 28px; font-weight: bold; font-size: 16px; display: inline-block;">RESET MY PASSWORD</a>
-                </div>
-                <p style="font-size: 13px; color: #888888;">If button doesn't work, copy & paste this link in your browser:<br/><a href="${resetUrl}" style="color: #819ffe;">${resetUrl}</a></p>
-                <p style="font-size: 12px; color: #666666; margin-top: 30px;">This link will expire in 1 hour. If you did not request a password reset, please ignore this message.</p>
-              </div>
-            `,
-          }),
-        });
-
-        if (resendRes.ok) {
-          emailSent = true;
-        }
-      } catch (emailErr) {
-        console.error("Resend API error:", emailErr);
-      }
+    // Sent through Resend when an API key is saved in the super admin Integrations tab
+    const { ok: emailSent, error: emailError } = await sendEmail({
+      to: normalizedEmail,
+      subject: "🔑 Reset Your RST POS Account Password",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #141417; color: #ffffff; padding: 30px; border: 1px solid #002bba;">
+          <h1 style="color: #819ffe; margin-bottom: 10px;">RST POS</h1>
+          <p style="text-transform: uppercase; font-size: 12px; color: #888888; letter-spacing: 2px;">NIB IT Enterprise Platform</p>
+          <hr style="border-color: #333333; margin: 20px 0;" />
+          <h2 style="color: #ffffff;">Password Reset Request</h2>
+          <p style="font-size: 15px; color: #cccccc; line-height: 1.6;">Hello <strong>${escapeHtml(user.fullName)}</strong>,</p>
+          <p style="font-size: 15px; color: #cccccc; line-height: 1.6;">We received a request to reset your password for your RST POS account (${normalizedEmail}). Click the button below to set a new password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="background-color: #002bba; color: #ffffff; text-decoration: none; padding: 14px 28px; font-weight: bold; font-size: 16px; display: inline-block;">RESET MY PASSWORD</a>
+          </div>
+          <p style="font-size: 13px; color: #888888;">If button doesn't work, copy & paste this link in your browser:<br/><a href="${resetUrl}" style="color: #819ffe;">${resetUrl}</a></p>
+          <p style="font-size: 12px; color: #666666; margin-top: 30px;">This link will expire in 1 hour. If you did not request a password reset, please ignore this message.</p>
+        </div>
+      `,
+    });
+    if (emailError && getConfigValue("resendApiKey")) {
+      console.error("Resend API error:", emailError);
     }
 
     // Development fallback only — a reset link is a credential and must never reach production logs
@@ -106,7 +90,7 @@ export async function POST(req: Request) {
       console.log("🔑 RST POS PASSWORD RESET LINK GENERATED (dev only):");
       console.log(`User: ${user.fullName} (${normalizedEmail})`);
       console.log(`Reset URL: ${resetUrl}`);
-      console.log(`Resend Email Status: ${emailSent ? "SENT via Resend API" : "Not sent (set RESEND_API_KEY in .env.local)"}`);
+      console.log(`Resend Email Status: ${emailSent ? "SENT via Resend API" : "Not sent (add a Resend API key in Super Admin → Integrations)"}`);
       console.log("========================================================\n");
     } else if (!emailSent) {
       console.error(`[Password Reset] Email delivery failed for user ${user._id}`);

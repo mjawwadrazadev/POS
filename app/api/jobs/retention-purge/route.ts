@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { runDataRetentionJob } from "@/lib/jobs/enforceDataRetention";
 import { getSession } from "@/lib/auth/session";
+import { getConfigValue } from "@/lib/config/platformConfig";
 
 function isValidCronSecret(provided: string | null): boolean {
-  const expected = process.env.CRON_SECRET;
+  const expected = getConfigValue("cronSecret");
   if (!expected || !provided) return false;
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getConfigValue, isDatabaseConfigured } from "@/lib/config/platformConfig";
 
 const SESSION_COOKIE = "rst_pos_token";
 
@@ -27,12 +28,12 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Verifies an HS256 JWT (as issued by jsonwebtoken) with Web Crypto, which is available in the
- * Edge runtime. Returns the payload only when the signature is valid and the token is unexpired.
+ * Verifies an HS256 JWT (as issued by jsonwebtoken) with Web Crypto. Returns the payload only when the signature is valid and the token is unexpired.
  * API routes re-verify every request against the database; this only gates page navigation.
  */
 async function verifyJwt(token: string): Promise<any | null> {
-  const secret = process.env.JWT_SECRET;
+  // Read (never generate) the secret here: the first token issued by the app creates it
+  const secret = getConfigValue("jwtSecret");
   if (!secret) return null;
 
   const parts = token.split(".");
@@ -68,6 +69,14 @@ function isPlatformRole(role?: string) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 0. First run: nothing works until a database is connected, so everything goes to the setup wizard.
+  //    /setup itself stays reachable afterwards; its API refuses once a super admin exists.
+  if (pathname === "/setup") return NextResponse.next();
+  if (!isDatabaseConfigured()) {
+    return NextResponse.redirect(new URL("/setup", request.url));
+  }
+
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const payload = token ? await verifyJwt(token) : null;
 
@@ -111,6 +120,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Node.js runtime so the middleware can read the platform config saved from the dashboard
+  runtime: "nodejs",
   matcher: [
     /*
      * Match all request paths except:
