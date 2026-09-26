@@ -89,9 +89,9 @@ export default function DashboardLayout({
 
       {/* Main App Layout */}
       <div className="pos-layout">
-        <Sidebar />
+        <Sidebar session={userSession} />
         <div className="pos-main">
-          <TopBar title={topBarTitle} />
+          <TopBar title={topBarTitle} session={userSession} />
           <main className="pos-main__content">{children}</main>
         </div>
       </div>

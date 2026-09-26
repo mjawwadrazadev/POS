@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePosStore } from "@/lib/store/usePosStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import {
@@ -11,26 +10,12 @@ import {
 
 interface TopBarProps {
   title?: string;
+  // Session loaded once by the dashboard layout
+  session: any;
 }
 
-export function TopBar({ title = "POS Control Center" }: TopBarProps) {
+export function TopBar({ title = "POS Control Center", session: userSession }: TopBarProps) {
   const { currentVertical, selectedBranch, activeShiftOpen, toggleShift } = usePosStore();
-  const [userSession, setUserSession] = useState<any | null>(null);
-
-  useEffect(() => {
-    async function fetchSession() {
-      try {
-        const res = await fetch("/api/auth/me");
-        const data = await res.json();
-        if (data.authenticated && data.user) {
-          setUserSession(data.user);
-        }
-      } catch (e) {
-        console.error("TopBar session fetch failed:", e);
-      }
-    }
-    fetchSession();
-  }, []);
 
   const verticalConfig = VERTICAL_CONFIGS[currentVertical];
   const isSuperAdmin =

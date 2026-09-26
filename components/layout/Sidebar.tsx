@@ -34,11 +34,22 @@ import {
   Plug,
 } from "lucide-react";
 
-export function Sidebar() {
+interface SidebarProps {
+  // Session loaded once by the dashboard layout, so the menu renders for the right role from the first paint
+  session: any;
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin",
+  platform_support: "Platform Support",
+  admin: "Store Admin",
+  manager: "Manager",
+  cashier: "Cashier",
+};
+
+export function Sidebar({ session: userSession }: SidebarProps) {
   const pathname = usePathname();
   const { currentVertical, setVertical } = usePosStore();
-
-  const [userSession, setUserSession] = useState<any | null>(null);
 
   // Accordion open states
   const [posGroupOpen, setPosGroupOpen] = useState(true);
@@ -46,23 +57,11 @@ export function Sidebar() {
   const [financeOpen, setFinanceOpen] = useState(true);
 
   useEffect(() => {
-    async function checkAuth() {
-      try {
-        const res = await fetch("/api/auth/me");
-        const data = await res.json();
-        if (data.authenticated && data.user) {
-          setUserSession(data.user);
-          const platform = data.user.role === "super_admin" || data.user.role === "platform_support";
-          if ((!platform || data.user.isImpersonating) && data.user.businessType) {
-            setVertical(data.user.businessType);
-          }
-        }
-      } catch (e) {
-        console.error("Auth session check failed", e);
-      }
+    const platform = userSession?.role === "super_admin" || userSession?.role === "platform_support";
+    if ((!platform || userSession?.isImpersonating) && userSession?.businessType) {
+      setVertical(userSession.businessType);
     }
-    checkAuth();
-  }, [setVertical]);
+  }, [userSession, setVertical]);
 
   async function handleLogout() {
     const loginPath = isSuperAdmin ? "/super-admin/login" : "/login";
@@ -378,16 +377,16 @@ export function Sidebar() {
       {/* User Footer */}
       <div className="sidebar__user">
         <div className="sidebar__avatar avatar-round">
-          <span>{userSession?.fullName ? userSession.fullName.slice(0, 2).toUpperCase() : "SA"}</span>
+          <span>{(userSession?.fullName || userSession?.email || "?").slice(0, 2).toUpperCase()}</span>
         </div>
         <div className="flex-1 overflow-hidden">
           <div className="sidebar__user-name truncate">
-            {userSession?.fullName || "System Super Admin"}
+            {userSession?.fullName || userSession?.email}
           </div>
           <div className="sidebar__user-role flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-400 inline flex-shrink-0" />
             <span className="uppercase text-[1.05rem]">
-              {userSession?.role ? userSession.role.replace("_", " ") : "SUPER ADMIN"} / ACTIVE
+              {ROLE_LABELS[userSession?.role] || userSession?.role} / ACTIVE
             </span>
           </div>
         </div>
