@@ -8,6 +8,16 @@ import { Building2, Search, Filter, ArrowUpDown, ChevronRight, CheckCircle, Aler
 import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 
+// Every subscription status the API can return, including manual and automatic suspension and termination
+const STATUS_BADGES: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
+  active: { label: "Active", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: CheckCircle },
+  expiring_soon: { label: "Expiring Soon", className: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: AlertTriangle },
+  expired: { label: "Expired", className: "bg-rose-500/10 text-rose-600 border-rose-500/20", icon: XCircle },
+  suspended: { label: "Suspended", className: "bg-rose-500/10 text-rose-600 border-rose-500/20", icon: XCircle },
+  suspended_manual: { label: "Suspended", className: "bg-rose-500/10 text-rose-600 border-rose-500/20", icon: XCircle },
+  terminated: { label: "Terminated", className: "bg-stroke-muted text-muted border-stroke-medium", icon: XCircle },
+};
+
 export default function TenantsListPage() {
   const sessionUser = useSessionUser();
   const canProvision = canPerformPlatformAction(sessionUser?.role, "manage_pricing");
@@ -187,7 +197,8 @@ export default function TenantsListPage() {
                   </tr>
                 ) : (
                   filteredTenants.map((tenant) => {
-                    const health = healthMap[tenant.id] || "dormant";
+                    // Terminated tenants are closed, so they have no activity health
+                    const health = tenant.subscriptionStatus === "terminated" ? null : healthMap[tenant.id] || "dormant";
                     return (
                       <tr
                         key={tenant.id}
@@ -208,31 +219,30 @@ export default function TenantsListPage() {
                         </td>
 
                         <td className="p-4">
-                          {tenant.subscriptionStatus === "active" && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[1.2rem] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                              <CheckCircle className="w-3.5 h-3.5" /> Active
-                            </span>
-                          )}
-                          {tenant.subscriptionStatus === "expiring_soon" && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[1.2rem] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                              <AlertTriangle className="w-3.5 h-3.5" /> Expiring Soon
-                            </span>
-                          )}
-                          {(tenant.subscriptionStatus === "expired" || tenant.subscriptionStatus === "suspended_manual") && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[1.2rem] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
-                              <XCircle className="w-3.5 h-3.5" /> {tenant.subscriptionStatus === "suspended_manual" ? "Suspended" : "Expired"}
-                            </span>
-                          )}
+                          {(() => {
+                            const badge = STATUS_BADGES[tenant.subscriptionStatus] || STATUS_BADGES.expired;
+                            const Icon = badge.icon;
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[1.2rem] font-bold border ${badge.className}`}>
+                                <Icon className="w-3.5 h-3.5" /> {badge.label}
+                              </span>
+                            );
+                          })()}
                         </td>
 
                         <td className="p-4 font-mono font-medium">
-                          {tenant.daysRemaining > 0 ? `${tenant.daysRemaining} days` : "Expired"}
+                          {tenant.subscriptionStatus === "terminated"
+                            ? "—"
+                            : tenant.daysRemaining > 0
+                              ? `${tenant.daysRemaining} days`
+                              : "Expired"}
                         </td>
 
                         <td className="p-4">
                           {health === "active" && <span className="text-[1.2rem] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">🟢 Actively Used</span>}
                           {health === "slowing" && <span className="text-[1.2rem] font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">🟡 Slowing Down</span>}
                           {health === "dormant" && <span className="text-[1.2rem] font-bold text-rose-600 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔴 Dormant</span>}
+                          {!health && <span className="text-[1.2rem] text-muted">—</span>}
                         </td>
 
                         <td className="p-4 text-right">

@@ -168,6 +168,55 @@ body {
   border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Brand header: logo mark + product name + context (store or platform) */
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 2rem 2rem 1.8rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sidebar__brand-logo {
+  width: 4.4rem;
+  height: 4.4rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border: 1px solid rgba(129, 159, 254, 0.35);
+  color: #ffffff;
+  font-family: var(--_font-accent);
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.sidebar__brand-text {
+  min-width: 0; /* lets long store names truncate instead of pushing the layout */
+}
+
+.sidebar__brand-name {
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.sidebar__brand-sub {
+  font-family: var(--_font-accent);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sidebar__logo {
   display: flex;
   align-items: center;

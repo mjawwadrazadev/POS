@@ -85,6 +85,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
   // Platform staff (super admin / support) see the platform menu unless they are impersonating a store
   const isSuperAdmin =
     (userSession?.role === "super_admin" || userSession?.role === "platform_support") && !userSession?.isImpersonating;
+  const brandContext = isSuperAdmin ? "Platform HQ" : userSession?.organizationName || "Store POS";
   const isStoreManager = userSession?.role === "admin" || userSession?.role === "manager";
   const isAccountingEnabled = userSession?.planTier === "billing_accounting" && isStoreManager;
   const hasKitchen = currentVertical === "restaurant" || currentVertical === "cafe" || currentVertical === "bakery";
@@ -92,14 +93,12 @@ export function Sidebar({ session: userSession }: SidebarProps) {
   return (
     <aside className="sidebar">
       {/* Brand Header */}
-      <div className="sidebar__brand flex items-center gap-3">
-        <div className="w-10 h-10 bg-[#002bba] text-white flex items-center justify-center font-accent font-extrabold text-[1.8rem] rounded-md border border-blue-400/30">
-          RST
-        </div>
-        <div>
-          <div className="sidebar__brand-name text-[1.6rem]">RST POS</div>
-          <div className="sidebar__brand-sub text-[1.1rem]">
-            {isSuperAdmin ? "SUPER ADMIN PLATFORM HQ" : userSession?.organizationName || "Store POS Platform"}
+      <div className="sidebar__brand">
+        <div className="sidebar__brand-logo">RST</div>
+        <div className="sidebar__brand-text">
+          <div className="sidebar__brand-name">RST POS</div>
+          <div className="sidebar__brand-sub" title={brandContext}>
+            {brandContext}
           </div>
         </div>
       </div>
@@ -148,7 +147,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
               className={`sidebar__link ${isSection("/super-admin/support") ? "sidebar__link--active" : ""}`}
             >
               <LifeBuoy className="w-4 h-4 flex-shrink-0" />
-              <span>Tickets & Announcements</span>
+              <span>Support Desk</span>
             </Link>
 
             {userSession?.role === "super_admin" && (
