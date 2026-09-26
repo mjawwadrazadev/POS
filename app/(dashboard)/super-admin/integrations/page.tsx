@@ -2,28 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { Plug, Database, KeyRound, Mail, Globe, Timer, AlertTriangle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
-import { SuperAdminHeader } from "@/components/super-admin/SuperAdminHeader";
-import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 
 type ConfigKey = "mongodbUri" | "jwtSecret" | "resendApiKey" | "resendFromEmail" | "appUrl" | "cronSecret";
 type Item = { configured: boolean; source: "saved" | "env" | "unset"; display: string };
 type Notice = { type: "success" | "error" | "warning"; text: string } | null;
 
 const inputClass =
-  "w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500";
+  "w-full bg-base border border-stroke-medium rounded-lg px-3.5 py-2.5 text-[1.4rem] text-bright placeholder-text-muted focus:outline-none focus:border-accent";
 const primaryBtn =
-  "bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2";
+  "bg-accent hover:bg-accent-hover disabled:opacity-60 text-white font-bold px-4 py-2 rounded-lg text-[1.4rem] transition flex items-center gap-2";
 const secondaryBtn =
-  "bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-slate-200 font-bold px-4 py-2 rounded-lg text-sm transition border border-slate-700 flex items-center gap-2";
+  "bg-base hover:bg-accent-subtle disabled:opacity-60 text-bright font-bold px-4 py-2 rounded-lg text-[1.4rem] transition border border-stroke-medium flex items-center gap-2";
 
 function SourceBadge({ item }: { item?: Item }) {
   if (!item || item.source === "unset") {
-    return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300">Not set</span>;
+    return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-600">Not set</span>;
   }
   if (item.source === "env") {
-    return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded border border-slate-600 bg-slate-800 text-slate-300">From .env</span>;
+    return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded border border-stroke-medium bg-base text-medium">From .env</span>;
   }
-  return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">Saved</span>;
+  return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-600">Saved</span>;
 }
 
 function Card({
@@ -38,12 +36,12 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+    <section className="bg-base-tint border border-stroke-muted rounded-2xl p-6 shadow-lg space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Icon className="w-5 h-5 text-blue-400" /> {title}
+        <h2 className="text-[1.8rem] font-bold text-bright flex items-center gap-2">
+          <Icon className="w-5 h-5 text-accent" /> {title}
         </h2>
-        <p className="text-sm text-slate-400 mt-1">{description}</p>
+        <p className="text-[1.4rem] text-muted mt-1">{description}</p>
       </div>
       {children}
     </section>
@@ -52,9 +50,9 @@ function Card({
 
 function CurrentValue({ label, item }: { label: string; item?: Item }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-slate-400">{label}:</span>
-      <code className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-200 break-all">
+    <div className="flex flex-wrap items-center gap-2 text-[1.4rem]">
+      <span className="text-muted">{label}:</span>
+      <code className="bg-base border border-stroke-muted rounded px-2 py-1 text-bright break-all">
         {item?.display || "—"}
       </code>
       <SourceBadge item={item} />
@@ -68,7 +66,6 @@ export default function IntegrationsPage() {
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
-  const [showProvisionModal, setShowProvisionModal] = useState(false);
 
   const [mongodbUri, setMongodbUri] = useState("");
   const [jwtSecret, setJwtSecret] = useState("");
@@ -155,26 +152,23 @@ export default function IntegrationsPage() {
   const spinner = (key: string) => busy === key && <Loader2 className="w-4 h-4 animate-spin" />;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <SuperAdminHeader onOpenNewTenantModal={() => setShowProvisionModal(true)} />
-
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Plug className="w-6 h-6 text-blue-400" />
+    <div className="space-y-6">
+        <div className="bg-base-tint border border-stroke-muted p-6 rounded-2xl shadow-lg">
+          <h1 className="text-[2.4rem] font-black text-bright tracking-tight flex items-center gap-2">
+            <Plug className="w-6 h-6 text-accent" />
             Platform Integrations
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-[1.4rem] text-muted mt-1">
             Database, security keys and email settings. Saved values take effect immediately and override any .env value.
           </p>
         </div>
 
         {loadError && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm p-4 rounded-xl">{loadError}</div>
+          <div className="bg-red-500/10 border border-red-500/30 text-red-600 text-[1.4rem] p-4 rounded-xl">{loadError}</div>
         )}
 
         {!writable && items && (
-          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm p-4 rounded-xl">
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[1.4rem] p-4 rounded-xl">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             This server&apos;s filesystem is read-only, so values cannot be saved here. Set them as environment variables in your
             hosting provider instead.
@@ -183,12 +177,12 @@ export default function IntegrationsPage() {
 
         {notice && (
           <div
-            className={`flex items-start gap-2 text-sm p-4 rounded-xl border break-all ${
+            className={`flex items-start gap-2 text-[1.4rem] p-4 rounded-xl border break-all ${
               notice.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600"
                 : notice.type === "warning"
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-200"
-                : "bg-red-500/10 border-red-500/30 text-red-300"
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-600"
+                : "bg-red-500/10 border-red-500/30 text-red-600"
             }`}
           >
             {notice.type === "success" ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />}
@@ -197,7 +191,7 @@ export default function IntegrationsPage() {
         )}
 
         {!items && !loadError && (
-          <div className="flex items-center justify-center py-16 text-slate-400 text-sm gap-2">
+          <div className="flex items-center justify-center py-16 text-muted text-[1.4rem] gap-2">
             <Loader2 className="w-4 h-4 animate-spin" /> Loading integrations...
           </div>
         )}
@@ -215,7 +209,7 @@ export default function IntegrationsPage() {
                 placeholder="New connection string: mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/masterpos?retryWrites=true&w=majority"
                 className={inputClass}
               />
-              <p className="text-xs text-amber-300/80">
+              <p className="text-[1.2rem] text-amber-600/80">
                 Switching databases moves the whole platform to the new database. If it has no super admin you will be signed out and
                 sent to the setup wizard.
               </p>
@@ -311,7 +305,7 @@ export default function IntegrationsPage() {
                   </button>
                 )}
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-800">
+              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-stroke-muted">
                 <input
                   type="email"
                   value={testEmailTo}
@@ -372,9 +366,7 @@ export default function IntegrationsPage() {
             </Card>
           </>
         )}
-      </main>
 
-      <ProvisionTenantModal isOpen={showProvisionModal} onClose={() => setShowProvisionModal(false)} onSuccess={() => {}} />
     </div>
   );
 }

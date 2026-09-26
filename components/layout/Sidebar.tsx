@@ -30,6 +30,8 @@ import {
   Settings,
   Printer,
   Receipt,
+  LifeBuoy,
+  Plug,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -86,6 +88,7 @@ export function Sidebar() {
   };
 
   const isActive = (path: string) => pathname === path;
+  const isSection = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
   // Platform staff (super admin / support) see the platform menu unless they are impersonating a store
   const isSuperAdmin =
     (userSession?.role === "super_admin" || userSession?.role === "platform_support") && !userSession?.isImpersonating;
@@ -127,34 +130,47 @@ export function Sidebar() {
 
       {/* Main Navigation */}
       <nav className="sidebar__nav">
-        {/* ─── 1. SUPER ADMIN MODE (Only Tenants & Subscriptions link) ─── */}
+        {/* ─── 1. PLATFORM MODE (super admin / platform support) ─── */}
         {isSuperAdmin ? (
-          <div className="space-y-3">
-            <div className="text-[1.1rem] font-accent uppercase text-emerald-400 font-extrabold px-3 pt-2 tracking-wider">
-              PLATFORM CONTROL CENTER
-            </div>
-
+          <>
+            <label className="sidebar__section-label">Platform</label>
             <Link
               href="/super-admin"
-              className={`sidebar__link bg-[#002bba]/25 border border-[#002bba]/60 text-blue-300 font-extrabold py-3.5 text-[1.4rem] ${
-                isActive("/super-admin") ? "sidebar__link--active" : ""
-              }`}
+              className={`sidebar__link ${isActive("/super-admin") ? "sidebar__link--active" : ""}`}
             >
-              <Building2 className="w-5 h-5 text-accent" />
-              <span className="flex-1 truncate">Tenants & Access</span>
-              <span className="sidebar__badge bg-accent text-white font-bold px-2 py-0.5">SUPER ADMIN</span>
+              <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+              <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/super-admin/tenants"
+              className={`sidebar__link ${isSection("/super-admin/tenants") ? "sidebar__link--active" : ""}`}
+            >
+              <Building2 className="w-4 h-4 flex-shrink-0" />
+              <span>Tenants & Subscriptions</span>
             </Link>
 
-            <div className="p-4 bg-[#141417] border border-[rgba(255,255,255,0.08)] rounded-lg font-accent text-[1.2rem] text-gray-400 space-y-2 mt-4">
-              <div className="font-bold text-white text-[1.3rem] flex items-center gap-2 text-blue-300">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                Super Admin Role
-              </div>
-              <p>
-                As Platform Owner, your responsibility is provisioning client tenants, setting fees, and managing subscriptions.
-              </p>
-            </div>
-          </div>
+            <label className="sidebar__section-label mt-4">Support</label>
+            <Link
+              href="/super-admin/support"
+              className={`sidebar__link ${isSection("/super-admin/support") ? "sidebar__link--active" : ""}`}
+            >
+              <LifeBuoy className="w-4 h-4 flex-shrink-0" />
+              <span>Tickets & Announcements</span>
+            </Link>
+
+            {userSession?.role === "super_admin" && (
+              <>
+                <label className="sidebar__section-label mt-4">Settings</label>
+                <Link
+                  href="/super-admin/integrations"
+                  className={`sidebar__link ${isSection("/super-admin/integrations") ? "sidebar__link--active" : ""}`}
+                >
+                  <Plug className="w-4 h-4 flex-shrink-0" />
+                  <span>Integrations</span>
+                </Link>
+              </>
+            )}
+          </>
         ) : (
           /* ─── 2. CLIENT STORE MODE (Full Store Operational Navigation) ─── */
           <>

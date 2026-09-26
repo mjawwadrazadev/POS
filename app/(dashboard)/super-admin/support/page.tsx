@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { LifeBuoy, Megaphone, Send, MessageSquare } from "lucide-react";
-import { SuperAdminHeader } from "@/components/super-admin/SuperAdminHeader";
-import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 
 export default function SuperAdminSupportPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"tickets" | "announcements">("tickets");
-  const [showProvisionModal, setShowProvisionModal] = useState(false);
 
   // Selected Ticket
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
@@ -101,18 +98,15 @@ export default function SuperAdminSupportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <SuperAdminHeader onOpenNewTenantModal={() => setShowProvisionModal(true)} />
-
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-base-tint border border-stroke-muted p-6 rounded-2xl shadow-lg">
           <div>
-            <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-              <LifeBuoy className="w-6 h-6 text-blue-400" />
+            <h1 className="text-[2.4rem] font-black text-bright tracking-tight flex items-center gap-2">
+              <LifeBuoy className="w-6 h-6 text-accent" />
               Platform Support & Broadcast Announcements
             </h1>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-[1.4rem] text-muted mt-1">
               Respond to tenant support tickets and broadcast platform system announcements
             </p>
           </div>
@@ -120,7 +114,7 @@ export default function SuperAdminSupportPage() {
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowAnnModal(true)}
-              className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition flex items-center space-x-2"
+              className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded-xl text-[1.4rem] transition flex items-center space-x-2"
             >
               <Megaphone className="w-4 h-4" />
               <span>Broadcast Announcement</span>
@@ -129,11 +123,11 @@ export default function SuperAdminSupportPage() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex space-x-2 border-b border-slate-800">
+        <div className="flex space-x-2 border-b border-stroke-muted">
           <button
             onClick={() => setActiveTab("tickets")}
-            className={`px-4 py-3 font-bold text-sm border-b-2 transition flex items-center space-x-2 ${
-              activeTab === "tickets" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400 hover:text-white"
+            className={`px-4 py-3 font-bold text-[1.4rem] border-b-2 transition flex items-center space-x-2 ${
+              activeTab === "tickets" ? "border-accent text-accent" : "border-transparent text-muted hover:text-bright"
             }`}
           >
             <LifeBuoy className="w-4 h-4" />
@@ -141,8 +135,8 @@ export default function SuperAdminSupportPage() {
           </button>
           <button
             onClick={() => setActiveTab("announcements")}
-            className={`px-4 py-3 font-bold text-sm border-b-2 transition flex items-center space-x-2 ${
-              activeTab === "announcements" ? "border-purple-500 text-purple-400" : "border-transparent text-slate-400 hover:text-white"
+            className={`px-4 py-3 font-bold text-[1.4rem] border-b-2 transition flex items-center space-x-2 ${
+              activeTab === "announcements" ? "border-purple-500 text-purple-600" : "border-transparent text-muted hover:text-bright"
             }`}
           >
             <Megaphone className="w-4 h-4" />
@@ -154,30 +148,30 @@ export default function SuperAdminSupportPage() {
         {activeTab === "tickets" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Tickets Table Column */}
-            <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col h-[600px]">
-              <div className="p-4 bg-slate-950 border-b border-slate-800 font-bold text-sm text-slate-300">
+            <div className="lg:col-span-1 bg-base-tint border border-stroke-muted rounded-2xl overflow-hidden flex flex-col h-[600px]">
+              <div className="p-4 bg-base border-b border-stroke-muted font-bold text-[1.4rem] text-medium">
                 Incoming Tenant Tickets
               </div>
-              <div className="divide-y divide-slate-800/60 overflow-y-auto flex-1">
+              <div className="divide-y divide-stroke-muted overflow-y-auto flex-1">
                 {tickets.length === 0 ? (
-                  <div className="p-8 text-center text-slate-500 text-sm">No support tickets found.</div>
+                  <div className="p-8 text-center text-muted text-[1.4rem]">No support tickets found.</div>
                 ) : (
                   tickets.map((t) => (
                     <button
                       key={t.id}
                       onClick={() => openTicketDetail(t.id)}
-                      className={`w-full text-left p-4 hover:bg-slate-800/80 transition flex flex-col space-y-1.5 ${
-                        selectedTicket?.id === t.id ? "bg-slate-800 border-l-4 border-blue-500" : ""
+                      className={`w-full text-left p-4 hover:bg-accent-subtle transition flex flex-col space-y-1.5 ${
+                        selectedTicket?.id === t.id ? "bg-base border-l-4 border-accent" : ""
                       }`}
                     >
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-mono font-bold text-blue-400">{t.ticketNumber}</span>
-                        <span className="text-slate-400">{t.tenantName}</span>
+                      <div className="flex justify-between items-center text-[1.2rem]">
+                        <span className="font-mono font-bold text-accent">{t.ticketNumber}</span>
+                        <span className="text-muted">{t.tenantName}</span>
                       </div>
-                      <h4 className="font-bold text-white text-sm truncate">{t.subject}</h4>
-                      <div className="flex justify-between items-center text-xs text-slate-400">
+                      <h4 className="font-bold text-bright text-[1.4rem] truncate">{t.subject}</h4>
+                      <div className="flex justify-between items-center text-[1.2rem] text-muted">
                         <span className="capitalize">{t.category}</span>
-                        <span className="bg-slate-800 px-2 py-0.5 rounded font-bold uppercase text-[10px] text-amber-400 border border-amber-500/20">
+                        <span className="bg-base px-2 py-0.5 rounded font-bold uppercase text-[10px] text-amber-600 border border-amber-500/20">
                           {t.status}
                         </span>
                       </div>
@@ -188,22 +182,22 @@ export default function SuperAdminSupportPage() {
             </div>
 
             {/* Conversation Detail Column */}
-            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col h-[600px] overflow-hidden">
+            <div className="lg:col-span-2 bg-base-tint border border-stroke-muted rounded-2xl flex flex-col h-[600px] overflow-hidden">
               {selectedTicket ? (
                 <>
-                  <div className="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+                  <div className="p-4 bg-base border-b border-stroke-muted flex justify-between items-center">
                     <div>
-                      <div className="text-xs text-slate-400">
-                        <strong className="text-white">{selectedTicket.tenantName}</strong> · Owner: {selectedTicket.creatorName} ({selectedTicket.creatorEmail})
+                      <div className="text-[1.2rem] text-muted">
+                        <strong className="text-bright">{selectedTicket.tenantName}</strong> · Owner: {selectedTicket.creatorName} ({selectedTicket.creatorEmail})
                       </div>
-                      <h3 className="text-lg font-bold text-white">{selectedTicket.subject}</h3>
+                      <h3 className="text-[1.8rem] font-bold text-bright">{selectedTicket.subject}</h3>
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <select
                         value={newStatus}
                         onChange={(e) => setNewStatus(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 text-xs text-slate-200 font-bold px-2.5 py-1.5 rounded-lg"
+                        className="bg-base-tint border border-stroke-medium text-[1.2rem] text-bright font-bold px-2.5 py-1.5 rounded-lg"
                       >
                         <option value="open">Status: Open</option>
                         <option value="in_progress">Status: In Progress</option>
@@ -214,17 +208,17 @@ export default function SuperAdminSupportPage() {
                   </div>
 
                   {/* Messages */}
-                  <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-slate-950/40">
+                  <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-base">
                     {selectedTicket.messages.map((m: any, idx: number) => {
                       const isStaff = m.senderRole === "super_admin" || m.senderRole === "platform_support";
                       return (
                         <div key={idx} className={`flex flex-col ${isStaff ? "items-end" : "items-start"}`}>
                           <div
-                            className={`max-w-md p-4 rounded-2xl text-sm space-y-1 ${
-                              isStaff ? "bg-blue-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700"
+                            className={`max-w-[48rem] p-4 rounded-2xl text-[1.4rem] space-y-1 ${
+                              isStaff ? "bg-accent text-white rounded-tr-none" : "bg-base text-bright rounded-tl-none border border-stroke-medium"
                             }`}
                           >
-                            <div className="flex justify-between items-center text-xs opacity-75 border-b pb-1 mb-1 border-current">
+                            <div className="flex justify-between items-center text-[1.2rem] opacity-75 border-b pb-1 mb-1 border-current">
                               <span className="font-bold">{m.senderName} ({isStaff ? "Super Admin HQ" : "Tenant"})</span>
                               <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
@@ -236,19 +230,19 @@ export default function SuperAdminSupportPage() {
                   </div>
 
                   {/* Reply Form */}
-                  <form onSubmit={handleSendReply} className="p-4 bg-slate-900 border-t border-slate-800 flex space-x-3">
+                  <form onSubmit={handleSendReply} className="p-4 bg-base-tint border-t border-stroke-muted flex space-x-3">
                     <input
                       type="text"
                       placeholder="Type response to tenant admin..."
                       value={replyContent}
                       onChange={(e) => setReplyContent(e.target.value)}
-                      className="flex-1 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-4 py-2 bg-base border border-stroke-muted rounded-xl text-[1.4rem] text-bright focus:outline-none focus:ring-2 focus:ring-accent"
                       required
                     />
                     <button
                       type="submit"
                       disabled={replying}
-                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center space-x-2"
+                      className="bg-accent hover:bg-accent-hover text-white font-bold px-4 py-2 rounded-xl text-[1.4rem] flex items-center space-x-2"
                     >
                       <Send className="w-4 h-4" />
                       <span>Reply</span>
@@ -256,9 +250,9 @@ export default function SuperAdminSupportPage() {
                   </form>
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-8 text-center space-y-2">
-                  <MessageSquare className="w-12 h-12 text-slate-600" />
-                  <p className="text-sm">Select a support ticket to view conversation thread and respond</p>
+                <div className="flex-1 flex flex-col items-center justify-center text-muted p-8 text-center space-y-2">
+                  <MessageSquare className="w-12 h-12 text-muted" />
+                  <p className="text-[1.4rem]">Select a support ticket to view conversation thread and respond</p>
                 </div>
               )}
             </div>
@@ -267,17 +261,17 @@ export default function SuperAdminSupportPage() {
 
         {/* Tab 2: Broadcast Announcements */}
         {activeTab === "announcements" && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="font-bold text-white text-base">Active Broadcast Announcements</h3>
+          <div className="bg-base-tint border border-stroke-muted rounded-2xl p-6 space-y-4">
+            <h3 className="font-bold text-bright text-[1.6rem]">Active Broadcast Announcements</h3>
             <div className="space-y-3">
               {announcements.map((a) => (
-                <div key={a.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex justify-between items-start">
+                <div key={a.id} className="p-4 bg-base border border-stroke-muted rounded-xl flex justify-between items-start">
                   <div>
-                    <h4 className="font-bold text-white text-sm">{a.title}</h4>
-                    <p className="text-xs text-slate-400 mt-1">{a.content}</p>
-                    <div className="text-[10px] text-slate-500 mt-2">Posted: {new Date(a.createdAt).toLocaleDateString()}</div>
+                    <h4 className="font-bold text-bright text-[1.4rem]">{a.title}</h4>
+                    <p className="text-[1.2rem] text-muted mt-1">{a.content}</p>
+                    <div className="text-[10px] text-muted mt-2">Posted: {new Date(a.createdAt).toLocaleDateString()}</div>
                   </div>
-                  <span className="bg-purple-600/20 text-purple-300 text-xs font-bold px-2.5 py-1 rounded border border-purple-500/30 uppercase">
+                  <span className="bg-purple-600/20 text-purple-600 text-[1.2rem] font-bold px-2.5 py-1 rounded border border-purple-500/30 uppercase">
                     {a.type}
                   </span>
                 </div>
@@ -285,32 +279,31 @@ export default function SuperAdminSupportPage() {
             </div>
           </div>
         )}
-      </main>
 
       {/* Broadcast Announcement Modal */}
       {showAnnModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 text-white max-w-md w-full p-6 rounded-2xl space-y-4">
-            <h3 className="font-bold text-lg border-b border-slate-800 pb-3">Broadcast Platform Announcement</h3>
+          <div className="bg-base-tint border border-stroke-muted text-bright max-w-[48rem] w-full p-6 rounded-2xl space-y-4">
+            <h3 className="font-bold text-[1.8rem] border-b border-stroke-muted pb-3">Broadcast Platform Announcement</h3>
             <form onSubmit={handleCreateAnnouncement} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Title</label>
+                <label className="block text-[1.2rem] font-bold text-muted uppercase mb-1">Title</label>
                 <input
                   type="text"
                   placeholder="e.g. Scheduled System Maintenance on Sunday"
                   value={annTitle}
                   onChange={(e) => setAnnTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white"
+                  className="w-full px-3 py-2 bg-base border border-stroke-muted rounded-lg text-[1.4rem] text-bright"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Type</label>
+                <label className="block text-[1.2rem] font-bold text-muted uppercase mb-1">Type</label>
                 <select
                   value={annType}
                   onChange={(e) => setAnnType(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white"
+                  className="w-full px-3 py-2 bg-base border border-stroke-muted rounded-lg text-[1.4rem] text-bright"
                 >
                   <option value="info">Info</option>
                   <option value="warning">Warning</option>
@@ -320,13 +313,13 @@ export default function SuperAdminSupportPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Content</label>
+                <label className="block text-[1.2rem] font-bold text-muted uppercase mb-1">Content</label>
                 <textarea
                   rows={3}
                   placeholder="Announcement details visible on tenant dashboards..."
                   value={annContent}
                   onChange={(e) => setAnnContent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white"
+                  className="w-full px-3 py-2 bg-base border border-stroke-muted rounded-lg text-[1.4rem] text-bright"
                   required
                 />
               </div>
@@ -335,13 +328,13 @@ export default function SuperAdminSupportPage() {
                 <button
                   type="button"
                   onClick={() => setShowAnnModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-bold"
+                  className="px-4 py-2 bg-base hover:bg-accent-subtle text-medium rounded-lg text-[1.4rem] font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-bold"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[1.4rem] font-bold"
                 >
                   Broadcast Announcement
                 </button>
@@ -351,11 +344,6 @@ export default function SuperAdminSupportPage() {
         </div>
       )}
 
-      <ProvisionTenantModal
-        isOpen={showProvisionModal}
-        onClose={() => setShowProvisionModal(false)}
-        onSuccess={fetchSupportData}
-      />
     </div>
   );
 }

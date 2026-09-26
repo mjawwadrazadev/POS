@@ -7,6 +7,14 @@ import { TopBar } from "@/components/layout/TopBar";
 import { ImpersonationBanner } from "@/components/super-admin/ImpersonationBanner";
 import { AnnouncementBanner } from "@/components/super-admin/AnnouncementBanner";
 
+function superAdminTitle(pathname: string) {
+  if (pathname.startsWith("/super-admin/tenants/")) return "Tenant Details";
+  if (pathname.startsWith("/super-admin/tenants")) return "Tenants & Subscriptions";
+  if (pathname.startsWith("/super-admin/support")) return "Support Desk";
+  if (pathname.startsWith("/super-admin/integrations")) return "Platform Integrations";
+  return "Platform Command Center";
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -67,6 +75,7 @@ export default function DashboardLayout({
   }
 
   const isSuperAdminRoute = pathname.startsWith("/super-admin");
+  const topBarTitle = isSuperAdminRoute ? superAdminTitle(pathname) : undefined;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -79,17 +88,13 @@ export default function DashboardLayout({
       {!isSuperAdminRoute && <AnnouncementBanner />}
 
       {/* Main App Layout */}
-      {isSuperAdminRoute ? (
-        <div className="flex-1 bg-slate-950">{children}</div>
-      ) : (
-        <div className="pos-layout">
-          <Sidebar />
-          <div className="pos-main">
-            <TopBar />
-            <main className="pos-main__content">{children}</main>
-          </div>
+      <div className="pos-layout">
+        <Sidebar />
+        <div className="pos-main">
+          <TopBar title={topBarTitle} />
+          <main className="pos-main__content">{children}</main>
         </div>
-      )}
+      </div>
     </div>
   );
 }

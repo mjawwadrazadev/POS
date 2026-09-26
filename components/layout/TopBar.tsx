@@ -33,10 +33,11 @@ export function TopBar({ title = "POS Control Center" }: TopBarProps) {
   }, []);
 
   const verticalConfig = VERTICAL_CONFIGS[currentVertical];
-  const isSuperAdmin = userSession?.role === "super_admin";
+  const isSuperAdmin =
+    (userSession?.role === "super_admin" || userSession?.role === "platform_support") && !userSession?.isImpersonating;
 
   const branchDisplayText = isSuperAdmin
-    ? "RST POS PLATFORM HQ (GLOBAL SUPER ADMIN)"
+    ? "RST POS PLATFORM HQ"
     : userSession?.branchName || userSession?.organizationName || selectedBranch || "MAIN BRANCH";
 
   return (
@@ -54,10 +55,14 @@ export function TopBar({ title = "POS Control Center" }: TopBarProps) {
               )}
               <span>{branchDisplayText}</span>
             </span>
-            <span>•</span>
-            <span className="text-bright font-accent font-semibold uppercase">
-              {verticalConfig.title}
-            </span>
+            {userSession && !isSuperAdmin && (
+              <>
+                <span>•</span>
+                <span className="text-bright font-accent font-semibold uppercase">
+                  {verticalConfig.title}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -67,7 +72,7 @@ export function TopBar({ title = "POS Control Center" }: TopBarProps) {
         <Search className="w-4 h-4 text-muted" />
         <input
           type="text"
-          placeholder="Search products, orders (Ctrl+K)..."
+          placeholder={isSuperAdmin ? "Search tenants, tickets..." : "Search products, orders (Ctrl+K)..."}
           className="bg-transparent text-[1.3rem] text-bright outline-none w-full font-sans"
         />
         <span className="font-accent text-[1rem] bg-base-bright px-1.5 py-0.5 border border-stroke-muted text-muted">
@@ -78,7 +83,7 @@ export function TopBar({ title = "POS Control Center" }: TopBarProps) {
       {/* Right side actions */}
       <div className="topbar__actions">
         {/* Shift Control Button (Only relevant for store cashiers/managers) */}
-        {!isSuperAdmin && (
+        {userSession && !isSuperAdmin && (
           <button
             type="button"
             onClick={toggleShift}

@@ -12,7 +12,7 @@ type SetupState = {
 };
 
 const inputClass =
-  "w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500";
+  "w-full bg-base border border-stroke-medium rounded-lg px-3.5 py-2.5 text-[1.4rem] text-bright placeholder-text-muted focus:outline-none focus:border-accent";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -78,61 +78,61 @@ export default function SetupPage() {
   const step = !state ? 0 : state.superAdminExists ? 3 : databaseDone ? 2 : 1;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-xl space-y-6">
+    <div className="min-h-screen bg-base text-bright flex items-center justify-center p-4">
+      <div className="w-full max-w-[64rem] space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl font-black tracking-tight text-white">RST POS Setup</h1>
-          <p className="text-sm text-slate-400 mt-1">Connect your database and create the platform super admin</p>
+          <h1 className="text-[3rem] font-black tracking-tight text-bright">RST POS Setup</h1>
+          <p className="text-[1.4rem] text-muted mt-1">Connect your database and create the platform super admin</p>
         </div>
 
         {/* Progress */}
-        <div className="flex items-center justify-center gap-3 text-xs font-bold">
+        <div className="flex items-center justify-center gap-3 text-[1.2rem] font-bold">
           {["Database", "Super Admin", "Done"].map((label, i) => (
             <div key={label} className="flex items-center gap-3">
               <span
                 className={`px-3 py-1 rounded-full border ${
                   step > i + 1
-                    ? "bg-emerald-600/20 border-emerald-500/40 text-emerald-300"
+                    ? "bg-emerald-600/20 border-emerald-500/40 text-emerald-600"
                     : step === i + 1
-                    ? "bg-blue-600/20 border-blue-500/40 text-blue-300"
-                    : "border-slate-700 text-slate-500"
+                    ? "bg-accent-subtle border-accent text-accent"
+                    : "border-stroke-medium text-muted"
                 }`}
               >
                 {i + 1}. {label}
               </span>
-              {i < 2 && <span className="w-6 h-px bg-slate-700" />}
+              {i < 2 && <span className="w-6 h-px bg-base" />}
             </div>
           ))}
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
+        <div className="bg-base-tint border border-stroke-muted rounded-2xl p-6 shadow-lg">
           {error && (
-            <div className="mb-4 flex items-start gap-2 bg-red-500/10 border border-red-500/30 text-red-300 text-sm p-3 rounded-lg">
+            <div className="mb-4 flex items-start gap-2 bg-red-500/10 border border-red-500/30 text-red-600 text-[1.4rem] p-3 rounded-lg">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {step === 0 && (
-            <div className="flex items-center justify-center py-10 text-slate-400 text-sm gap-2">
+            <div className="flex items-center justify-center py-10 text-muted text-[1.4rem] gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Checking setup status...
             </div>
           )}
 
           {step === 1 && (
             <form onSubmit={onDatabaseSubmit} className="space-y-4">
-              <div className="flex items-center gap-2 text-lg font-bold text-white">
-                <Database className="w-5 h-5 text-blue-400" /> Connect MongoDB
+              <div className="flex items-center gap-2 text-[1.8rem] font-bold text-bright">
+                <Database className="w-5 h-5 text-accent" /> Connect MongoDB
               </div>
               {state?.databaseConfigured && state.databaseError && (
-                <p className="text-sm text-amber-300">Saved database is unreachable: {state.databaseError}</p>
+                <p className="text-[1.4rem] text-amber-600">Saved database is unreachable: {state.databaseError}</p>
               )}
-              <p className="text-sm text-slate-400">
+              <p className="text-[1.4rem] text-muted">
                 Paste the connection string from MongoDB Atlas → Connect → Drivers. Replace{" "}
-                <code className="text-slate-200">&lt;db_password&gt;</code> with your password and add the database name
-                after <code className="text-slate-200">.mongodb.net/</code>, for example:
+                <code className="text-bright">&lt;db_password&gt;</code> with your password and add the database name
+                after <code className="text-bright">.mongodb.net/</code>, for example:
               </p>
-              <code className="block text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-300 break-all">
+              <code className="block text-[1.2rem] bg-base border border-stroke-muted rounded-lg p-3 text-medium break-all">
                 mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/masterpos?retryWrites=true&amp;w=majority
               </code>
               <input
@@ -147,7 +147,7 @@ export default function SetupPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"
+                className="w-full bg-accent hover:bg-accent-hover disabled:opacity-60 text-white font-bold py-2.5 rounded-lg text-[1.4rem] flex items-center justify-center gap-2"
               >
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />} Test &amp; Save Connection
               </button>
@@ -156,10 +156,10 @@ export default function SetupPage() {
 
           {step === 2 && (
             <form onSubmit={onAdminSubmit} className="space-y-4">
-              <div className="flex items-center gap-2 text-lg font-bold text-white">
-                <ShieldCheck className="w-5 h-5 text-blue-400" /> Create Super Admin
+              <div className="flex items-center gap-2 text-[1.8rem] font-bold text-bright">
+                <ShieldCheck className="w-5 h-5 text-accent" /> Create Super Admin
               </div>
-              <p className="text-sm text-emerald-300 flex items-center gap-1.5">
+              <p className="text-[1.4rem] text-emerald-600 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4" /> Database connected
               </p>
               <input required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className={inputClass} />
@@ -187,7 +187,7 @@ export default function SetupPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"
+                className="w-full bg-accent hover:bg-accent-hover disabled:opacity-60 text-white font-bold py-2.5 rounded-lg text-[1.4rem] flex items-center justify-center gap-2"
               >
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />} Create Super Admin
               </button>
@@ -196,16 +196,16 @@ export default function SetupPage() {
 
           {step === 3 && (
             <div className="text-center space-y-4 py-4">
-              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
               <div>
-                <h2 className="text-lg font-bold text-white">Setup complete</h2>
-                <p className="text-sm text-slate-400 mt-1">
+                <h2 className="text-[1.8rem] font-bold text-bright">Setup complete</h2>
+                <p className="text-[1.4rem] text-muted mt-1">
                   Sign in as super admin, then add Resend and other keys from the <strong>Integrations</strong> tab.
                 </p>
               </div>
               <button
                 onClick={() => router.push("/super-admin/login")}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-lg text-sm"
+                className="bg-accent hover:bg-accent-hover text-white font-bold px-5 py-2.5 rounded-lg text-[1.4rem]"
               >
                 Go to Super Admin Login
               </button>
