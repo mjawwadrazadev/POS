@@ -25,6 +25,10 @@ export async function GET() {
     await dbConnect();
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Stock transfers are managed by store managers
+    if (!MANAGER_ROLES.includes(session.role)) {
+      return NextResponse.json({ error: "Forbidden — Manager or Admin required" }, { status: 403 });
+    }
 
     const transfers = await StockTransfer.find({ organizationId: session.organizationId })
       .populate("fromBranchId", "name code")

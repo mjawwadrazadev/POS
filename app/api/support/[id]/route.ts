@@ -3,11 +3,16 @@ import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
 import { SupportTicket } from "@/models/SupportTicket";
 import { getSession } from "@/lib/auth/session";
+import { isPlatformRole, isStoreManagerRole } from "@/lib/auth/permissions";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Store-side support tickets are raised and read by the store's admin/manager
+    if (!isPlatformRole(session.role) && !isStoreManagerRole(session.role)) {
+      return NextResponse.json({ error: "Forbidden - Manager or Admin required" }, { status: 403 });
+    }
 
     const { id } = await params;
     await dbConnect();
@@ -49,6 +54,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Store-side support tickets are raised and read by the store's admin/manager
+    if (!isPlatformRole(session.role) && !isStoreManagerRole(session.role)) {
+      return NextResponse.json({ error: "Forbidden - Manager or Admin required" }, { status: 403 });
+    }
 
     const { id } = await params;
     await dbConnect();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { storeHomeFor } from "@/lib/auth/permissions";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -84,7 +85,7 @@ export default function LoginPage() {
         }
       }
 
-      router.push("/");
+      router.push(storeHomeFor(data.user?.role));
     } catch (err: any) {
       setError(err.message || "Invalid PIN or credentials");
       setPin("");
@@ -136,48 +137,43 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Quick Preset Accounts */}
-          <div className="mt-12 pt-6 border-t border-white/15">
-            <p className="font-accent text-[1.2rem] uppercase text-blue-200/80 mb-3 font-bold tracking-wider">
-              Seeded Demo Stores (Click to Fill Store Code / Email):
-            </p>
-            <div className="grid grid-cols-2 gap-3 text-[1.2rem] font-accent">
-              <button
-                type="button"
-                onClick={() => quickFill("admin@rstpos.com", "rst-bakery")}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
-              >
-                <Cake className="w-4 h-4 text-amber-300 flex-shrink-0" />
-                <span className="truncate">Bakery Admin (1234)</span>
-              </button>
+          {/* Seeded demo accounts — local development only, never shown in production */}
+          {process.env.NODE_ENV !== "production" && (
+            <div className="mt-12 pt-6 border-t border-white/15">
+              <p className="font-accent text-[1.2rem] uppercase text-blue-200/80 mb-3 font-bold tracking-wider">
+                Seeded Demo Stores (Click to Fill Store Code / Email):
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-[1.2rem] font-accent">
+                <button
+                  type="button"
+                  onClick={() => quickFill("admin@rstpos.com", "rst-bakery")}
+                  className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
+                >
+                  <Cake className="w-4 h-4 text-amber-300 flex-shrink-0" />
+                  <span className="truncate">Bakery Admin (1234)</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => quickFill("restaurant@rstpos.com", "royal-spice")}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
-              >
-                <Utensils className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span className="truncate">Restaurant (2222)</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => quickFill("restaurant@rstpos.com", "royal-spice")}
+                  className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
+                >
+                  <Utensils className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span className="truncate">Restaurant (2222)</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => quickFill("pharmacy@rstpos.com", "health-plus")}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
-              >
-                <Pill className="w-4 h-4 text-rose-300 flex-shrink-0" />
-                <span className="truncate">Pharmacy (3333)</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => quickFill("pharmacy@rstpos.com", "health-plus")}
+                  className="bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2"
+                >
+                  <Pill className="w-4 h-4 text-rose-300 flex-shrink-0" />
+                  <span className="truncate">Pharmacy (3333)</span>
+                </button>
 
-              <Link
-                href="/super-admin/login"
-                className="bg-[#002bba]/40 hover:bg-[#002bba]/60 border border-amber-400/40 text-amber-300 px-3 py-2.5 text-left truncate transition-colors flex items-center gap-2 font-bold"
-              >
-                <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">Super Admin Login →</span>
-              </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* RIGHT SIDE — Authentication Terminal Form (6 cols) */}

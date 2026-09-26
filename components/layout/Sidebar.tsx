@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePosStore } from "@/lib/store/usePosStore";
+import { canAccessStorePage, ROLE_LABELS as ROLE_NAMES } from "@/lib/auth/permissions";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import {
   LayoutDashboard,
@@ -38,14 +39,6 @@ interface SidebarProps {
   // Session loaded once by the dashboard layout, so the menu renders for the right role from the first paint
   session: any;
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Super Admin",
-  platform_support: "Platform Support",
-  admin: "Store Admin",
-  manager: "Manager",
-  cashier: "Cashier",
-};
 
 export function Sidebar({ session: userSession }: SidebarProps) {
   const pathname = usePathname();
@@ -87,6 +80,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
   };
 
   const isActive = (path: string) => pathname === path;
+  const can = (path: string) => canAccessStorePage(userSession?.role, path);
   const isSection = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
   // Platform staff (super admin / support) see the platform menu unless they are impersonating a store
   const isSuperAdmin =
@@ -174,13 +168,15 @@ export function Sidebar({ session: userSession }: SidebarProps) {
           /* ─── 2. CLIENT STORE MODE (Full Store Operational Navigation) ─── */
           <>
             {/* Executive Dashboard */}
-            <Link
-              href="/"
-              className={`sidebar__link ${isActive("/") ? "sidebar__link--active" : ""}`}
-            >
-              <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-              <span>Dashboard</span>
-            </Link>
+            {can("/") && (
+              <Link
+                href="/"
+                className={`sidebar__link ${isActive("/") ? "sidebar__link--active" : ""}`}
+              >
+                <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+                <span>Dashboard</span>
+              </Link>
+            )}
 
             {/* POS Operations Group */}
             <button
@@ -240,56 +236,64 @@ export function Sidebar({ session: userSession }: SidebarProps) {
                   <Receipt className="w-4 h-4 flex-shrink-0 text-cyan-400" />
                   <span className="truncate">Consultation Billing</span>
                 </Link>
-                <Link
-                  href="/doctors"
-                  className={`sidebar__link ${isActive("/doctors") ? "sidebar__link--active" : ""}`}
-                >
-                  <Stethoscope className="w-4 h-4 flex-shrink-0 text-cyan-400" />
-                  <span className="truncate">Doctor Directory</span>
-                </Link>
-                <Link
-                  href="/reports/doctors"
-                  className={`sidebar__link ${isActive("/reports/doctors") ? "sidebar__link--active" : ""}`}
-                >
-                  <BarChart3 className="w-4 h-4 flex-shrink-0 text-cyan-400" />
-                  <span className="truncate">Doctor Revenue Reports</span>
-                </Link>
+                {can("/doctors") && (
+                  <Link
+                    href="/doctors"
+                    className={`sidebar__link ${isActive("/doctors") ? "sidebar__link--active" : ""}`}
+                  >
+                    <Stethoscope className="w-4 h-4 flex-shrink-0 text-cyan-400" />
+                    <span className="truncate">Doctor Directory</span>
+                  </Link>
+                )}
+                {can("/reports/doctors") && (
+                  <Link
+                    href="/reports/doctors"
+                    className={`sidebar__link ${isActive("/reports/doctors") ? "sidebar__link--active" : ""}`}
+                  >
+                    <BarChart3 className="w-4 h-4 flex-shrink-0 text-cyan-400" />
+                    <span className="truncate">Doctor Revenue Reports</span>
+                  </Link>
+                )}
               </div>
             )}
 
-            {/* Inventory Group */}
-            <button
-              type="button"
-              onClick={() => setInventoryOpen(!inventoryOpen)}
-              className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-2"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <Package className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">Inventory & Stock</span>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${
-                  inventoryOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            {inventoryOpen && (
-              <div className="flex flex-col gap-1 pl-4">
-                <Link
-                  href="/products"
-                  className={`sidebar__link ${isActive("/products") ? "sidebar__link--active" : ""}`}
-                >
+            {can("/products") && (
+              <>
+              {/* Inventory Group */}
+              <button
+                type="button"
+                onClick={() => setInventoryOpen(!inventoryOpen)}
+                className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-2"
+              >
+                <div className="flex items-center gap-3 min-w-0">
                   <Package className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">Products & SKUs</span>
-                </Link>
-                <Link
-                  href="/inventory/stock"
-                  className={`sidebar__link ${isActive("/inventory/stock") ? "sidebar__link--active" : ""}`}
-                >
-                  <Layers className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">Stock Transfers</span>
-                </Link>
-              </div>
+                  <span className="truncate">Inventory & Stock</span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${
+                    inventoryOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {inventoryOpen && (
+                <div className="flex flex-col gap-1 pl-4">
+                  <Link
+                    href="/products"
+                    className={`sidebar__link ${isActive("/products") ? "sidebar__link--active" : ""}`}
+                  >
+                    <Package className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">Products & SKUs</span>
+                  </Link>
+                  <Link
+                    href="/inventory/stock"
+                    className={`sidebar__link ${isActive("/inventory/stock") ? "sidebar__link--active" : ""}`}
+                  >
+                    <Layers className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">Stock Transfers</span>
+                  </Link>
+                </div>
+              )}
+              </>
             )}
 
             {/* Finance Group */}
@@ -330,17 +334,19 @@ export function Sidebar({ session: userSession }: SidebarProps) {
               className={`sidebar__link mt-2 ${isActive("/hr") ? "sidebar__link--active" : ""}`}
             >
               <Users className="w-4 h-4 flex-shrink-0" />
-              <span>Attendance & Payroll</span>
+              <span>{isStoreManager ? "Attendance & Payroll" : "Attendance"}</span>
             </Link>
 
             {/* Analytics */}
-            <Link
-              href="/reports"
-              className={`sidebar__link ${isActive("/reports") ? "sidebar__link--active" : ""}`}
-            >
-              <BarChart3 className="w-4 h-4 flex-shrink-0" />
-              <span>EOD & Sales Reports</span>
-            </Link>
+            {can("/reports") && (
+              <Link
+                href="/reports"
+                className={`sidebar__link ${isActive("/reports") ? "sidebar__link--active" : ""}`}
+              >
+                <BarChart3 className="w-4 h-4 flex-shrink-0" />
+                <span>EOD & Sales Reports</span>
+              </Link>
+            )}
 
             {/* Store Settings */}
             {isStoreManager && (
@@ -363,13 +369,15 @@ export function Sidebar({ session: userSession }: SidebarProps) {
             )}
 
             {/* Platform Support Desk */}
-            <Link
-              href="/support"
-              className={`sidebar__link mt-2 text-blue-400 font-bold ${isActive("/support") ? "sidebar__link--active" : ""}`}
-            >
-              <ShieldCheck className="w-4 h-4 flex-shrink-0 text-blue-400" />
-              <span>Platform Support Desk</span>
-            </Link>
+            {can("/support") && (
+              <Link
+                href="/support"
+                className={`sidebar__link mt-2 text-blue-400 font-bold ${isActive("/support") ? "sidebar__link--active" : ""}`}
+              >
+                <ShieldCheck className="w-4 h-4 flex-shrink-0 text-blue-400" />
+                <span>Platform Support Desk</span>
+              </Link>
+            )}
           </>
         )}
       </nav>
@@ -386,7 +394,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
           <div className="sidebar__user-role flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-400 inline flex-shrink-0" />
             <span className="uppercase text-[1.05rem]">
-              {ROLE_LABELS[userSession?.role] || userSession?.role} / ACTIVE
+              {ROLE_NAMES[userSession?.role as keyof typeof ROLE_NAMES] || userSession?.role} / ACTIVE
             </span>
           </div>
         </div>

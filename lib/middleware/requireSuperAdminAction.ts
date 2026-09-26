@@ -1,16 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
+import { canPerformPlatformAction, isPlatformRole, PlatformAction } from "@/lib/auth/permissions";
 
-export type SuperAdminActionLevel =
-  | "read_analytics"       // super_admin + platform_support
-  | "record_payment"       // super_admin + platform_support
-  | "manage_support"        // super_admin + platform_support
-  | "suspend_tenant"       // super_admin + platform_support
-  | "reset_user_pin"       // super_admin + platform_support
-  | "impersonate_tenant"   // super_admin only
-  | "terminate_tenant"     // super_admin only
-  | "manage_pricing"       // super_admin only
-  | "manage_integrations"; // super_admin only
+export type SuperAdminActionLevel = PlatformAction;
 
 export async function requireSuperAdminAction(requiredLevel: SuperAdminActionLevel) {
   const session = await getSession();
@@ -23,11 +15,8 @@ export async function requireSuperAdminAction(requiredLevel: SuperAdminActionLev
     };
   }
 
-  const role = session.role;
-  const isSuperAdmin = role === "super_admin";
-  const isPlatformSupport = role === "platform_support";
-
-  if (!isSuperAdmin && !isPlatformSupport) {
+  // An impersonation session carries the store admin role, so it never reaches platform actions
+  if (!isPlatformRole(session.role) || session.isImpersonating) {
     return {
       authorized: false as const,
       session,
@@ -35,15 +24,7 @@ export async function requireSuperAdminAction(requiredLevel: SuperAdminActionLev
     };
   }
 
-  // Restrict specific actions to super_admin only
-  const superAdminOnlyActions: SuperAdminActionLevel[] = [
-    "impersonate_tenant",
-    "terminate_tenant",
-    "manage_pricing",
-    "manage_integrations",
-  ];
-
-  if (superAdminOnlyActions.includes(requiredLevel) && !isSuperAdmin) {
+  if (!canPerformPlatformAction(session.role, requiredLevel)) {
     return {
       authorized: false as const,
       session,

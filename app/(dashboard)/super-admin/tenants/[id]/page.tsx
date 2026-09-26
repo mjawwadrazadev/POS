@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, use } from "react";
+import { useSessionUser } from "@/components/layout/SessionContext";
+import { canPerformPlatformAction } from "@/lib/auth/permissions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +19,9 @@ import {
 } from "lucide-react";
 
 export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const sessionUser = useSessionUser();
+  const canImpersonate = canPerformPlatformAction(sessionUser?.role, "impersonate_tenant");
+  const canTerminate = canPerformPlatformAction(sessionUser?.role, "terminate_tenant");
   const { id } = use(params);
   const router = useRouter();
 
@@ -26,7 +31,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
   // Modals
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState(5000);
+  const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMonths, setPaymentMonths] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paymentNotes, setPaymentNotes] = useState("");
@@ -49,7 +54,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       const data = await res.json();
       if (data.success) {
         const found = data.tenants.find((t: any) => t.id === id);
-        if (found) setTenant(found);
+        if (found) {
+          setTenant(found);
+          // Pre-fill the payment form with this tenant's actual subscription fee
+          setPaymentAmount(found.subscriptionFee || 0);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -230,13 +239,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setShowImpersonateModal(true)}
-                className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded-xl text-[1.4rem] flex items-center space-x-2 transition shadow-md"
-              >
-                <Eye className="w-4 h-4" />
-                <span>View as Tenant (Impersonate)</span>
-              </button>
+              {canImpersonate && (
+                <button
+                  onClick={() => setShowImpersonateModal(true)}
+                  className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded-xl text-[1.4rem] flex items-center space-x-2 transition shadow-md"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>View as Tenant (Impersonate)</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -291,17 +302,19 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             <span>Tab 4: Usage & Activity</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("danger")}
-            className={`px-4 py-3 text-[1.4rem] font-bold border-b-2 transition flex items-center space-x-2 whitespace-nowrap ${
-              activeTab === "danger"
-                ? "border-rose-500 text-rose-600 bg-rose-950/20"
-                : "border-transparent text-muted hover:text-rose-600"
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4" />
-            <span>Tab 5: Danger Zone</span>
-          </button>
+          {canTerminate && (
+            <button
+              onClick={() => setActiveTab("danger")}
+              className={`px-4 py-3 text-[1.4rem] font-bold border-b-2 transition flex items-center space-x-2 whitespace-nowrap ${
+                activeTab === "danger"
+                  ? "border-rose-500 text-rose-600 bg-rose-950/20"
+                  : "border-transparent text-muted hover:text-rose-600"
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span>Tab 5: Danger Zone</span>
+            </button>
+          )}
         </div>
 
         {/* Tab 1: Overview */}
@@ -471,18 +484,20 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-[1.4rem] text-medium">
               Inspect tenant store view directly to assist with setup, troubleshooting, or menu configuration.
             </p>
-            <button
-              onClick={() => setShowImpersonateModal(true)}
-              className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-[1.4rem] flex items-center space-x-2"
-            >
-              <Eye className="w-4 h-4" />
-              <span>Launch "View as Tenant" Mode</span>
-            </button>
+            {canImpersonate && (
+              <button
+                onClick={() => setShowImpersonateModal(true)}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-[1.4rem] flex items-center space-x-2"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Launch "View as Tenant" Mode</span>
+              </button>
+            )}
           </div>
         )}
 
         {/* Tab 5: Danger Zone */}
-        {activeTab === "danger" && (
+        {canTerminate && activeTab === "danger" && (
           <div className="bg-rose-950/20 border border-rose-900/60 rounded-2xl p-6 space-y-6">
             <div className="flex items-center space-x-3 text-rose-600">
               <ShieldAlert className="w-6 h-6" />

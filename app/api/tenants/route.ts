@@ -96,7 +96,10 @@ export async function GET() {
 
     const billable = tenants.filter((t) => !t.isPlatformOrg && t.subscriptionStatus !== "terminated");
 
-    const totalMRR = billable.reduce(
+    // Recurring revenue only counts tenants that are currently paying (same rule as the revenue snapshot)
+    const totalMRR = billable
+      .filter((t) => t.subscriptionStatus === "active" || t.subscriptionStatus === "expiring_soon")
+      .reduce(
       (sum, t) => sum + (t.subscriptionPlan === "yearly" ? t.subscriptionFee / 12 : t.subscriptionFee),
       0
     );

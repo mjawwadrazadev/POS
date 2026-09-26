@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSessionUser } from "@/components/layout/SessionContext";
+import { canPerformPlatformAction } from "@/lib/auth/permissions";
 import { useRouter } from "next/navigation";
 import { Building2, Search, Filter, ArrowUpDown, ChevronRight, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 
 export default function TenantsListPage() {
+  const sessionUser = useSessionUser();
+  const canProvision = canPerformPlatformAction(sessionUser?.role, "manage_pricing");
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [tenants, setTenants] = useState<any[]>([]);
@@ -29,7 +33,7 @@ export default function TenantsListPage() {
       const healthJson = await healthRes.json();
 
       if (tenantsJson.success) {
-        setTenants(tenantsJson.tenants.filter((t: any) => t.code !== "rst-hq"));
+        setTenants(tenantsJson.tenants.filter((t: any) => !t.isPlatformOrg));
       }
 
       if (healthJson.success && Array.isArray(healthJson.data?.healthSnapshots)) {
@@ -87,12 +91,14 @@ export default function TenantsListPage() {
               Browse, search, and manage access for all provisioned business accounts across verticals
             </p>
           </div>
-          <button
-            onClick={() => setShowProvisionModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-[1.4rem] transition shadow-md"
-          >
-            + Provision New Tenant
-          </button>
+          {canProvision && (
+            <button
+              onClick={() => setShowProvisionModal(true)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-[1.4rem] transition shadow-md"
+            >
+              + Provision New Tenant
+            </button>
+          )}
         </div>
 
         {/* Filter & Search Bar */}

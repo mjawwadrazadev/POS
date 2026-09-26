@@ -5,6 +5,9 @@ import { PaymentHistory } from "@/models/PaymentHistory";
 import { computeMonthlyRevenueSnapshot } from "@/lib/jobs/computeMonthlyRevenueSnapshot";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
 
+const SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000;
+const TREND_MONTHS = 6;
+
 export async function GET() {
   try {
     const auth = await requireSuperAdminAction("read_analytics");
@@ -15,11 +18,27 @@ export async function GET() {
     const now = new Date();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-    // Read directly from precomputed MonthlyRevenueSnapshot collection
+    // Precomputed snapshot, refreshed when older than the cache window so new tenants and payments show up
     let snapshot = await MonthlyRevenueSnapshot.findOne({ monthKey }).lean();
-    if (!snapshot) {
+    if (!snapshot || Date.now() - new Date(snapshot.calculatedAt).getTime() > SNAPSHOT_MAX_AGE_MS) {
       snapshot = await computeMonthlyRevenueSnapshot();
     }
+
+    // Subscription payments actually collected per month, for the trend chart (oldest first)
+    const trendStart = new Date(now.getFullYear(), now.getMonth() - (TREND_MONTHS - 1), 1);
+    const collected = await PaymentHistory.aggregate([
+      { $match: { paidAt: { $gte: trendStart } } },
+      { $group: { _id: { y: { $year: "$paidAt" }, m: { $month: "$paidAt" } }, amount: { $sum: "$amount" } } },
+    ]);
+    const monthlyCollections = Array.from({ length: TREND_MONTHS }, (_, i) => {
+      const d = new Date(trendStart.getFullYear(), trendStart.getMonth() + i, 1);
+      const hit = collected.find((c: any) => c._id.y === d.getFullYear() && c._id.m === d.getMonth() + 1);
+      return {
+        monthKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: d.toLocaleString("en-US", { month: "short" }),
+        amount: hit?.amount || 0,
+      };
+    });
 
     // Fetch recent 50 standalone payment history records
     const recentPayments = await PaymentHistory.find({})
@@ -38,6 +57,7 @@ export async function GET() {
         arpu: snapshot?.arpu || 0,
         revenueByVertical: snapshot?.revenueByVertical || [],
         revenueByPlan: snapshot?.revenueByPlan || [],
+        monthlyCollections,
         recentPayments: recentPayments.map((p: any) => ({
           id: p._id.toString(),
           tenantName: p.tenantName,

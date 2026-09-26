@@ -14,11 +14,47 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-export default function ReportsPage() {
+type DatePreset = "today" | "7days" | "30days" | "last_month" | "last_year" | "custom";
 
-  const [datePreset, setDatePreset] = useState<"today" | "7days" | "30days" | "last_month" | "last_year">("30days");
-  const [startDate, setStartDate] = useState("2026-08-01");
-  const [endDate, setEndDate] = useState("2026-09-19");
+// Local-time YYYY-MM-DD (toISOString would shift the date across the UTC boundary)
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function presetRange(preset: Exclude<DatePreset, "custom">): { start: string; end: string } {
+  const today = new Date();
+  const daysAgo = (n: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() - n);
+  switch (preset) {
+    case "today":
+      return { start: ymd(today), end: ymd(today) };
+    case "7days":
+      return { start: ymd(daysAgo(6)), end: ymd(today) };
+    case "30days":
+      return { start: ymd(daysAgo(29)), end: ymd(today) };
+    case "last_month":
+      return {
+        start: ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+        end: ymd(new Date(today.getFullYear(), today.getMonth(), 0)),
+      };
+    case "last_year":
+      return {
+        start: ymd(new Date(today.getFullYear() - 1, 0, 1)),
+        end: ymd(new Date(today.getFullYear() - 1, 11, 31)),
+      };
+  }
+}
+
+export default function ReportsPage() {
+  const [datePreset, setDatePreset] = useState<DatePreset>("30days");
+  const [startDate, setStartDate] = useState(() => presetRange("30days").start);
+  const [endDate, setEndDate] = useState(() => presetRange("30days").end);
+
+  const applyPreset = (preset: Exclude<DatePreset, "custom">) => {
+    const range = presetRange(preset);
+    setDatePreset(preset);
+    setStartDate(range.start);
+    setEndDate(range.end);
+  };
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [exportNotice, setExportNotice] = useState("");
@@ -144,12 +180,12 @@ export default function ReportsPage() {
             { id: "7days", label: "Last 7 Days" },
             { id: "30days", label: "Last 30 Days" },
             { id: "last_month", label: "Previous Month" },
-            { id: "last_year", label: "Previous Year (2025)" },
+            { id: "last_year", label: `Previous Year (${new Date().getFullYear() - 1})` },
           ].map((preset) => (
             <button
               key={preset.id}
               type="button"
-              onClick={() => setDatePreset(preset.id as any)}
+              onClick={() => applyPreset(preset.id as Exclude<DatePreset, "custom">)}
               className={`px-3 py-1.5 font-bold uppercase transition-colors ${
                 datePreset === preset.id
                   ? "bg-accent text-white"
@@ -168,7 +204,10 @@ export default function ReportsPage() {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setDatePreset("custom");
+              }}
               className="bg-base-bright border border-stroke-muted px-2 py-1 text-bright outline-none font-bold"
             />
           </div>
@@ -177,7 +216,10 @@ export default function ReportsPage() {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setDatePreset("custom");
+              }}
               className="bg-base-bright border border-stroke-muted px-2 py-1 text-bright outline-none font-bold"
             />
           </div>

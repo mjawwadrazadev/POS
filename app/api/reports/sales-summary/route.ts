@@ -4,12 +4,17 @@ import { Order } from "@/models/Order";
 import { Refund } from "@/models/Refund";
 import mongoose from "mongoose";
 import { getSession } from "@/lib/auth/session";
+import { isStoreManagerRole } from "@/lib/auth/permissions";
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Revenue, cost and profit figures are for store management, not the till
+    if (!isStoreManagerRole(session.role)) {
+      return NextResponse.json({ error: "Forbidden — Manager or Admin required" }, { status: 403 });
+    }
 
     const { searchParams } = new URL(req.url);
     const startDateParam = searchParams.get("startDate");

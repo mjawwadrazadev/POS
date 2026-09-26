@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getConfigValue, isDatabaseConfigured } from "@/lib/config/platformConfig";
+import { canAccessStorePage, isPlatformRole, isStoreApi, storeHomeFor } from "@/lib/auth/permissions";
 
 const SESSION_COOKIE = "rst_pos_token";
 
@@ -63,12 +64,24 @@ async function verifyJwt(token: string): Promise<any | null> {
   }
 }
 
-function isPlatformRole(role?: string) {
-  return role === "super_admin" || role === "platform_support";
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // API routes verify the full session themselves; here we only keep platform staff out of
+  // store-operation APIs (they act inside a store only through impersonation).
+  if (pathname.startsWith("/api/")) {
+    if (isStoreApi(pathname)) {
+      const apiToken = request.cookies.get(SESSION_COOKIE)?.value;
+      const apiPayload = apiToken ? await verifyJwt(apiToken) : null;
+      if (apiPayload && isPlatformRole(apiPayload.role) && !apiPayload.isImpersonating) {
+        return NextResponse.json(
+          { error: "Forbidden: platform staff cannot operate a store directly. Use View as Tenant." },
+          { status: 403 }
+        );
+      }
+    }
+    return NextResponse.next();
+  }
 
   // 0. First run: nothing works until a database is connected, so everything goes to the setup wizard.
   //    /setup itself stays reachable afterwards; its API refuses once a super admin exists.
@@ -102,7 +115,7 @@ export async function middleware(request: NextRequest) {
 
     // 2. Only platform staff (not impersonating) may open /super-admin pages
     if (isSuperAdminPath && !platformUser) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL(storeHomeFor(payload.role), request.url));
     }
 
     // 3. Platform staff belong in /super-admin unless impersonating a tenant
@@ -112,7 +125,13 @@ export async function middleware(request: NextRequest) {
 
     // 4. Logged-in users visiting a login page go to their home page
     if (isPublicPath) {
-      return NextResponse.redirect(new URL(platformUser ? "/super-admin" : "/", request.url));
+      return NextResponse.redirect(new URL(platformUser ? "/super-admin" : storeHomeFor(payload.role), request.url));
+    }
+
+    // 5. Store users only open the pages their role allows (e.g. cashiers stay on POS screens)
+    if (!platformUser && !isSuperAdminPath && !canAccessStorePage(payload.role, pathname)) {
+      const home = storeHomeFor(payload.role);
+      if (pathname !== home) return NextResponse.redirect(new URL(home, request.url));
     }
   }
 
@@ -128,8 +147,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - api routes (each route verifies the session itself)
      */
-    "/((?!_next/static|_next/image|favicon.ico|api).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

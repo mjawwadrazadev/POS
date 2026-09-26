@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { SessionProvider } from "@/components/layout/SessionContext";
 import { ImpersonationBanner } from "@/components/super-admin/ImpersonationBanner";
 import { AnnouncementBanner } from "@/components/super-admin/AnnouncementBanner";
 
@@ -92,7 +93,9 @@ export default function DashboardLayout({
         <Sidebar session={userSession} />
         <div className="pos-main">
           <TopBar title={topBarTitle} session={userSession} />
-          <main className="pos-main__content">{children}</main>
+          <main className="pos-main__content">
+            <SessionProvider value={userSession}>{children}</SessionProvider>
+          </main>
         </div>
       </div>
     </div>

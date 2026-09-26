@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { TenantHealthSnapshot } from "@/models/TenantHealthSnapshot";
+import { Organization } from "@/models/Organization";
 import { computeTenantHealthSnapshots } from "@/lib/jobs/computeTenantHealthSnapshots";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
+
+const SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000;
 
 export async function GET() {
   try {
@@ -11,11 +14,14 @@ export async function GET() {
 
     await dbConnect();
 
-    // Fetch precomputed health snapshots
+    // Precomputed health snapshots, refreshed when stale or when tenants were added/removed since
     let healthSnapshots = await TenantHealthSnapshot.find({}).lean();
-
-    // If snapshots are empty or missing, run precomputation helper once
-    if (healthSnapshots.length === 0) {
+    const liveTenantCount = await Organization.countDocuments({ code: { $ne: "rst-hq" }, subscriptionStatus: { $ne: "terminated" } });
+    const oldest = Math.min(...healthSnapshots.map((h: any) => new Date(h.updatedAt).getTime()));
+    if (
+      healthSnapshots.length !== liveTenantCount ||
+      (healthSnapshots.length > 0 && Date.now() - oldest > SNAPSHOT_MAX_AGE_MS)
+    ) {
       healthSnapshots = await computeTenantHealthSnapshots();
     }
 

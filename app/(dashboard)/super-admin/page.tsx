@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSessionUser } from "@/components/layout/SessionContext";
+import { canPerformPlatformAction } from "@/lib/auth/permissions";
 import Link from "next/link";
 import {
   Building2,
@@ -13,6 +15,8 @@ import {
 import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 
 export default function SuperAdminDashboardPage() {
+  const sessionUser = useSessionUser();
+  const canProvision = canPerformPlatformAction(sessionUser?.role, "manage_pricing");
   const [stats, setStats] = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
   const [revenueData, setRevenueData] = useState<any>(null);
@@ -43,9 +47,11 @@ export default function SuperAdminDashboardPage() {
   }, []);
 
   // Compute stat card numbers
-  const totalTenants = stats?.tenants?.filter((t: any) => t.code !== "rst-hq")?.length || 0;
-  const activeTenants = stats?.tenants?.filter((t: any) => t.subscriptionStatus === "active" && t.code !== "rst-hq")?.length || 0;
-  const expiringSoonTenants = stats?.tenants?.filter((t: any) => t.subscriptionStatus === "expiring_soon" && t.code !== "rst-hq")?.length || 0;
+  // Customer tenants only: the platform HQ organisation and terminated tenants are not counted
+  const customerTenants = (stats?.tenants || []).filter((t: any) => !t.isPlatformOrg && t.subscriptionStatus !== "terminated");
+  const totalTenants = customerTenants.length;
+  const activeTenants = customerTenants.filter((t: any) => t.subscriptionStatus === "active").length;
+  const expiringSoonTenants = customerTenants.filter((t: any) => t.subscriptionStatus === "expiring_soon").length;
   const totalMRR = revenueData?.totalMRR || stats?.stats?.totalMRR || 0;
 
   // Health distribution
@@ -54,29 +60,20 @@ export default function SuperAdminDashboardPage() {
   const dormantHealth = healthData?.summary?.dormantCount || 0;
 
   // Action Items Queue
-  const actionItems = (stats?.tenants || [])
-    .filter((t: any) => t.code !== "rst-hq")
+  const actionItems = customerTenants
     .filter((t: any) => t.subscriptionStatus === "expiring_soon" || t.subscriptionStatus === "expired" || t.daysRemaining <= 7)
     .slice(0, 5);
 
-  const mrrTrendData = [
-    { month: "Apr", mrr: 120000 },
-    { month: "May", mrr: 150000 },
-    { month: "Jun", mrr: 180000 },
-    { month: "Jul", mrr: 210000 },
-    { month: "Aug", mrr: 245000 },
-    { month: "Sep", mrr: totalMRR > 0 ? totalMRR : 285000 },
-  ];
+  // Subscription payments actually collected per month (last 6 months, from payment history)
+  const collectionTrend: { label: string; amount: number }[] = revenueData?.monthlyCollections || [];
+  const maxCollection = Math.max(...collectionTrend.map((d) => d.amount), 0);
+  const thisMonth = collectionTrend[collectionTrend.length - 1]?.amount || 0;
+  const lastMonth = collectionTrend[collectionTrend.length - 2]?.amount || 0;
+  // Month-over-month change, only when there is a previous month to compare with
+  const collectionGrowth = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : null;
 
-  const verticalRevenueData = revenueData?.revenueByVertical || [
-    { vertical: "Bakery", amount: 45000 },
-    { vertical: "Restaurant", amount: 75000 },
-    { vertical: "Pharmacy", amount: 60000 },
-    { vertical: "Retail", amount: 35000 },
-    { vertical: "Hospital", amount: 50000 },
-  ];
-
-  const maxBarAmount = Math.max(...verticalRevenueData.map((d: any) => d.amount || 1), 100000);
+  const verticalRevenueData: { vertical: string; amount: number }[] = revenueData?.revenueByVertical || [];
+  const maxBarAmount = Math.max(...verticalRevenueData.map((d) => d.amount), 0);
 
   return (
     <div className="space-y-8">
@@ -91,12 +88,14 @@ export default function SuperAdminDashboardPage() {
               Platform-wide financial analytics, tenant health scorecards, and revenue tracking
             </p>
           </div>
-          <button
-            onClick={() => setShowProvisionModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-[1.4rem] transition shadow-md"
-          >
-            + Provision New Client
-          </button>
+          {canProvision && (
+            <button
+              onClick={() => setShowProvisionModal(true)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-[1.4rem] transition shadow-md"
+            >
+              + Provision New Client
+            </button>
+          )}
         </div>
 
         {/* Row 1: Key Stat Cards */}
@@ -144,32 +143,46 @@ export default function SuperAdminDashboardPage() {
           <div className="lg:col-span-2 bg-base-tint border border-stroke-muted rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="font-bold text-bright text-[1.6rem]">Monthly Recurring Revenue (MRR) Trend</h3>
-                <p className="text-[1.2rem] text-muted">12-month platform revenue growth projection</p>
+                <h3 className="font-bold text-bright text-[1.6rem]">Subscription Collections</h3>
+                <p className="text-[1.2rem] text-muted">Payments received per month, last 6 months</p>
               </div>
-              <span className="text-[1.2rem] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                +14.2% Growth
-              </span>
+              {collectionGrowth !== null && (
+                <span
+                  className={`text-[1.2rem] font-bold px-2.5 py-1 rounded-full border ${
+                    collectionGrowth >= 0
+                      ? "text-emerald-600 bg-emerald-500/10 border-emerald-500/20"
+                      : "text-rose-600 bg-rose-500/10 border-rose-500/20"
+                  }`}
+                >
+                  {collectionGrowth >= 0 ? "+" : ""}
+                  {collectionGrowth.toFixed(1)}% vs last month
+                </span>
+              )}
             </div>
 
-            {/* SVG Line Chart */}
-            <div className="h-64 w-full pt-4 flex items-end justify-between gap-4 border-b border-stroke-muted pb-2">
-              {mrrTrendData.map((d, i) => {
-                const heightPercent = Math.min(100, Math.max(15, (d.mrr / 300000) * 100));
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                    <div className="text-[11px] font-bold text-medium opacity-0 group-hover:opacity-100 transition">
-                      PKR {d.mrr.toLocaleString()}
+            {maxCollection === 0 ? (
+              <div className="h-64 flex items-center justify-center text-[1.4rem] text-muted border border-dashed border-stroke-muted">
+                No subscription payments recorded in the last 6 months.
+              </div>
+            ) : (
+              <div className="h-64 w-full pt-4 flex items-end justify-between gap-4 border-b border-stroke-muted pb-2">
+                {collectionTrend.map((d, i) => {
+                  const heightPercent = d.amount > 0 ? Math.max(4, (d.amount / maxCollection) * 100) : 0;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                      <div className="text-[1.2rem] font-bold text-medium opacity-0 group-hover:opacity-100 transition">
+                        PKR {d.amount.toLocaleString()}
+                      </div>
+                      <div
+                        style={{ height: `${heightPercent}%` }}
+                        className="w-full bg-gradient-to-t from-blue-600 to-indigo-400 rounded-t-lg transition-all duration-300 group-hover:brightness-125"
+                      />
+                      <span className="text-[1.2rem] font-bold text-muted">{d.label}</span>
                     </div>
-                    <div
-                      style={{ height: `${heightPercent}%` }}
-                      className="w-full bg-gradient-to-t from-blue-600 to-indigo-400 rounded-t-lg transition-all duration-300 group-hover:brightness-125"
-                    />
-                    <span className="text-[1.2rem] font-bold text-muted">{d.month}</span>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Tenant Health Breakdown */}
@@ -216,23 +229,29 @@ export default function SuperAdminDashboardPage() {
         {/* Row 3: Revenue by Vertical Bar Chart */}
         <div className="bg-base-tint border border-stroke-muted rounded-2xl p-6 shadow-sm space-y-4">
           <h3 className="font-bold text-bright text-[1.6rem]">Subscription Revenue by Business Vertical</h3>
+          {verticalRevenueData.length === 0 || maxBarAmount === 0 ? (
+            <div className="h-56 flex items-center justify-center text-[1.4rem] text-muted border border-dashed border-stroke-muted">
+              No active paying tenants yet.
+            </div>
+          ) : (
           <div className="h-56 w-full pt-2 flex items-end justify-between gap-6 border-b border-stroke-muted pb-2">
-            {verticalRevenueData.map((d: any, i: number) => {
-              const heightPercent = Math.min(100, Math.max(10, (d.amount / maxBarAmount) * 100));
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                  <div className="text-[11px] font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition">
-                    PKR {Number(d.amount).toLocaleString()}
+              {verticalRevenueData.map((d, i) => {
+                const heightPercent = Math.max(4, (d.amount / maxBarAmount) * 100);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                    <div className="text-[11px] font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition">
+                      PKR {Number(d.amount).toLocaleString()}
+                    </div>
+                    <div
+                      style={{ height: `${heightPercent}%` }}
+                      className="w-full bg-indigo-600 rounded-t-lg transition-all duration-300 group-hover:bg-indigo-500"
+                    />
+                    <span className="text-[1.2rem] font-bold text-muted uppercase">{d.vertical}</span>
                   </div>
-                  <div
-                    style={{ height: `${heightPercent}%` }}
-                    className="w-full bg-indigo-600 rounded-t-lg transition-all duration-300 group-hover:bg-indigo-500"
-                  />
-                  <span className="text-[1.2rem] font-bold text-muted uppercase">{d.vertical}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Row 4: ⚠️ Action Items Queue */}

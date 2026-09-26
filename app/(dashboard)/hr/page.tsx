@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { useSessionUser } from "@/components/layout/SessionContext";
+import { isStoreManagerRole } from "@/lib/auth/permissions";
 import {
   Users,
   Clock,
@@ -42,6 +44,8 @@ interface PayrollRunRecord {
 }
 
 export default function HrPayrollPage() {
+  const sessionUser = useSessionUser();
+  const canManagePayroll = isStoreManagerRole(sessionUser?.role);
   const [activeTab, setActiveTab] = useState<"attendance" | "payroll">("attendance");
   const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([]);
   const [payrollList, setPayrollList] = useState<PayrollRunRecord[]>([]);
@@ -59,11 +63,7 @@ export default function HrPayrollPage() {
   // Payroll form state
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const attRes = await fetch("/api/hr/attendance");
@@ -72,17 +72,24 @@ export default function HrPayrollPage() {
         setAttendanceList(attData.attendanceLogs);
       }
 
-      const payRes = await fetch("/api/hr/payroll");
-      const payData = await payRes.json();
-      if (payData.success && payData.payrolls) {
-        setPayrollList(payData.payrolls);
+      // Payroll figures are for managers only; cashiers just use the clock-in terminal
+      if (canManagePayroll) {
+        const payRes = await fetch("/api/hr/payroll");
+        const payData = await payRes.json();
+        if (payData.success && payData.payrolls) {
+          setPayrollList(payData.payrolls);
+        }
       }
     } catch (err) {
       console.error("Failed to load HR data", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canManagePayroll]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleClockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,6 +226,7 @@ export default function HrPayrollPage() {
         >
           <Clock className="w-4 h-4" /> Attendance Logs ({attendanceList.length})
         </button>
+        {canManagePayroll && (
         <button
           onClick={() => setActiveTab("payroll")}
           className={`px-5 py-3 font-bold uppercase transition flex items-center gap-2 border-b-2 ${
@@ -229,6 +237,7 @@ export default function HrPayrollPage() {
         >
           <DollarSign className="w-4 h-4" /> Monthly Payroll Runner ({payrollList.length})
         </button>
+        )}
       </div>
 
       {/* Messages */}
@@ -308,7 +317,7 @@ export default function HrPayrollPage() {
       )}
 
       {/* TAB 2: PAYROLL RUNNER */}
-      {activeTab === "payroll" && (
+      {canManagePayroll && activeTab === "payroll" && (
         <div className="space-y-6">
           <div className="bg-[#0b0b0d] border border-gray-800 p-6 space-y-4 font-mono text-xs">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -445,9 +454,6 @@ export default function HrPayrollPage() {
                   className="w-full bg-gray-900 border border-gray-700 text-blue-400 font-mono font-bold text-center text-2xl py-3 outline-none focus:border-blue-500"
                   required
                 />
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Preset PINs: 1234 (Admin), 2222 (Restaurant Admin), 3333 (Pharmacy Admin), 9999 (Super Admin)
-                </p>
               </div>
 
               <div>

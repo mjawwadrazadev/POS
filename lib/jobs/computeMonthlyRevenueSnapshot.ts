@@ -9,16 +9,19 @@ export async function computeMonthlyRevenueSnapshot() {
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const orgs = await Organization.find({ code: { $ne: "rst-hq" } }).lean();
+  // Terminated tenants are gone for good and do not count anywhere
+  const orgs = await Organization.find({ code: { $ne: "rst-hq" }, subscriptionStatus: { $ne: "terminated" } }).lean();
   const totalTenants = orgs.length;
-  const activeTenants = orgs.filter((o: any) => o.subscriptionStatus === "active" || o.subscriptionStatus === "expiring_soon").length;
+  // Only paying (active / expiring soon) tenants contribute recurring revenue
+  const payingOrgs = orgs.filter((o: any) => o.subscriptionStatus === "active" || o.subscriptionStatus === "expiring_soon");
+  const activeTenants = payingOrgs.length;
 
   let totalMRR = 0;
   const verticalMap: Record<string, number> = {};
   const planMap: Record<string, number> = {};
 
-  orgs.forEach((org: any) => {
-    const fee = Number(org.subscriptionFee || 5000);
+  payingOrgs.forEach((org: any) => {
+    const fee = Number(org.subscriptionFee) || 0;
     const monthlyEquiv = org.subscriptionPlan === "yearly" ? fee / 12 : fee;
     totalMRR += monthlyEquiv;
 

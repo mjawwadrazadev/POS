@@ -7,6 +7,7 @@ import { Organization } from "@/models/Organization";
 import { User } from "@/models/User";
 import { ImpersonationSession } from "@/models/ImpersonationSession";
 import { getJwtSecret } from "@/lib/config/platformConfig";
+import { isPlatformRole } from "@/lib/auth/permissions";
 
 // The signing secret is read on every call (never cached at module load) so a rotation from the
 // super admin Integrations tab takes effect immediately. It is never a hard-coded default:
@@ -48,9 +49,7 @@ export interface SessionPayload {
   targetOrgName?: string;
 }
 
-export function isPlatformRole(role?: string) {
-  return role === "super_admin" || role === "platform_support";
-}
+export { isPlatformRole };
 
 export function signToken(payload: object, expiresInSeconds: number = SESSION_MAX_AGE_SECONDS): string {
   return jwt.sign(payload, getJwtSecret(), { expiresIn: expiresInSeconds });

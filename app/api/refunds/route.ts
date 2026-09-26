@@ -19,6 +19,10 @@ export async function GET(req: Request) {
     await dbConnect();
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // The refund register (amounts, reasons, approvals) is for managers; cashiers only raise requests
+    if (!APPROVER_ROLES.includes(session.role)) {
+      return NextResponse.json({ error: "Forbidden — Manager or Admin required" }, { status: 403 });
+    }
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");

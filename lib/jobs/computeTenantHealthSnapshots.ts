@@ -2,12 +2,13 @@ import { dbConnect } from "@/lib/db/mongoose";
 import { Organization } from "@/models/Organization";
 import { Order } from "@/models/Order";
 import { User } from "@/models/User";
+import { AuditLog } from "@/models/AuditLog";
 import { TenantHealthSnapshot } from "@/models/TenantHealthSnapshot";
 
 export async function computeTenantHealthSnapshots() {
   await dbConnect();
 
-  const orgs = await Organization.find({ code: { $ne: "rst-hq" } }).lean();
+  const orgs = await Organization.find({ code: { $ne: "rst-hq" }, subscriptionStatus: { $ne: "terminated" } }).lean();
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -35,8 +36,9 @@ export async function computeTenantHealthSnapshots() {
       isActive: true,
     });
 
-    const adminUser = await User.findOne({ organizationId: org._id, role: "admin" })
-      .select("updatedAt")
+    const lastLogin = await AuditLog.findOne({ organizationId: org._id, action: "login.success" })
+      .sort({ createdAt: -1 })
+      .select("createdAt")
       .lean();
 
     let daysSinceLastSale = 999;
@@ -64,7 +66,7 @@ export async function computeTenantHealthSnapshots() {
         orders7Days,
         orders30Days,
         activeStaffCount,
-        lastLoginAt: adminUser?.updatedAt || org.updatedAt,
+        lastLoginAt: lastLogin?.createdAt,
         daysSinceLastSale,
         healthStatus,
       },
@@ -73,6 +75,9 @@ export async function computeTenantHealthSnapshots() {
 
     results.push(snapshot);
   }
+
+  // Drop snapshots of tenants that were terminated or removed
+  await TenantHealthSnapshot.deleteMany({ organizationId: { $nin: orgs.map((o: any) => o._id) } });
 
   return results;
 }
