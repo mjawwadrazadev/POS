@@ -33,6 +33,7 @@ import {
   Receipt,
   LifeBuoy,
   Plug,
+  Inbox,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -149,6 +150,13 @@ export function Sidebar({ session: userSession }: SidebarProps) {
               <LifeBuoy className="w-4 h-4 flex-shrink-0" />
               <span>Support Desk</span>
             </Link>
+            <Link
+              href="/super-admin/leads"
+              className={`sidebar__link ${isSection("/super-admin/leads") ? "sidebar__link--active" : ""}`}
+            >
+              <Inbox className="w-4 h-4 flex-shrink-0" />
+              <span>Website Leads</span>
+            </Link>
 
             {userSession?.role === "super_admin" && (
               <>
@@ -167,10 +175,10 @@ export function Sidebar({ session: userSession }: SidebarProps) {
           /* ─── 2. CLIENT STORE MODE (Full Store Operational Navigation) ─── */
           <>
             {/* Executive Dashboard */}
-            {can("/") && (
+            {can("/dashboard") && (
               <Link
-                href="/"
-                className={`sidebar__link ${isActive("/") ? "sidebar__link--active" : ""}`}
+                href="/dashboard"
+                className={`sidebar__link ${isActive("/dashboard") ? "sidebar__link--active" : ""}`}
               >
                 <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
                 <span>Dashboard</span>

@@ -4,6 +4,8 @@ import { User } from "@/models/User";
 import { PasswordResetToken } from "@/models/PasswordResetToken";
 import { isPinTakenInOrg } from "@/lib/auth/pinUniqueness";
 import { isValidPin } from "@/lib/utils/server";
+import { sendEmail } from "@/lib/email/resend";
+import { renderEmail } from "@/lib/email/templates";
 
 export async function POST(req: Request) {
   try {
@@ -40,6 +42,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User account not found or inactive" }, { status: 404 });
     }
 
+    // Employees are reset by their store owner, never through an emailed link
+    if (!["admin", "super_admin", "platform_support"].includes(user.role)) {
+      await PasswordResetToken.updateMany({ userId: user._id, used: false }, { used: true });
+      return NextResponse.json({ error: "Staff accounts are reset by your store owner. Ask them to reset it in Team settings." }, { status: 403 });
+    }
+
     // Update password or PIN (Mongoose pre-save hook will hash password/PIN with bcrypt)
     if (newPassword) {
       if (String(newPassword).length < 8) {
@@ -62,6 +70,20 @@ export async function POST(req: Request) {
 
     // Single use: mark this and any other outstanding tokens for the user as used
     await PasswordResetToken.updateMany({ userId: user._id, used: false }, { used: true });
+
+    // Security notice, so the owner finds out if someone else reset their password
+    await sendEmail({
+      to: user.email,
+      subject: "Your RST POS password was changed",
+      html: renderEmail({
+        heading: "Password changed",
+        greeting: `Hello ${user.fullName},`,
+        blocks: [
+          { type: "text", text: `The ${newPassword ? "password" : "PIN"} for your RST POS account was just changed.` },
+          { type: "note", text: "If this wasn't you, reset your password again right away and contact support." },
+        ],
+      }),
+    });
 
     return NextResponse.json({
       success: true,

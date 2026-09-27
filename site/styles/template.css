@@ -1,0 +1,97 @@
+/* Template styles — same order as the original HTML link tags. */
+/* Paths are relative to this file; assets in url() inside those CSS files resolve from public/css/. */
+@import "../../public/css/loader.css";
+@import "../../public/css/plugins.css";
+@import "../../public/css/main.css";
+@import "./menu-open.css";
+.image-auto {
+  /* width: auto !important; */
+  height: auto !important;
+}
+
+/* Services stack: main.css .line { translateY(100%) } applies vendor-prefixed transforms; GSAP’s
+   y uses unprefixed transform — boxes and painted text desync. Neutralize so only inline GSAP owns y. */
+.mxd-stack-services .services-card__title .line,
+.mxd-stack-services .services-card__descr .line {
+  -webkit-transform: none;
+  -moz-transform: none;
+  -ms-transform: none;
+  transform: none;
+}
+
+/* Preview / landing demo stack — same global .line + SplitText as services stack */
+.mxd-demo-stack .demo-card__title .line,
+.mxd-demo-stack .demo-card__descr .line {
+  -webkit-transform: none;
+  -moz-transform: none;
+  -ms-transform: none;
+  transform: none;
+}
+
+/* Overlay menu: active section — theme accent on label / index / arrow (no background) */
+.mxd-menu .main-menu__item.main-menu__item--current .main-menu__number {
+  color: var(--accent);
+}
+.mxd-menu .main-menu__item.main-menu__item--current .main-menu__caption {
+  color: var(--accent);
+}
+.mxd-menu .main-menu__item.main-menu__item--current .main-menu__toggle svg {
+  fill: var(--accent);
+}
+.mxd-menu .main-menu__item.main-menu__item--current.open .main-menu__caption {
+  color: var(--accent);
+}
+.no-touch .mxd-menu .main-menu__item.main-menu__item--current .main-menu__toggle:hover .main-menu__caption {
+  color: var(--accent);
+}
+.no-touch .mxd-menu .main-menu__item.main-menu__item--current .main-menu__toggle:hover svg {
+  fill: var(--accent);
+}
+
+body {
+  --_font-default: var(--font-manrope);
+  --_font-accent: var(--font-jetbrains-mono);
+}
+
+/* Footer Logo font-size adjustment to prevent clipping of "RS TECH" */
+.fw-mark__content {
+  font-size: 23cqw !important;
+}
+
+/* RST POS website: placeholder artwork until real images are added */
+.mxd-divider__image,
+.mxd-next-prj__image,
+.inner-headline__bg .site-bg-placeholder {
+  background-image: url("/site/placeholder.svg") !important;
+  background-size: cover;
+  background-position: center;
+}
+.site-bg-placeholder {
+  position: absolute;
+  inset: 0;
+}
+
+/* RST POS website: contact form select, styled like the template's inputs */
+form select {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: none;
+  outline: none;
+  margin: 0;
+  padding: 1.2rem 0.2rem;
+  background-color: transparent;
+  border-bottom: 1px solid var(--st-medium);
+  font: normal 400 2rem var(--_font-accent);
+  height: 5.8rem;
+  color: var(--t-medium);
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+form select:focus {
+  border-bottom: 1px solid var(--st-bright);
+}
+form select option {
+  color: #000;
+}

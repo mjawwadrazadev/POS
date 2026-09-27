@@ -35,6 +35,7 @@ export type PlatformAction =
   | "read_analytics"
   | "record_payment"
   | "manage_support"
+  | "manage_leads"
   | "suspend_tenant"
   | "reset_user_pin"
   | "impersonate_tenant"
@@ -60,7 +61,7 @@ export function canPerformPlatformAction(role: string | undefined, action: Platf
 
 // ─── Store pages ────────────────────────────────────────────────────
 
-// First matching prefix wins; "/" only matches the dashboard itself.
+// First matching prefix wins.
 const STORE_PAGE_ACCESS: { path: string; roles: Role[] }[] = [
   { path: "/pos", roles: STORE_ROLES },
   { path: "/orders", roles: STORE_ROLES },
@@ -74,11 +75,10 @@ const STORE_PAGE_ACCESS: { path: string; roles: Role[] }[] = [
   { path: "/accounting", roles: STORE_MANAGER_ROLES },
   { path: "/settings", roles: STORE_MANAGER_ROLES },
   { path: "/support", roles: STORE_MANAGER_ROLES },
-  { path: "/", roles: STORE_MANAGER_ROLES }, // sales dashboard
+  { path: "/dashboard", roles: STORE_MANAGER_ROLES }, // sales dashboard
 ];
 
 function matches(pathname: string, path: string) {
-  if (path === "/") return pathname === "/";
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
@@ -90,7 +90,7 @@ export function canAccessStorePage(role: string | undefined, pathname: string): 
 
 /** Landing page after login for each store role. */
 export function storeHomeFor(role: string | undefined): string {
-  return role === "cashier" ? "/pos" : "/";
+  return role === "cashier" ? "/pos" : "/dashboard";
 }
 
 // ─── Store APIs ─────────────────────────────────────────────────────
@@ -114,6 +114,7 @@ const STORE_API_PREFIXES = [
   "/api/accounting/ledger",
   "/api/auth/verify-pin",
   "/api/fbr",
+  "/api/staff-reset-requests",
 ];
 
 export function isStoreApi(pathname: string): boolean {

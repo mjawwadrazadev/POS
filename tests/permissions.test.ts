@@ -11,14 +11,14 @@ describe("store page access", () => {
     for (const path of ["/pos", "/orders", "/kds", "/consultations", "/hr"]) {
       expect(canAccessStorePage("cashier", path)).toBe(true);
     }
-    for (const path of ["/", "/products", "/inventory/stock", "/reports", "/reports/doctors", "/accounting/ledger", "/settings/team", "/settings/printers", "/support", "/doctors"]) {
+    for (const path of ["/dashboard", "/products", "/inventory/stock", "/reports", "/reports/doctors", "/accounting/ledger", "/settings/team", "/settings/printers", "/support", "/doctors"]) {
       expect(canAccessStorePage("cashier", path)).toBe(false);
     }
   });
 
   it("lets managers and admins open every store page", () => {
     for (const role of ["admin", "manager"]) {
-      for (const path of ["/", "/pos", "/products", "/reports", "/settings/team", "/support", "/accounting/ledger"]) {
+      for (const path of ["/dashboard", "/pos", "/products", "/reports", "/settings/team", "/support", "/accounting/ledger"]) {
         expect(canAccessStorePage(role, path)).toBe(true);
       }
     }
@@ -32,8 +32,8 @@ describe("store page access", () => {
 
   it("sends each role to its home page", () => {
     expect(storeHomeFor("cashier")).toBe("/pos");
-    expect(storeHomeFor("manager")).toBe("/");
-    expect(storeHomeFor("admin")).toBe("/");
+    expect(storeHomeFor("manager")).toBe("/dashboard");
+    expect(storeHomeFor("admin")).toBe("/dashboard");
   });
 });
 

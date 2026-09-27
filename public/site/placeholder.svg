@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <pattern id="p" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="40" height="40" fill="#cfcac6"/>
+      <rect width="20" height="40" fill="#c7c1bd"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="900" fill="url(#p)"/>
+  <g transform="translate(600 450)" fill="none" stroke="#8d8680" stroke-width="10">
+    <rect x="-90" y="-70" width="180" height="140"/>
+    <circle cx="-35" cy="-20" r="16"/>
+    <path d="M-90 50 L-20 -5 L25 35 L50 15 L90 50"/>
+  </g>
+  <text x="600" y="580" text-anchor="middle" font-family="monospace" font-size="30" fill="#6f6862" letter-spacing="4">IMAGE PLACEHOLDER</text>
+</svg>

@@ -1,166 +1,130 @@
-import { PrinterConfig, PrintOrderData, PrinterTransport } from "./types";
-import { encodeEscPosReceipt } from "./escposEncoder";
+import type { LabelData, PrinterConfig, PrinterRole, PrintOrderData } from "./types";
+import { encodeEscPosReceipt, encodeLabel } from "./escposEncoder";
+import { printElement, sendBluetooth, sendNetwork, sendSerial, sendUsb } from "./transports";
 
 const LOCAL_STORAGE_KEY = "rst_pos_printers_config";
 
+export type PrintResult = {
+  /** How the job actually went out */
+  via: PrinterConfig["transport"];
+  printerName: string;
+  /** Set when the chosen printer failed and the system print dialog was used instead */
+  fallbackReason?: string;
+};
+
+/** Printers are configured per terminal (browser), because each counter has its own hardware. */
 export class PrinterService {
-  /**
-   * Retrieves saved printers from local storage settings.
-   */
   static getSavedPrinters(): PrinterConfig[] {
     if (typeof window === "undefined") return [];
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const list: PrinterConfig[] = stored ? JSON.parse(stored) : [];
+      // Older saves used "browser_fallback" for the system dialog
+      return list.map((p) => ((p.transport as string) === "browser_fallback" ? { ...p, transport: "system" } : p));
     } catch {
       return [];
     }
   }
 
-  /**
-   * Saves a new printer config or updates an existing one.
-   */
-  static savePrinter(printer: PrinterConfig): PrinterConfig[] {
-    const existing = this.getSavedPrinters();
-    const updated = existing.filter((p) => p.id !== printer.id);
-    updated.push(printer);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-    }
-    return updated;
-  }
-
-  /**
-   * Removes a printer config by ID.
-   */
-  static removePrinter(printerId: string): PrinterConfig[] {
-    const existing = this.getSavedPrinters();
-    const updated = existing.filter((p) => p.id !== printerId);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-    }
-    return updated;
-  }
-
-  /**
-   * Pairs a new USB or Bluetooth ESC/POS printer using browser APIs.
-   */
-  static async pairNewDevice(
-    transport: "usb" | "bluetooth",
-    nameCustom?: string,
-    role: "receipt" | "kitchen" | "barcode_label" = "receipt"
-  ): Promise<PrinterConfig> {
-    if (typeof window === "undefined") {
-      throw new Error("Browser environment required for device pairing");
-    }
-
-    if (transport === "usb") {
-      if (!("usb" in navigator)) {
-        throw new Error("WebUSB API is not supported in this browser.");
-      }
-      const device = await (navigator as any).usb.requestDevice({ filters: [] });
-      await device.open();
-      const config: PrinterConfig = {
-        id: `usb-${device.vendorId}-${device.productId}`,
-        name: nameCustom || device.productName || `USB Printer (${device.vendorId})`,
-        transport: "usb",
-        paperWidth: "80mm",
-        role,
-        connected: true,
-      };
-      this.savePrinter(config);
-      return config;
-    }
-
-    if (transport === "bluetooth") {
-      if (!("bluetooth" in navigator)) {
-        throw new Error("Web Bluetooth API is not supported in this browser.");
-      }
-      const device = await (navigator as any).bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ["000018f0-0000-1000-8000-00805f9b34fb"], // Standard ESC/POS BT Service
-      });
-      const config: PrinterConfig = {
-        id: `bt-${device.id}`,
-        name: nameCustom || device.name || "Bluetooth Thermal Printer",
-        transport: "bluetooth",
-        paperWidth: "80mm",
-        role,
-        connected: true,
-      };
-      this.savePrinter(config);
-      return config;
-    }
-
-    throw new Error("Invalid transport specified");
-  }
-
-  /**
-   * Main print execution method. Dispatches to WebUSB, Bluetooth, Network relay, or browser fallback.
-   */
-  static async print(order: PrintOrderData, targetPrinter?: PrinterConfig): Promise<{ success: boolean; transportUsed: PrinterTransport }> {
-    const printers = this.getSavedPrinters();
-    const printer = targetPrinter || printers.find((p) => p.role === "receipt") || {
-      id: "fallback-browser",
-      name: "Browser System Print",
-      transport: "browser_fallback",
-      paperWidth: "80mm",
-      role: "receipt",
-    };
-
-    const escPosBytes = encodeEscPosReceipt({
-      ...order,
-      paperWidth: printer.paperWidth,
-    });
-
+  private static write(list: PrinterConfig[]) {
     try {
-      if (printer.transport === "usb" && "usb" in navigator) {
-        const devices = await (navigator as any).usb.getDevices();
-        if (devices.length > 0) {
-          const device = devices[0];
-          await device.open();
-          if (device.configuration === null) {
-            await device.selectConfiguration(1);
-          }
-          await device.claimInterface(0);
-          const endpointNumber = device.configuration.interfaces[0].alternate.endpoints.find(
-            (e: any) => e.direction === "out"
-          )?.endpointNumber || 1;
-          await device.transferOut(endpointNumber, escPosBytes);
-          return { success: true, transportUsed: "usb" };
-        }
-      }
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+    } catch {
+      // storage full or blocked: the printer works for this session only
+    }
+  }
 
-      if (printer.transport === "bluetooth" && "bluetooth" in navigator) {
-        // Bluetooth print attempt
-        const device = await (navigator as any).bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: ["000018f0-0000-1000-8000-00805f9b34fb"],
-        });
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService("000018f0-0000-1000-8000-00805f9b34fb");
-        const characteristic = await service.getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
-        await characteristic.writeValue(escPosBytes);
-        return { success: true, transportUsed: "bluetooth" };
-      }
+  static savePrinter(printer: PrinterConfig): PrinterConfig[] {
+    let list = this.getSavedPrinters().filter((p) => p.id !== printer.id);
+    // Only one default printer per role
+    if (printer.isDefault) list = list.map((p) => (p.role === printer.role ? { ...p, isDefault: false } : p));
+    list.push(printer);
+    this.write(list);
+    return list;
+  }
 
-      if (printer.transport === "network" && printer.ipAddress) {
-        // Local network relay attempt
-        await fetch(`http://localhost:9200/print`, {
-          method: "POST",
-          headers: { "Content-Type": "application/octet-stream" },
-          body: escPosBytes as any,
-        });
-        return { success: true, transportUsed: "network" };
+  static removePrinter(printerId: string): PrinterConfig[] {
+    const list = this.getSavedPrinters().filter((p) => p.id !== printerId);
+    this.write(list);
+    return list;
+  }
+
+  /** The printer to use for a job: the role's default, else any printer with that role. Kitchen tickets fall back to the receipt printer. */
+  static getPrinterFor(role: PrinterRole): PrinterConfig | null {
+    const list = this.getSavedPrinters();
+    const forRole = (r: PrinterRole) => list.find((p) => p.role === r && p.isDefault) ?? list.find((p) => p.role === r);
+    return forRole(role) ?? (role === "kitchen" ? forRole("receipt") : null) ?? null;
+  }
+
+  /** Sends raw bytes over the printer's own transport. */
+  static async sendRaw(printer: PrinterConfig, data: Uint8Array) {
+    switch (printer.transport) {
+      case "usb":
+        return sendUsb(printer, data);
+      case "serial":
+        return sendSerial(printer, data);
+      case "bluetooth":
+        return sendBluetooth(printer, data);
+      case "network":
+        return sendNetwork(printer, data);
+      default:
+        throw new Error("This printer uses the system print dialog");
+    }
+  }
+
+  /**
+   * Prints a receipt. Raw printers get ESC/POS; system printers (and any raw printer that fails)
+   * print the on-screen receipt element through the print dialog.
+   */
+  static async printReceipt(opts: {
+    order: PrintOrderData;
+    element?: HTMLElement | null;
+    printer?: PrinterConfig | null;
+    role?: PrinterRole;
+  }): Promise<PrintResult> {
+    const printer = opts.printer ?? this.getPrinterFor(opts.role ?? "receipt");
+    const paperWidth = printer?.paperWidth ?? "80mm";
+    let fallbackReason: string | undefined;
+
+    if (printer && printer.transport !== "system") {
+      try {
+        const bytes = encodeEscPosReceipt({ ...opts.order, paperWidth, openCashDrawer: printer.openCashDrawer });
+        await this.sendRaw(printer, bytes);
+        return { via: printer.transport, printerName: printer.name };
+      } catch (err) {
+        fallbackReason = err instanceof Error ? err.message : String(err);
       }
-    } catch (err) {
-      console.warn("Hardware direct print failed, falling back to window.print()", err);
     }
 
-    // Seamless Fallback to Browser Print
-    if (typeof window !== "undefined") {
-      window.print();
+    if (!opts.element) throw new Error(fallbackReason || "Nothing to print");
+    await printElement(opts.element, { widthMm: paperWidth === "58mm" ? 58 : 80, marginMm: 2 });
+    return { via: "system", printerName: printer?.name ?? "System printer", fallbackReason };
+  }
+
+  /** Prints barcode labels, as raw ESC/POS, TSPL or ZPL, or through the print dialog. */
+  static async printLabels(opts: {
+    label: LabelData;
+    copies: number;
+    element?: HTMLElement | null;
+    printer?: PrinterConfig | null;
+    widthMm: number;
+    heightMm: number;
+  }): Promise<PrintResult> {
+    const printer = opts.printer ?? this.getPrinterFor("barcode_label");
+    let fallbackReason: string | undefined;
+
+    if (printer && printer.transport !== "system") {
+      try {
+        const sized = { ...printer, labelWidthMm: opts.widthMm, labelHeightMm: opts.heightMm };
+        await this.sendRaw(printer, encodeLabel(opts.label, opts.copies, sized));
+        return { via: printer.transport, printerName: printer.name };
+      } catch (err) {
+        fallbackReason = err instanceof Error ? err.message : String(err);
+      }
     }
-    return { success: true, transportUsed: "browser_fallback" };
+
+    if (!opts.element) throw new Error(fallbackReason || "Nothing to print");
+    await printElement(opts.element, { widthMm: opts.widthMm, heightMm: opts.heightMm });
+    return { via: "system", printerName: printer?.name ?? "System printer", fallbackReason };
   }
 }

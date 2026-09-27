@@ -19,7 +19,7 @@ import {
 } from "@/lib/config/platformConfig";
 
 // Keys whose value is safe to show in full; everything else is masked
-const PLAIN_KEYS: ConfigKey[] = ["resendFromEmail", "appUrl"];
+const PLAIN_KEYS: ConfigKey[] = ["resendFromEmail", "leadNotifyEmail", "appUrl"];
 // Removing these would take the platform down, so they can only be replaced
 const REQUIRED_KEYS: ConfigKey[] = ["mongodbUri", "jwtSecret"];
 const GENERATABLE_KEYS: ConfigKey[] = ["jwtSecret", "cronSecret"];
@@ -48,6 +48,8 @@ function validate(key: ConfigKey, value: string): string | null {
       return /^([^<>]+<)?[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>?$/.test(value)
         ? null
         : 'Use an address like noreply@pos.mjawwadraza.com or "ForgePOS <noreply@pos.mjawwadraza.com>"';
+    case "leadNotifyEmail":
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : "Enter a valid email address";
     case "appUrl":
       return /^https?:\/\/[^\s/]+/.test(value) ? null : "Use a full URL like https://pos.mjawwadraza.com";
     default:

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { StaffResetRequest } from "@/models/StaffResetRequest";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
 import { isPinTakenInOrg } from "@/lib/auth/pinUniqueness";
 import { logAudit } from "@/lib/audit/logger";
@@ -51,6 +52,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       resetDetails.push("Password reset");
     }
     await targetUser.save();
+
+    // Any forgot-password request from this user is answered
+    await StaffResetRequest.updateMany(
+      { userId: targetUser._id, status: "pending" },
+      { status: "resolved", resolvedBy: auth.session!.userId, resolvedByName: "Platform support", resolvedAt: new Date() }
+    );
 
     // Never record the credential values themselves
     await logAudit({

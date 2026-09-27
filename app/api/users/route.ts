@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { StaffResetRequest } from "@/models/StaffResetRequest";
 import { Branch } from "@/models/Branch";
 import { getSession } from "@/lib/auth/session";
 import { checkStaffLimit } from "@/lib/middleware/enforcePlanLimits";
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
   }
 }
 
-// PATCH: Update a staff member (role, active flag, branch, salary, PIN)
+// PATCH: Update a staff member (role, active flag, branch, salary, PIN, password)
 export async function PATCH(req: Request) {
   try {
     const session = await getSession();
@@ -129,7 +130,7 @@ export async function PATCH(req: Request) {
     }
 
     await dbConnect();
-    const { userId, role, isActive, branchId, baseSalary, pin } = await req.json();
+    const { userId, role, isActive, branchId, baseSalary, pin, password } = await req.json();
 
     if (!mongoose.isValidObjectId(userId)) return NextResponse.json({ error: "Invalid user" }, { status: 400 });
     const user = await User.findOne({ _id: userId, organizationId: session.organizationId });
@@ -175,7 +176,20 @@ export async function PATCH(req: Request) {
       user.pin = String(pin);
     }
 
+    if (password !== undefined) {
+      if (String(password).length < 8) return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+      user.password = String(password);
+    }
+
     await user.save();
+
+    // Anyone waiting on the owner for a reset is now sorted
+    if (pin !== undefined || password !== undefined) {
+      await StaffResetRequest.updateMany(
+        { userId: user._id, status: "pending" },
+        { status: "resolved", resolvedBy: session.userId, resolvedByName: session.fullName || session.email, resolvedAt: new Date() }
+      );
+    }
 
     await logAudit({
       organizationId: session.organizationId,
@@ -186,7 +200,7 @@ export async function PATCH(req: Request) {
       targetCollection: "User",
       targetId: user._id as any,
       before,
-      after: { role: user.role, isActive: user.isActive, pinChanged: pin !== undefined },
+      after: { role: user.role, isActive: user.isActive, pinChanged: pin !== undefined, passwordChanged: password !== undefined },
     });
 
     return NextResponse.json({ success: true, message: `${user.fullName} updated` });

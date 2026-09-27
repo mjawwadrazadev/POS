@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Printer, X, CheckCircle2, Share2 } from "lucide-react";
 import { PrinterService } from "@/lib/printer/PrinterService";
+import { useSessionUser } from "@/components/layout/SessionContext";
 
 interface ReceiptItem {
   name: string;
@@ -74,6 +75,10 @@ export function ThermalReceiptModal({
 }: ThermalReceiptModalProps) {
   const [printing, setPrinting] = useState(false);
   const [printNotice, setPrintNotice] = useState("");
+  const [printError, setPrintError] = useState("");
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const session = useSessionUser();
+  const storeName: string = session?.organizationName || (isHospitalBill ? "Hospital & Medical Center" : "RST POS");
   const [fbrQr, setFbrQr] = useState("");
 
   // QR code of the FBR invoice number, so customers can verify the invoice
@@ -96,30 +101,48 @@ export function ThermalReceiptModal({
   async function handleHardwarePrint() {
     setPrinting(true);
     setPrintNotice("");
+    setPrintError("");
 
     try {
-      const res = await PrinterService.print({
-        orderNumber,
-        dateStr: dateStr || new Date().toLocaleString(),
-        cashierName,
-        customerName,
-        branchName,
-        items,
-        subtotal,
-        taxAmount,
-        discountTotal,
-        grandTotal,
-        paymentMethod,
-        taxRate,
-        fbrInvoiceNumber,
-        fbrSandbox,
+      const res = await PrinterService.printReceipt({
+        element: receiptRef.current,
+        order: {
+          orderNumber,
+          dateStr: dateStr || new Date().toLocaleString(),
+          cashierName,
+          customerName,
+          storeName,
+          branchName,
+          title: isHospitalBill ? `CONSULTATION PERCHI #${perchiNumber || 1}` : undefined,
+          extraLines: isHospitalBill
+            ? [
+                { label: "Doctor", value: doctorName || "" },
+                { label: "Speciality", value: doctorSpecialization || "" },
+                { label: "Patient phone", value: patientPhone || "" },
+                { label: "Visit", value: (visitType || "").replace("_", " ") },
+              ]
+            : undefined,
+          items: isHospitalBill ? [] : items,
+          subtotal,
+          taxAmount,
+          discountTotal,
+          grandTotal,
+          paymentMethod,
+          taxRate,
+          fbrInvoiceNumber,
+          fbrSandbox,
+          footer: isHospitalBill ? "Get well soon! Please wait for your turn." : "Thank you for shopping with us!",
+        },
       });
 
-      setPrintNotice(`Printed via ${res.transportUsed.toUpperCase()}`);
-      setTimeout(() => setPrintNotice(""), 3000);
+      if (res.fallbackReason) {
+        setPrintError(`${res.printerName}: ${res.fallbackReason} Printed with the system dialog instead.`);
+      } else {
+        setPrintNotice(`Sent to ${res.printerName}`);
+        setTimeout(() => setPrintNotice(""), 3000);
+      }
     } catch (err: any) {
-      console.warn("Hardware print error, opening fallback print window", err);
-      window.print();
+      setPrintError(err?.message || "Printing failed");
     } finally {
       setPrinting(false);
     }
@@ -127,8 +150,8 @@ export function ThermalReceiptModal({
 
   const whatsappMessage = encodeURIComponent(
     isHospitalBill
-      ? `*RST HOSPITAL CONSULTATION PERCHI*\nPerchi #: ${perchiNumber}\nDoctor: ${doctorName}\nPatient: ${customerName}\nFee: PKR ${grandTotal}\nDate & Time: ${dateStr} ${consultationTime || ""}`
-      : `*RST POS RECEIPT*\nOrder #: ${orderNumber}\nTotal: PKR ${grandTotal}\nThank you for visiting ${branchName}!`
+      ? `*${storeName} - CONSULTATION PERCHI*\nPerchi #: ${perchiNumber}\nDoctor: ${doctorName}\nPatient: ${customerName}\nFee: PKR ${grandTotal}\nDate & Time: ${dateStr} ${consultationTime || ""}`
+      : `*${storeName} RECEIPT*\nOrder #: ${orderNumber}\nTotal: PKR ${grandTotal}\nThank you for visiting ${branchName}!`
   );
 
   return (
@@ -139,7 +162,7 @@ export function ThermalReceiptModal({
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-[#819ffe]" />
             <h3 className="font-accent font-extrabold text-[1.4rem] uppercase">
-              {isHospitalBill ? "Consultation Perchi (80mm)" : "ESC/POS Thermal Receipt (80mm)"}
+              {isHospitalBill ? "Consultation Perchi" : "Receipt"}
             </h3>
           </div>
           <button
@@ -151,6 +174,12 @@ export function ThermalReceiptModal({
           </button>
         </div>
 
+        {printError && (
+          <div className="bg-amber-950/80 border border-amber-500/50 text-amber-200 p-2 text-xs font-mono text-center">
+            {printError}
+          </div>
+        )}
+
         {printNotice && (
           <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-2 text-xs font-mono text-center flex items-center justify-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -161,15 +190,15 @@ export function ThermalReceiptModal({
         {/* 80mm Receipt Formatting Box (Monospace Styled) */}
         <div
           id="receipt-print-area"
+          ref={receiptRef}
           className="bg-white text-black p-6 font-mono text-[1.2rem] leading-tight border border-gray-300 shadow-inner space-y-3"
         >
           {/* Header */}
           <div className="text-center space-y-1">
             <h2 className="font-bold text-[1.6rem] uppercase tracking-wider">
-              {isHospitalBill ? "RST HOSPITAL & MEDICAL CENTER" : "RST ENTERPRISE POS"}
+              {storeName}
             </h2>
             <p className="text-[1.1rem]">{branchName}</p>
-            <p className="text-[1rem] text-gray-700">TEL: +92 42 111 778 778</p>
             <div className="border-b border-dashed border-black my-2" />
           </div>
 
@@ -366,7 +395,7 @@ export function ThermalReceiptModal({
             className="btn btn-secondary py-3 text-[1.2rem] flex items-center justify-center gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
           >
             <Share2 className="w-4 h-4" />
-            <span>WhatsApp Perchi</span>
+            <span>{isHospitalBill ? "WhatsApp Perchi" : "WhatsApp Receipt"}</span>
           </a>
 
           <button
@@ -376,7 +405,7 @@ export function ThermalReceiptModal({
             className="btn btn-primary py-3 text-[1.2rem] flex items-center justify-center gap-2"
           >
             <Printer className="w-4 h-4" />
-            <span>{printing ? "Printing..." : "Print Perchi"}</span>
+            <span>{printing ? "Printing..." : isHospitalBill ? "Print Perchi" : "Print Receipt"}</span>
           </button>
         </div>
       </div>

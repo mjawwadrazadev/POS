@@ -19,6 +19,8 @@ export interface PlatformConfig {
   jwtSecret?: string;
   resendApiKey?: string;
   resendFromEmail?: string;
+  /** Inbox that receives website contact-form leads (the POS owner) */
+  leadNotifyEmail?: string;
   appUrl?: string;
   cronSecret?: string;
 }
@@ -31,6 +33,7 @@ export const CONFIG_KEYS: ConfigKey[] = [
   "jwtSecret",
   "resendApiKey",
   "resendFromEmail",
+  "leadNotifyEmail",
   "appUrl",
   "cronSecret",
 ];
@@ -40,6 +43,7 @@ const ENV_FALLBACK: Record<ConfigKey, string> = {
   jwtSecret: "JWT_SECRET",
   resendApiKey: "RESEND_API_KEY",
   resendFromEmail: "RESEND_FROM_EMAIL",
+  leadNotifyEmail: "LEAD_NOTIFY_EMAIL",
   appUrl: "NEXT_PUBLIC_APP_URL",
   cronSecret: "CRON_SECRET",
 };

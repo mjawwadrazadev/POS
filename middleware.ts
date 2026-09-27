@@ -64,6 +64,13 @@ async function verifyJwt(token: string): Promise<any | null> {
   }
 }
 
+// Public website pages (app/(site)). "/" is the home page, the rest also cover their sub-pages.
+const MARKETING_PATHS = ["/about", "/features", "/industries", "/pricing", "/faq", "/contact"];
+
+function isMarketingPath(pathname: string) {
+  return pathname === "/" || MARKETING_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -82,6 +89,9 @@ export async function middleware(request: NextRequest) {
     }
     return NextResponse.next();
   }
+
+  // The public marketing website and static files never need a session or a database.
+  if (isMarketingPath(pathname) || /\.[a-z0-9]+$/i.test(pathname)) return NextResponse.next();
 
   // 0. First run: nothing works until a database is connected, so everything goes to the setup wizard.
   //    /setup itself stays reachable afterwards; its API refuses once a super admin exists.

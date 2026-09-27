@@ -18,8 +18,12 @@ export function CameraBarcodeScannerModal({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [cameraError, setCameraError] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [engine, setEngine] = useState<"native" | "zxing" | "">("");
   const [manualCodeInput, setManualCodeInput] = useState("");
   const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
+  const doneRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -27,6 +31,7 @@ export function CameraBarcodeScannerModal({
       return;
     }
 
+    doneRef.current = false;
     startCamera();
 
     return () => {
@@ -36,31 +41,44 @@ export function CameraBarcodeScannerModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  const handleDetected = (rawText: string) => {
+    if (doneRef.current || !rawText) return;
+    doneRef.current = true;
+    playScanSuccessBeep();
+    onScan(rawText);
+    stopCamera();
+    onClose();
+  };
+
   const startCamera = async () => {
     setCameraError("");
     setIsScanning(true);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Camera video stream is not supported in this browser.");
+        throw new Error("Camera access needs a secure (https) page and a browser with camera support.");
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
-        detectBarcodeLoop();
+        await detectBarcodeLoop();
       }
     } catch (err: any) {
-      setCameraError(err.message || "Failed to access device camera.");
+      setCameraError(err?.name === "NotAllowedError" ? "Camera permission was denied." : err?.message || "Failed to access device camera.");
       setIsScanning(false);
     }
   };
 
   const stopCamera = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    zxingControlsRef.current?.stop();
+    zxingControlsRef.current = null;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -68,47 +86,53 @@ export function CameraBarcodeScannerModal({
     setIsScanning(false);
   };
 
+  // All 1D retail/warehouse codes plus QR and Data Matrix
+  const WANTED_FORMATS = [
+    "ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "code_93", "itf", "codabar", "qr_code", "data_matrix",
+  ];
+
   const detectBarcodeLoop = async () => {
-    if (typeof window === "undefined" || !("BarcodeDetector" in window)) {
-      // Fallback message for browsers lacking native BarcodeDetector (e.g. Safari iOS)
-      return;
-    }
+    const video = videoRef.current;
+    if (!video) return;
 
-    try {
-      const barcodeDetector = new (window as any).BarcodeDetector({
-        formats: ["code_128", "ean_13", "qr_code", "upc_a"],
-      });
-
-      const interval = setInterval(async () => {
-        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) {
-          clearInterval(interval);
+    // 1. Native detector (Chrome/Edge on Android, ChromeOS, macOS)
+    const Native = (window as any).BarcodeDetector;
+    if (Native) {
+      try {
+        const supported: string[] = (await Native.getSupportedFormats?.()) ?? WANTED_FORMATS;
+        const formats = WANTED_FORMATS.filter((f) => supported.includes(f));
+        if (formats.length > 0) {
+          const detector = new Native({ formats });
+          setEngine("native");
+          intervalRef.current = setInterval(async () => {
+            if (!videoRef.current || videoRef.current.readyState < 2) return;
+            try {
+              const codes = await detector.detect(videoRef.current);
+              if (codes.length > 0) handleDetected(codes[0].rawValue);
+            } catch {
+              // frame not ready
+            }
+          }, 250);
           return;
         }
-
-        try {
-          const barcodes = await barcodeDetector.detect(videoRef.current);
-          if (barcodes.length > 0) {
-            const rawText = barcodes[0].rawValue;
-            if (rawText) {
-              playScanSuccessBeep();
-              onScan(rawText);
-              clearInterval(interval);
-              stopCamera();
-              onClose();
-            }
-          }
-        } catch {
-          // Frame analysis error
-        }
-      }, 300);
-    } catch (err) {
-      console.warn("BarcodeDetector setup error", err);
+      } catch {
+        // fall through to ZXing
+      }
     }
+
+    // 2. ZXing in JavaScript: works in every browser (Windows Chrome, Firefox, Safari/iPhone)
+    const { BrowserMultiFormatReader } = await import("@zxing/browser");
+    const reader = new BrowserMultiFormatReader();
+    setEngine("zxing");
+    zxingControlsRef.current = await reader.decodeFromVideoElement(video, (result) => {
+      if (result) handleDetected(result.getText());
+    });
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualCodeInput.trim()) {
+      doneRef.current = true;
       playScanSuccessBeep();
       onScan(manualCodeInput.trim());
       setManualCodeInput("");
@@ -179,7 +203,7 @@ export function CameraBarcodeScannerModal({
         </form>
 
         <div className="flex justify-between items-center text-[11px] text-gray-400 pt-2 border-t border-gray-800">
-          <span>Supported: Chrome, Android, Safari (Manual Fallback)</span>
+          <span>{engine === "zxing" ? "Scanner: ZXing (all browsers)" : engine === "native" ? "Scanner: built-in detector" : "Starting camera..."}</span>
           <button
             onClick={onClose}
             className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 uppercase font-bold"
