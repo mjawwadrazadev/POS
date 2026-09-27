@@ -65,7 +65,7 @@ async function verifyJwt(token: string): Promise<any | null> {
 }
 
 // Public website pages (app/(site)). "/" is the home page, the rest also cover their sub-pages.
-const MARKETING_PATHS = ["/about", "/features", "/industries", "/pricing", "/faq", "/contact"];
+const MARKETING_PATHS = ["/about", "/features", "/solutions", "/industries", "/pricing", "/faq", "/contact"];
 
 function isMarketingPath(pathname: string) {
   return pathname === "/" || MARKETING_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

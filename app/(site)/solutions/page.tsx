@@ -5,18 +5,18 @@ import PageCTA from "@site/sections/PageCTA";
 import { industries } from "@site/content/industries";
 
 export const metadata: Metadata = {
-  title: "Industries",
+  title: "Solutions",
   description: "RST POS is set up for restaurants, cafes, bakeries, pharmacies, retail, supermarkets, electronics, clothing, salons and hospitals.",
 };
 
-export default function IndustriesPage() {
+export default function SolutionsPage() {
   return (
     <div className="mxd-page-content inner-page-content">
       <PageHeadline
-        current="Industries"
+        current="Solutions"
         title={
           <>
-            Industries<sup>({industries.length})</sup>
+            Solutions<sup>({industries.length})</sup>
           </>
         }
         lead="One platform, built for your business —"

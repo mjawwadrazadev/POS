@@ -9,7 +9,7 @@ export default function SiteNotFound() {
         title={<>404</>}
         lead="This page doesn't exist —"
         highlight="try the menu, or go back to the home page."
-        tags={["Home", "Features", "Industries", "Pricing"]}
+        tags={["Home", "Features", "Solutions", "Pricing"]}
       />
       <PageCTA heading="Looking for a POS? Let's talk" />
     </div>

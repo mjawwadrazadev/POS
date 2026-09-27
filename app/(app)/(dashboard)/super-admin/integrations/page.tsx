@@ -7,12 +7,26 @@ type ConfigKey = "mongodbUri" | "jwtSecret" | "resendApiKey" | "resendFromEmail"
 type Item = { configured: boolean; source: "saved" | "env" | "unset"; display: string };
 type Notice = { type: "success" | "error" | "warning"; text: string } | null;
 
-const inputClass =
-  "w-full bg-base border border-stroke-medium rounded-lg px-3.5 py-2.5 text-[1.4rem] text-bright placeholder-text-muted focus:outline-none focus:border-accent";
+const rowInputClass =
+  "w-full flex-1 min-w-0 bg-base border border-stroke-medium rounded-lg px-3.5 py-2.5 text-[1.4rem] text-bright placeholder-text-muted focus:outline-none focus:border-accent";
 const primaryBtn =
   "bg-accent hover:bg-accent-hover disabled:opacity-60 text-white font-bold px-4 py-2 rounded-lg text-[1.4rem] transition flex items-center gap-2";
 const secondaryBtn =
   "bg-base hover:bg-accent-subtle disabled:opacity-60 text-bright font-bold px-4 py-2 rounded-lg text-[1.4rem] transition border border-stroke-medium flex items-center gap-2";
+
+/** One setting: the input and its buttons on a single line (stacked on phones). */
+function FieldRow({ envName, writable, children }: { envName: string; writable: boolean; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-col sm:flex-row gap-2">{children}</div>
+      {!writable && (
+        <p className="text-[1.2rem] text-muted">
+          Set <code className="font-mono bg-base px-1 border border-stroke-muted">{envName}</code> in your hosting provider&apos;s environment variables.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function SourceBadge({ item }: { item?: Item }) {
   if (!item || item.source === "unset") {
@@ -203,54 +217,54 @@ export default function IntegrationsPage() {
             {/* MongoDB */}
             <Card icon={Database} title="MongoDB Database" description="Connection string from MongoDB Atlas → Connect → Drivers. Include the database name, e.g. .mongodb.net/masterpos?...">
               <CurrentValue label="Current" item={items.mongodbUri} />
-              <input
-                type="password"
-                autoComplete="off"
-                value={mongodbUri}
-                onChange={(e) => setMongodbUri(e.target.value)}
-                placeholder="New connection string: mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/masterpos?retryWrites=true&w=majority"
-                className={inputClass}
-              />
-              <p className="text-[1.2rem] text-amber-600/80">
-                Switching databases moves the whole platform to the new database. If it has no super admin you will be signed out and
-                sent to the setup wizard.
-              </p>
-              <div className="flex flex-wrap gap-2">
+              <FieldRow envName="MONGODB_URI" writable={writable}>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={mongodbUri}
+                  onChange={(e) => setMongodbUri(e.target.value)}
+                  placeholder="New connection string: mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/masterpos?retryWrites=true&w=majority"
+                  className={rowInputClass}
+                />
                 <button
                   disabled={!!busy}
                   onClick={() => runTest("testMongo", { target: "mongodb", mongodbUri: mongodbUri || undefined })}
-                  className={secondaryBtn}
+                  className={`${secondaryBtn} shrink-0 justify-center`}
                 >
-                  {spinner("testMongo")} Test {mongodbUri ? "new" : "current"} connection
+                  {spinner("testMongo")} Test {mongodbUri ? "new" : "current"}
                 </button>
                 <button
                   disabled={!!busy || !mongodbUri || !writable}
                   onClick={async () => {
                     if (await save("mongo", { values: { mongodbUri } }, "Switch the platform to this database?")) setMongodbUri("");
                   }}
-                  className={primaryBtn}
+                  className={`${primaryBtn} shrink-0 justify-center`}
                 >
                   {spinner("mongo")} Save
                 </button>
-              </div>
+              </FieldRow>
+              <p className="text-[1.2rem] text-amber-600/80">
+                Switching databases moves the whole platform to the new database. If it has no super admin you will be signed out and
+                sent to the setup wizard.
+              </p>
             </Card>
 
             {/* JWT */}
             <Card icon={KeyRound} title="JWT Signing Secret" description="Signs every login session. Changing it signs out all users on all devices (you stay signed in).">
               <CurrentValue label="Current" item={items.jwtSecret} />
-              <input
-                type="password"
-                autoComplete="off"
-                value={jwtSecret}
-                onChange={(e) => setJwtSecret(e.target.value)}
-                placeholder="Custom secret (min 32 characters) — or use Regenerate"
-                className={inputClass}
-              />
-              <div className="flex flex-wrap gap-2">
+              <FieldRow envName="JWT_SECRET" writable={writable}>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={jwtSecret}
+                  onChange={(e) => setJwtSecret(e.target.value)}
+                  placeholder="Custom secret (min 32 characters) — or use Regenerate"
+                  className={rowInputClass}
+                />
                 <button
                   disabled={!!busy || !writable}
                   onClick={() => save("jwtGen", { generate: ["jwtSecret"] }, "Generate a new JWT secret? All other users will be signed out.")}
-                  className={secondaryBtn}
+                  className={`${secondaryBtn} shrink-0 justify-center`}
                 >
                   {spinner("jwtGen")} <RefreshCw className="w-4 h-4" /> Regenerate
                 </button>
@@ -259,86 +273,106 @@ export default function IntegrationsPage() {
                   onClick={async () => {
                     if (await save("jwt", { values: { jwtSecret } }, "Save this JWT secret? All other users will be signed out.")) setJwtSecret("");
                   }}
-                  className={primaryBtn}
+                  className={`${primaryBtn} shrink-0 justify-center`}
                 >
                   {spinner("jwt")} Save
                 </button>
-              </div>
+              </FieldRow>
             </Card>
 
             {/* Resend */}
             <Card icon={Mail} title="Email (Resend)" description="Used for password resets, staff reset requests to store owners, and website leads. Get the API key from resend.com → API Keys, and verify your sending domain first.">
               <CurrentValue label="API key" item={items.resendApiKey} />
-              <input
-                type="password"
-                autoComplete="off"
-                value={resendApiKey}
-                onChange={(e) => setResendApiKey(e.target.value)}
-                placeholder="New API key: re_..."
-                className={inputClass}
-              />
-              <CurrentValue label="From address" item={items.resendFromEmail} />
-              <input
-                value={resendFromEmail}
-                onChange={(e) => setResendFromEmail(e.target.value)}
-                placeholder="ForgePOS <noreply@pos.mjawwadraza.com>"
-                className={inputClass}
-              />
-              <CurrentValue label="Website leads go to" item={items.leadNotifyEmail} />
-              <input
-                type="email"
-                value={leadNotifyEmail}
-                onChange={(e) => setLeadNotifyEmail(e.target.value)}
-                placeholder="sales@yourcompany.com"
-                className={inputClass}
-              />
-              <div className="flex flex-wrap gap-2">
-                <button
-                  disabled={!!busy || (!resendApiKey && !resendFromEmail && !leadNotifyEmail) || !writable}
-                  onClick={async () => {
-                    const values: Record<string, string> = {};
-                    if (resendApiKey) values.resendApiKey = resendApiKey;
-                    if (resendFromEmail && resendFromEmail !== items.resendFromEmail.display) values.resendFromEmail = resendFromEmail;
-                    if (leadNotifyEmail && leadNotifyEmail !== items.leadNotifyEmail?.display) values.leadNotifyEmail = leadNotifyEmail;
-                    if (await save("resend", { values })) setResendApiKey("");
-                  }}
-                  className={primaryBtn}
-                >
-                  {spinner("resend")} Save
-                </button>
+              <FieldRow envName="RESEND_API_KEY" writable={writable}>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={resendApiKey}
+                  onChange={(e) => setResendApiKey(e.target.value)}
+                  placeholder="New API key: re_..."
+                  className={rowInputClass}
+                />
                 {items.resendApiKey.source === "saved" && (
                   <button
                     disabled={!!busy || !writable}
                     onClick={() => save("resendClear", { clear: ["resendApiKey"] }, "Remove the saved Resend API key?")}
-                    className={secondaryBtn}
+                    className={`${secondaryBtn} shrink-0 justify-center`}
                   >
-                    {spinner("resendClear")} Remove key
+                    {spinner("resendClear")} Remove
                   </button>
                 )}
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-stroke-muted">
+                <button
+                  disabled={!!busy || !resendApiKey || !writable}
+                  onClick={async () => {
+                    if (await save("resendKey", { values: { resendApiKey } })) setResendApiKey("");
+                  }}
+                  className={`${primaryBtn} shrink-0 justify-center`}
+                >
+                  {spinner("resendKey")} Save
+                </button>
+              </FieldRow>
+
+              <CurrentValue label="From address" item={items.resendFromEmail} />
+              <FieldRow envName="RESEND_FROM_EMAIL" writable={writable}>
                 <input
-                  type="email"
-                  value={testEmailTo}
-                  onChange={(e) => setTestEmailTo(e.target.value)}
-                  placeholder="Send a test email to..."
-                  className={inputClass}
+                  value={resendFromEmail}
+                  onChange={(e) => setResendFromEmail(e.target.value)}
+                  placeholder="RST POS <noreply@pos.mjawwadraza.com>"
+                  className={rowInputClass}
                 />
                 <button
-                  disabled={!!busy || !testEmailTo || !items.resendApiKey.configured}
-                  onClick={() => runTest("testEmail", { target: "email", to: testEmailTo })}
-                  className={`${secondaryBtn} shrink-0 justify-center`}
+                  disabled={!!busy || !resendFromEmail || resendFromEmail === items.resendFromEmail.display || !writable}
+                  onClick={() => save("resendFrom", { values: { resendFromEmail } })}
+                  className={`${primaryBtn} shrink-0 justify-center`}
                 >
-                  {spinner("testEmail")} Send test
+                  {spinner("resendFrom")} Save
                 </button>
+              </FieldRow>
+
+              <CurrentValue label="Website leads go to" item={items.leadNotifyEmail} />
+              <FieldRow envName="LEAD_NOTIFY_EMAIL" writable={writable}>
+                <input
+                  type="email"
+                  value={leadNotifyEmail}
+                  onChange={(e) => setLeadNotifyEmail(e.target.value)}
+                  placeholder="sales@yourcompany.com"
+                  className={rowInputClass}
+                />
+                <button
+                  disabled={!!busy || !leadNotifyEmail || leadNotifyEmail === items.leadNotifyEmail?.display || !writable}
+                  onClick={() => save("leadEmail", { values: { leadNotifyEmail } })}
+                  className={`${primaryBtn} shrink-0 justify-center`}
+                >
+                  {spinner("leadEmail")} Save
+                </button>
+              </FieldRow>
+
+              <div className="pt-3 border-t border-stroke-muted space-y-2">
+                <span className="text-[1.4rem] text-muted">Test delivery:</span>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    value={testEmailTo}
+                    onChange={(e) => setTestEmailTo(e.target.value)}
+                    placeholder="Send a test email to..."
+                    className={rowInputClass}
+                  />
+                  <button
+                    disabled={!!busy || !testEmailTo || !items.resendApiKey.configured}
+                    onClick={() => runTest("testEmail", { target: "email", to: testEmailTo })}
+                    className={`${secondaryBtn} shrink-0 justify-center`}
+                  >
+                    {spinner("testEmail")} Send test
+                  </button>
+                </div>
               </div>
             </Card>
 
             {/* App URL */}
-            <Card icon={Globe} title="Public App URL" description="The address users open, used in password reset links. Example: https://pos.mjawwadraza.com">
+            <Card icon={Globe} title="Public App URL" description="The address users open, used in password reset and lead email links. Example: https://pos.mjawwadraza.com">
               <CurrentValue label="Current" item={items.appUrl} />
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input value={appUrl} onChange={(e) => setAppUrl(e.target.value)} placeholder="https://pos.mjawwadraza.com" className={inputClass} />
+              <FieldRow envName="NEXT_PUBLIC_APP_URL" writable={writable}>
+                <input value={appUrl} onChange={(e) => setAppUrl(e.target.value)} placeholder="https://pos.mjawwadraza.com" className={rowInputClass} />
                 <button
                   disabled={!!busy || !appUrl || appUrl === items.appUrl.display || !writable}
                   onClick={() => save("appUrl", { values: { appUrl } })}
@@ -346,22 +380,22 @@ export default function IntegrationsPage() {
                 >
                   {spinner("appUrl")} Save
                 </button>
-              </div>
+              </FieldRow>
             </Card>
 
             {/* Cron */}
             <Card icon={Timer} title="Cron Job Secret" description="Lets an external scheduler call /api/jobs/retention-purge with the header x-cron-secret.">
               <CurrentValue label="Current" item={items.cronSecret} />
-              <input
-                type="password"
-                autoComplete="off"
-                value={cronSecret}
-                onChange={(e) => setCronSecret(e.target.value)}
-                placeholder="Custom secret (min 32 characters) — or use Generate"
-                className={inputClass}
-              />
-              <div className="flex flex-wrap gap-2">
-                <button disabled={!!busy || !writable} onClick={() => save("cronGen", { generate: ["cronSecret"] })} className={secondaryBtn}>
+              <FieldRow envName="CRON_SECRET" writable={writable}>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={cronSecret}
+                  onChange={(e) => setCronSecret(e.target.value)}
+                  placeholder="Custom secret (min 32 characters) — or use Generate"
+                  className={rowInputClass}
+                />
+                <button disabled={!!busy || !writable} onClick={() => save("cronGen", { generate: ["cronSecret"] })} className={`${secondaryBtn} shrink-0 justify-center`}>
                   {spinner("cronGen")} <RefreshCw className="w-4 h-4" /> Generate
                 </button>
                 <button
@@ -369,11 +403,11 @@ export default function IntegrationsPage() {
                   onClick={async () => {
                     if (await save("cron", { values: { cronSecret } })) setCronSecret("");
                   }}
-                  className={primaryBtn}
+                  className={`${primaryBtn} shrink-0 justify-center`}
                 >
                   {spinner("cron")} Save
                 </button>
-              </div>
+              </FieldRow>
             </Card>
           </>
         )}

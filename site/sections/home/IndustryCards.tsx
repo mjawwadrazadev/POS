@@ -37,7 +37,7 @@ export default function IndustryCards() {
                   as="div"
                   columns={2}
                 >
-                  <Link href={`/industries/${restaurant.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
+                  <Link href={`/solutions/${restaurant.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
                     <div className="mxd-niche-cards__inner">
                       <div className="mxd-niche-cards__title">
                         <div className="mxd-niche-cards__name">
@@ -65,7 +65,7 @@ export default function IndustryCards() {
                   <div className="container-fluid p-0">
                     <div className="row g-0">
                       <div className="col-12 mxd-grid-item">
-                        <Link href={`/industries/${pharmacy.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
+                        <Link href={`/solutions/${pharmacy.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
                           <div className="mxd-niche-cards__inner fixed-height-desktop space-between-desktop">
                             <div className="mxd-niche-cards__title">
                               <div className="mxd-niche-cards__name">
@@ -86,7 +86,7 @@ export default function IndustryCards() {
                         </Link>
                       </div>
                       <CommonCardBatchAnimated className="col-12 col-xl-6 mxd-grid-item animate-card-2" as="div" columns={2}>
-                        <Link href={`/industries/${retail.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
+                        <Link href={`/solutions/${retail.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
                           <div className="mxd-niche-cards__inner permanent fixed-height-desktop space-between-desktop">
                             <div className="mxd-niche-cards__title">
                               <div className="mxd-niche-cards__name">
@@ -107,7 +107,7 @@ export default function IndustryCards() {
                         </Link>
                       </CommonCardBatchAnimated>
                       <CommonCardBatchAnimated className="col-12 col-xl-6 mxd-grid-item animate-card-2" as="div" columns={2}>
-                        <Link href={`/industries/${cafe.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
+                        <Link href={`/solutions/${cafe.slug}`} className="mxd-niche-cards__item" style={{ display: "block" }}>
                           <div className="mxd-niche-cards__inner fixed-height-desktop space-between-desktop">
                             <div className="mxd-niche-cards__title">
                               <div className="mxd-niche-cards__name">

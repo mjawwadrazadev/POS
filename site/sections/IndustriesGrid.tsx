@@ -41,8 +41,8 @@ export default function IndustriesGrid({ limit, number = "S/03", showTitle = tru
           {showTitle && (
             <SectionTitle
               number={number}
-              href="/industries"
-              cursorText="All Industries"
+              href="/solutions"
+              cursorText="All Solutions"
               title={
                 <>
                   Built for
@@ -58,7 +58,7 @@ export default function IndustriesGrid({ limit, number = "S/03", showTitle = tru
                 <div className="row g-0 mxd-projects-grid__gallery">
                   {list.map((industry, idx) => {
                     const [width, height] = SHAPES[idx % SHAPES.length];
-                    const href = `/industries/${industry.slug}`;
+                    const href = `/solutions/${industry.slug}`;
                     return (
                       <CommonCardBatchAnimated
                         key={industry.slug}
@@ -116,18 +116,18 @@ export default function IndustriesGrid({ limit, number = "S/03", showTitle = tru
                           <div className="col-12 col-md-6 col-xl-4 mxd-object-link__item justify-end">
                             <div className="mxd-object-link__content">
                               <CommonScrollAnimated className="mxd-object-link__btnholder anim-uni-in-up" as="div" animation="inUp">
-                                <Link className="btn btn-line btn-line-default" href="/industries">
-                                  <TextScramble className="btn-caption mxd-scramble">All industries</TextScramble>
+                                <Link className="btn btn-line btn-line-default" href="/solutions">
+                                  <TextScramble className="btn-caption mxd-scramble">All solutions</TextScramble>
                                 </Link>
                               </CommonScrollAnimated>
                               <CommonScrollAnimatedLink
                                 className="mxd-object-link__media active-cursor-permanent anim-uni-in-up"
-                                data-cursor-text="All Industries"
-                                href="/industries"
+                                data-cursor-text="All Solutions"
+                                href="/solutions"
                                 animation="inUp"
                               >
                                 <MxdImgAnim
-                                  main={<PlaceholderImage className="centered-y" alt="All industries" width={800} height={450} />}
+                                  main={<PlaceholderImage className="centered-y" alt="All solutions" width={800} height={450} />}
                                   absolutes={[]}
                                 />
                               </CommonScrollAnimatedLink>

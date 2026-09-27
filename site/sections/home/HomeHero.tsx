@@ -66,7 +66,7 @@ export default function HomeHero() {
                         .filter((i) => heroIndustries.includes(i.slug))
                         .map((industry) => (
                           <li key={industry.slug}>
-                            <Link className="mxd-socials-line__link" href={`/industries/${industry.slug}`}>
+                            <Link className="mxd-socials-line__link" href={`/solutions/${industry.slug}`}>
                               <TextScramble className="mxd-scramble">{industry.name.split(" ")[0]}</TextScramble>
                             </Link>
                           </li>

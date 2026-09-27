@@ -2,9 +2,13 @@ import Link from "next/link";
 import CommonLoadAnimation, { CommonLoadFade } from "@site/components/animations/CommonLoadAnimation";
 import { CommonScrollAnimated, CommonCardBatchAnimated } from "@site/components/animations/CommonScrollAnimated";
 import TextScramble from "@site/components/animations/TextScramble";
-import { pricingPlans } from "@site/content/marketing";
+import SmoothAnchorLink from "@site/components/common/SmoothAnchorLink";
+import { cardFeatures, plans } from "@site/content/pricing";
 
-/** Three pricing plans (template pricing table). */
+const CHECK = "M18,6.8h-4.5v4.5h-4.5v4.5h-4.5v-4.5h4.5v-4.5h4.5V2.3h4.5v4.5ZM0,6.7v4.5h4.5v-4.5H0Z";
+const ARROW = "M10.8,0v3.6h-3.6V0h3.6ZM14.4,10.8h3.6v-3.6h-3.6v-3.6h-3.6v3.6H0v3.6h10.8v3.6h3.6v-3.6ZM10.8,14.4h-3.6v3.6h3.6v-3.6Z";
+
+/** Basic / Pro / Premium cards (template pricing table). Premium is the highlighted card. */
 export default function PricingCards() {
   return (
     <CommonLoadAnimation>
@@ -15,17 +19,16 @@ export default function PricingCards() {
               <div className="mxd-pricing-table loading-fade">
                 <div className="container-fluid p-0">
                   <div className="row g-0">
-                    {pricingPlans.map((plan, idx) => {
+                    {plans.map((plan, idx) => {
                       const blurId = `pricing-blur-${idx}`;
-                      const isCustom = plan.price === "Custom";
                       return (
                         <CommonCardBatchAnimated
-                          key={plan.name}
+                          key={plan.id}
                           className="col-12 col-xl-4 mxd-pricing-table__item mxd-grid-item animate-card-3"
                           as="div"
                           columns={3}
                         >
-                          <div className="mxd-pricing-table__inner">
+                          <div className={`mxd-pricing-table__inner${plan.featured ? " is-featured" : ""}`}>
                             <div className="mxd-pricing-table__bg">
                               <svg xmlns="http://www.w3.org/2000/svg" width={200} height={200} version="1.1" viewBox="0 0 200 200">
                                 <g filter={`url(#${blurId})`}>
@@ -51,50 +54,39 @@ export default function PricingCards() {
                                 </defs>
                               </svg>
                             </div>
-                            {plan.tag && (
+                            {(plan.tag || plan.featured) && (
                               <div className="mxd-pricing-table__tag">
-                                <span className="tag tag-m tag-bg accent">{plan.tag}</span>
+                                <span className={`tag tag-m tag-bg ${plan.featured ? "site-tag-inverse" : "accent"}`}>
+                                  {plan.tag || "Best value"}
+                                </span>
                               </div>
                             )}
                             <div className="mxd-pricing-table__data">
                               <div className="pricing-data__header">
-                                <CommonScrollAnimated
-                                  className={`pricing-header__title ${isCustom ? "small no-margin" : ""} anim-uni-in-up`}
-                                  as="p"
-                                  animation="inUp"
-                                >
+                                <CommonScrollAnimated className="pricing-header__title anim-uni-in-up" as="p" animation="inUp">
                                   {plan.name}
                                 </CommonScrollAnimated>
                                 <CommonScrollAnimated className="pricing-header__descr t-bold anim-uni-in-up" as="p" animation="inUp">
-                                  {plan.description}
+                                  <b>{plan.tagline}</b> {plan.description}
                                 </CommonScrollAnimated>
                               </div>
                               <div className="pricing-data__info">
-                                {!isCustom && (
-                                  <div className="pricing-data__price">
-                                    <CommonScrollAnimated className="pricing-data__num anim-uni-in-up" as="div" animation="inUp">
-                                      <span className="pricing-data__currency">{plan.currency}</span>
-                                      <span className="pricing-data__amount">{plan.price}</span>
-                                      <span className="pricing-data__period">{plan.period}</span>
-                                    </CommonScrollAnimated>
-                                    <CommonScrollAnimated
-                                      className="pricing-data__caption t-small t-muted t-140 anim-uni-in-up"
-                                      as="p"
-                                      animation="inUp"
-                                    >
-                                      {plan.caption}
-                                    </CommonScrollAnimated>
-                                  </div>
-                                )}
+                                <div className="pricing-data__price">
+                                  <CommonScrollAnimated className="pricing-data__num anim-uni-in-up" as="div" animation="inUp">
+                                    <span className="pricing-data__currency">Rs</span>
+                                    <span className="pricing-data__amount">{plan.price}</span>
+                                    <span className="pricing-data__period">{plan.period}</span>
+                                  </CommonScrollAnimated>
+                                </div>
                                 <CommonScrollAnimated className="pricing-data__btnholder anim-uni-in-up" as="div" animation="inUp">
                                   <Link
                                     className="btn btn-default-icon btn-default-outline btn-default-fullwidth slide-right"
-                                    href={plan.buttonLink}
+                                    href={`/contact?plan=${plan.id}`}
                                   >
                                     <TextScramble className="btn-caption mxd-scramble">{plan.buttonText}</TextScramble>
                                     <i className="btn-icon">
                                       <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 18 18">
-                                        <path d="M10.8,0v3.6h-3.6V0h3.6ZM14.4,10.8h3.6v-3.6h-3.6v-3.6h-3.6v3.6H0v3.6h10.8v3.6h3.6v-3.6ZM10.8,14.4h-3.6v3.6h3.6v-3.6Z" />
+                                        <path d={ARROW} />
                                       </svg>
                                     </i>
                                   </Link>
@@ -107,10 +99,10 @@ export default function PricingCards() {
                               </CommonScrollAnimated>
                               <div className="pricing-plan__list">
                                 <ul className="mxd-check-list">
-                                  {plan.features.map((feat) => (
+                                  {cardFeatures(plan.id).map((feat) => (
                                     <CommonScrollAnimated key={feat} className="anim-uni-in-up" as="li" animation="inUp">
                                       <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} version="1.1" viewBox="0 0 18 18">
-                                        <path d="M18,6.8h-4.5v4.5h-4.5v4.5h-4.5v-4.5h4.5v-4.5h4.5V2.3h4.5v4.5ZM0,6.7v4.5h4.5v-4.5H0Z" />
+                                        <path d={CHECK} />
                                       </svg>
                                       <span>{feat}</span>
                                     </CommonScrollAnimated>
@@ -119,7 +111,7 @@ export default function PricingCards() {
                               </div>
                             </div>
                             <CommonScrollAnimated className="mxd-pricing-table__link anim-uni-in-up" as="div" animation="inUp">
-                              <Link href="/contact">Need more info? Let&apos;s talk.</Link>
+                              <SmoothAnchorLink targetId="compare">View all features ↓</SmoothAnchorLink>
                             </CommonScrollAnimated>
                           </div>
                         </CommonCardBatchAnimated>

@@ -8,7 +8,7 @@ import { industries } from "@site/content/industries";
 export default function NextIndustryLink({ currentSlug }: { currentSlug: string }) {
   const idx = industries.findIndex((i) => i.slug === currentSlug);
   const next = industries[(idx + 1) % industries.length];
-  const href = `/industries/${next.slug}`;
+  const href = `/solutions/${next.slug}`;
 
   return (
     <BlurSection className="mxd-section padding-top-title">

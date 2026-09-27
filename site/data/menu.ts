@@ -1,21 +1,28 @@
-import type { MenuLinkItem } from "@site/types/menu";
 import { industries } from "@site/content/industries";
-import { siteConfig } from "@site/content/site";
 
-export const solutionLinks: MenuLinkItem[] = industries.map((i) => ({
-  href: `/industries/${i.slug}`,
-  label: i.name,
-}));
+export type NavItem = {
+  href: string;
+  label: string;
+  /** Sub-links shown in a dropdown (desktop) or indented list (mobile) */
+  children?: { href: string; label: string }[];
+};
 
-export const productLinks: MenuLinkItem[] = [
+/** Links in the website header, left to right. */
+export const headerNav: NavItem[] = [
+  { href: "/", label: "Home" },
+  {
+    href: "/solutions",
+    label: "Solutions",
+    children: industries.map((i) => ({ href: `/solutions/${i.slug}`, label: i.name })),
+  },
   { href: "/features", label: "Features" },
-  { href: "/industries", label: "All industries" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
   { href: "/faq", label: "FAQ" },
+  { href: "/contact", label: "Contact" },
 ];
 
-export const companyLinks: MenuLinkItem[] = [
-  { href: "/about", label: "About us" },
-  { href: "/contact", label: "Contact" },
-  { href: siteConfig.loginHref, label: "Store login", external: true },
-];
+export function isNavActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}

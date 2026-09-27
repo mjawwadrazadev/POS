@@ -5,8 +5,8 @@ import CommonAnimatedText from "@site/components/animations/CommonAnimatedText";
 import { CommonScrollAnimated } from "@site/components/animations/CommonScrollAnimated";
 import FaqAccordion, { type FaqItem } from "@site/sections/FaqAccordion";
 
-/** Industry-specific questions in a split layout. */
-export default function IndustryFaqs({ name, items }: { name: string; items: FaqItem[] }) {
+/** Questions and answers in a split layout (industry pages, pricing). */
+export default function IndustryFaqs({ name, items, title }: { name?: string; items: FaqItem[]; title?: string }) {
   return (
     <BlurSection className="mxd-section padding-top-default padding-bottom-default">
       <div className="mxd-container grid-l-container">
@@ -23,7 +23,7 @@ export default function IndustryFaqs({ name, items }: { name: string; items: Faq
                     </div>
                     <div className="mxd-block-split__manifest">
                       <CommonAnimatedText as="p" className="manifest manifest-s mxd-split-lines" animation="splitLines">
-                        {`Common questions from ${name.toLowerCase()} owners`}
+                        {title || `Common questions from ${(name || "business").toLowerCase()} owners`}
                       </CommonAnimatedText>
                     </div>
                   </div>

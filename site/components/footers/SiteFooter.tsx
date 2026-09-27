@@ -8,7 +8,7 @@ import { industries } from "@site/content/industries";
 const discoverLinks = [
   { href: "/", label: "Home" },
   { href: "/features", label: "Features" },
-  { href: "/industries", label: "Industries" },
+  { href: "/solutions", label: "Solutions" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About us" },
   { href: "/faq", label: "FAQ" },
@@ -105,7 +105,7 @@ export default function SiteFooter() {
                               <a
                                 key={industry.slug}
                                 className="socials-list__item slide-right-up"
-                                href={`/industries/${industry.slug}`}
+                                href={`/solutions/${industry.slug}`}
                               >
                                 <CommonScrollAnimated
                                   className="socials-list__divider divider-top anim-uni-clip-in"

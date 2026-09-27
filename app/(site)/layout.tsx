@@ -4,7 +4,6 @@ import { JetBrains_Mono, Manrope } from "next/font/google";
 import { cookies } from "next/headers";
 import Header from "@site/components/headers/Header1";
 import TemplateRuntimeProvider from "@site/components/common/TemplateRuntimeProvider";
-import MenuRuntimeShell from "@site/components/headers/MenuRuntimeShell";
 import SiteFooter from "@site/components/footers/SiteFooter";
 import { siteConfig } from "@site/content/site";
 
@@ -31,7 +30,6 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <body className={`${manrope.variable} ${jetbrainsMono.variable}`}>
         <TemplateRuntimeProvider>
           <Header initialTheme={initialTheme} />
-          <MenuRuntimeShell />
           {children}
           <SiteFooter />
         </TemplateRuntimeProvider>

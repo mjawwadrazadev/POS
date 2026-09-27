@@ -62,7 +62,7 @@ export default function AboutHeadline() {
                       <div ref={containerRef} className="inner-headline__title banners-hover centered loading-item">
                         <h1 className="small">
                           Building the point of sale behind{" "}
-                          <Link ref={trigger1Ref} className="inner-headline__trigger banners-trigger-1" href="/industries">
+                          <Link ref={trigger1Ref} className="inner-headline__trigger banners-trigger-1" href="/solutions">
                             busy counters
                           </Link>{" "}
                           and{" "}

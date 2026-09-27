@@ -1,9 +1,10 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { CommonLoadItem } from "@site/components/animations/CommonLoadAnimation";
 import TextScramble from "@site/components/animations/TextScramble";
 import { industries } from "@site/content/industries";
+import { plans } from "@site/content/pricing";
 
 type Status = "idle" | "sending" | "success" | "error";
 
@@ -11,6 +12,16 @@ type Status = "idle" | "sending" | "success" | "error";
 export default function ContactForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [feedback, setFeedback] = useState("");
+  const [message, setMessage] = useState("");
+
+  // Coming from a pricing card (/contact?plan=pro): start the message with that plan
+  useEffect(() => {
+    const planId = new URLSearchParams(window.location.search).get("plan");
+    const plan = plans.find((p) => p.id === planId);
+    if (plan) setMessage(`I'm interested in the ${plan.name} plan (Rs ${plan.price}${plan.period}).
+
+`);
+  }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,6 +41,7 @@ export default function ContactForm() {
       if (res.ok) {
         setStatus("success");
         form.reset();
+        setMessage("");
         return;
       }
       setStatus("error");
@@ -90,6 +102,8 @@ export default function ContactForm() {
                   <div className="col-12 mxd-grid-item loading-item">
                     <textarea
                       name="message"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
                       placeholder="Tell us about your business — branches, counters, what you need*"
                       required
                       disabled={sending}

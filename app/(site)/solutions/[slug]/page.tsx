@@ -32,7 +32,7 @@ export default async function IndustryPage({ params }: Params) {
     <div className="mxd-page-content inner-page-content">
       <PageHeadline
         current={industry.name}
-        parents={[{ href: "/industries", label: "Industries" }]}
+        parents={[{ href: "/solutions", label: "Solutions" }]}
         title={`${industry.name} POS`}
         size="medium"
         lead={industry.lead}
