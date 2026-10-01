@@ -86,7 +86,7 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-[96rem] w-full p-6 sm:p-8 shadow-2xl border border-gray-100 my-8 space-y-6">
         {/* Modal Header */}
         <div className="flex justify-between items-center border-b pb-4">

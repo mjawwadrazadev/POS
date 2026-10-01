@@ -144,7 +144,7 @@ export function CameraBarcodeScannerModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/85 z-[150] flex items-center justify-center p-4 font-mono">
+    <div className="fixed inset-0 bg-black/85 z-[150] flex items-center justify-center p-4 backdrop-blur-sm font-mono">
       <div className="bg-[#0b0b0d] border border-blue-500/50 w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <div className="flex items-center gap-2 font-bold text-blue-400 text-sm uppercase tracking-wider">

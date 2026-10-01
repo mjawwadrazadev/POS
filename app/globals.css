@@ -343,18 +343,17 @@ body {
 }
 
 /* Modal overlays (fixed inset-0 bg-black/..): while one is open, freeze the
-   page behind it so the topbar strip and the page scrollbar can't stay
-   undimmed above/beside the backdrop. */
+   page behind it so the page scrollbar can't stay undimmed beside it. */
 html:has(.fixed.inset-0[class*="bg-black/"]) {
   overflow: hidden;
 }
 
-/* No backdrop blur: Chrome leaves the blur's edge band (top strip over the
-   topbar) un-dimmed. The dark tint alone is enough. */
+/* Overlays are often rendered inside a `space-y-*` page wrapper, whose
+   sibling margin-top pushed the fixed backdrop down and left an undimmed
+   strip at the top of the screen. */
 .fixed.inset-0[class*="bg-black/"] {
+  margin: 0 !important;
   overscroll-behavior: contain;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
 }
 
 /* ------------------------------------------------------------------ */
