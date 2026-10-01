@@ -203,7 +203,7 @@ function ReportModal({ demo, onClose, onSaved }: { demo: DemoRecord; onClose: ()
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <form onSubmit={save} className="bg-base-tint border border-stroke-muted rounded-2xl max-w-[56rem] w-full p-6 shadow-2xl space-y-4 my-8">
         <div className="flex justify-between items-center border-b border-stroke-muted pb-3">
           <div>

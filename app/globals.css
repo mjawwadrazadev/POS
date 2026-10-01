@@ -349,8 +349,12 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
   overflow: hidden;
 }
 
+/* No backdrop blur: Chrome leaves the blur's edge band (top strip over the
+   topbar) un-dimmed. The dark tint alone is enough. */
 .fixed.inset-0[class*="bg-black/"] {
   overscroll-behavior: contain;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* ------------------------------------------------------------------ */

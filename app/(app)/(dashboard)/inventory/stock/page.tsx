@@ -340,7 +340,7 @@ export default function StockTransferPage() {
 
       {/* New Dispatch Transfer Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="bg-[#0b0b0d] border border-blue-600/50 w-full max-w-lg p-6 shadow-2xl space-y-5">
             <div className="flex justify-between items-center border-b border-gray-800 pb-3">
               <h3 className="text-base font-bold font-mono text-white uppercase tracking-wider flex items-center gap-2">

@@ -116,7 +116,7 @@ export default function DemoDeskPage() {
 
       {/* New demo form */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <form
             onSubmit={submit}
             className="bg-base-tint border border-stroke-muted rounded-2xl max-w-[60rem] w-full p-6 shadow-2xl space-y-4 my-8"
@@ -206,7 +206,7 @@ export default function DemoDeskPage() {
 
       {/* Login details of the demo just created */}
       {created?.credentials && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-base-tint border border-stroke-muted rounded-2xl max-w-[52rem] w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-2 text-[2rem] font-bold text-bright">
               <CheckCircle2 className="w-6 h-6 text-emerald-500" /> Demo store ready
