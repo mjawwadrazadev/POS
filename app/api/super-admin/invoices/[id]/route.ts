@@ -4,6 +4,7 @@ import { PaymentHistory } from "@/models/PaymentHistory";
 import { Organization } from "@/models/Organization";
 import { getSession } from "@/lib/auth/session";
 import { escapeHtml as e } from "@/lib/utils/server";
+import { canPerformPlatformAction } from "@/lib/auth/permissions";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -20,7 +21,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Payment record not found" }, { status: 404 });
     }
 
-    const isPlatformStaff = session.role === "super_admin" || session.role === "platform_support";
+    const isPlatformStaff = canPerformPlatformAction(session.role, "record_payment") && !session.isImpersonating;
     if (!isPlatformStaff && payment.organizationId.toString() !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden: You can only view invoices for your own organization" }, { status: 403 });
     }

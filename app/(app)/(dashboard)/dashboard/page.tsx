@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePosStore } from "@/lib/store/usePosStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
+import { isPlatformRole } from "@/lib/auth/permissions";
 import {
   DollarSign,
   TrendingUp,
@@ -52,7 +53,7 @@ export default function DashboardPage() {
           setUserSession(authData.user);
 
           // If Super Admin accesses main dashboard, redirect to Tenant Command Center
-          if (authData.user.role === "super_admin") {
+          if (isPlatformRole(authData.user.role) && !authData.user.isImpersonating) {
             router.replace("/super-admin");
             return;
           }

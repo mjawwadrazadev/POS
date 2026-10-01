@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getConfigValue, isDatabaseConfigured } from "@/lib/config/platformConfig";
-import { canAccessStorePage, isPlatformRole, isStoreApi, storeHomeFor } from "@/lib/auth/permissions";
+import {
+  canAccessPlatformPage,
+  canAccessStorePage,
+  isPlatformRole,
+  isStoreApi,
+  platformHomeFor,
+  storeHomeFor,
+} from "@/lib/auth/permissions";
 
 const SESSION_COOKIE = "rst_pos_token";
 
@@ -130,12 +137,20 @@ export async function middleware(request: NextRequest) {
 
     // 3. Platform staff belong in /super-admin unless impersonating a tenant
     if (!isSuperAdminPath && !isPublicPath && platformUser) {
-      return NextResponse.redirect(new URL("/super-admin", request.url));
+      return NextResponse.redirect(new URL(platformHomeFor(payload.role), request.url));
     }
 
     // 4. Logged-in users visiting a login page go to their home page
     if (isPublicPath) {
-      return NextResponse.redirect(new URL(platformUser ? "/super-admin" : storeHomeFor(payload.role), request.url));
+      return NextResponse.redirect(
+        new URL(platformUser ? platformHomeFor(payload.role) : storeHomeFor(payload.role), request.url)
+      );
+    }
+
+    // 4b. Platform roles only open their own platform pages (a sales agent only sees the demo desk)
+    if (isSuperAdminPath && platformUser && !canAccessPlatformPage(payload.role, pathname)) {
+      const home = platformHomeFor(payload.role);
+      if (pathname !== home) return NextResponse.redirect(new URL(home, request.url));
     }
 
     // 5. Store users only open the pages their role allows (e.g. cashiers stay on POS screens)

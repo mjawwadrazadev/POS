@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
-import { PasswordResetToken } from "@/models/PasswordResetToken";
+import { PasswordResetToken, hashResetToken } from "@/models/PasswordResetToken";
 import { isPinTakenInOrg } from "@/lib/auth/pinUniqueness";
 import { isValidPin } from "@/lib/utils/server";
 import { sendEmail } from "@/lib/email/resend";
@@ -12,7 +12,8 @@ export async function POST(req: Request) {
     await dbConnect();
     const { token, email, newPassword, newPin } = await req.json();
 
-    if (!token || !email || (!newPassword && !newPin)) {
+    // Strings only: an object here (e.g. {"$ne": "x"}) would become a query operator
+    if (typeof token !== "string" || typeof email !== "string" || !token || !email || (!newPassword && !newPin)) {
       return NextResponse.json(
         { error: "Reset token, email, and new password/PIN are required" },
         { status: 400 }
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
 
     // Verify reset token
     const tokenDoc = await PasswordResetToken.findOne({
-      token,
+      tokenHash: hashResetToken(token),
       email: normalizedEmail,
       used: false,
       expiresAt: { $gt: new Date() },
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     }
 
     // Employees are reset by their store owner, never through an emailed link
-    if (!["admin", "super_admin", "platform_support"].includes(user.role)) {
+    if (!["admin", "super_admin", "platform_admin", "platform_support", "platform_agent"].includes(user.role)) {
       await PasswordResetToken.updateMany({ userId: user._id, used: false }, { used: true });
       return NextResponse.json({ error: "Staff accounts are reset by your store owner. Ask them to reset it in Team settings." }, { status: 403 });
     }

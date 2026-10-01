@@ -7,15 +7,28 @@
  * separate short-lived session with the store admin role.
  */
 
-export type Role = "super_admin" | "platform_support" | "admin" | "manager" | "cashier";
+export type Role =
+  | "super_admin"
+  | "platform_admin"
+  | "platform_support"
+  | "platform_agent"
+  | "admin"
+  | "manager"
+  | "cashier";
 
-export const PLATFORM_ROLES: Role[] = ["super_admin", "platform_support"];
+export const PLATFORM_ROLES: Role[] = ["super_admin", "platform_admin", "platform_support", "platform_agent"];
+// Super admin and platform admin have identical powers (the admin only cannot touch super admin accounts)
+export const FULL_PLATFORM_ROLES: Role[] = ["super_admin", "platform_admin"];
+// Roles a super admin / admin can give from the User Management screen
+export const ASSIGNABLE_PLATFORM_ROLES: Role[] = ["platform_admin", "platform_agent", "platform_support"];
 export const STORE_ROLES: Role[] = ["admin", "manager", "cashier"];
 export const STORE_MANAGER_ROLES: Role[] = ["admin", "manager"];
 
 export const ROLE_LABELS: Record<Role, string> = {
   super_admin: "Super Admin",
+  platform_admin: "Admin",
   platform_support: "Platform Support",
+  platform_agent: "Sales Agent",
   admin: "Store Admin",
   manager: "Manager",
   cashier: "Cashier",
@@ -23,6 +36,11 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export function isPlatformRole(role?: string): boolean {
   return PLATFORM_ROLES.includes(role as Role);
+}
+
+/** Super admin or platform admin: full platform powers. */
+export function isFullPlatformRole(role?: string): boolean {
+  return FULL_PLATFORM_ROLES.includes(role as Role);
 }
 
 export function isStoreManagerRole(role?: string): boolean {
@@ -42,21 +60,54 @@ export type PlatformAction =
   | "terminate_tenant"
   | "manage_pricing"
   | "manage_integrations"
-  | "manage_fbr";
+  | "manage_fbr"
+  | "manage_platform_users"
+  | "view_agents"
+  | "run_demos";
 
-// Everything else is open to both platform roles
+// Platform support gets everything except these
 const SUPER_ADMIN_ONLY_ACTIONS: PlatformAction[] = [
   "impersonate_tenant",
   "terminate_tenant",
   "manage_pricing",
   "manage_integrations",
   "manage_fbr", // tax credentials of a tenant
+  "manage_platform_users",
+  "view_agents",
+  "run_demos",
 ];
 
+// A sales agent only creates and reports on 24-hour demo stores
+const AGENT_ACTIONS: PlatformAction[] = ["run_demos"];
+
 export function canPerformPlatformAction(role: string | undefined, action: PlatformAction): boolean {
-  if (role === "super_admin") return true;
+  if (isFullPlatformRole(role)) return true;
   if (role === "platform_support") return !SUPER_ADMIN_ONLY_ACTIONS.includes(action);
+  if (role === "platform_agent") return AGENT_ACTIONS.includes(action);
   return false;
+}
+
+// ─── Platform pages ─────────────────────────────────────────────────
+
+// First matching prefix wins; /super-admin itself (the dashboard) is checked last.
+const PLATFORM_PAGE_ACCESS: { path: string; roles: Role[] }[] = [
+  { path: "/super-admin/agent", roles: ["super_admin", "platform_admin", "platform_agent"] }, // demo desk
+  { path: "/super-admin/agents", roles: FULL_PLATFORM_ROLES }, // agent progress
+  { path: "/super-admin/users", roles: FULL_PLATFORM_ROLES },
+  { path: "/super-admin/integrations", roles: FULL_PLATFORM_ROLES },
+  { path: "/super-admin", roles: ["super_admin", "platform_admin", "platform_support"] },
+];
+
+/** Whether a platform user may open a /super-admin page. */
+export function canAccessPlatformPage(role: string | undefined, pathname: string): boolean {
+  // "/super-admin/agent" must not swallow "/super-admin/agents"
+  const rule = PLATFORM_PAGE_ACCESS.find((r) => matches(pathname, r.path));
+  return !!rule && rule.roles.includes(role as Role);
+}
+
+/** Landing page after login for each platform role. */
+export function platformHomeFor(role: string | undefined): string {
+  return role === "platform_agent" ? "/super-admin/agent" : "/super-admin";
 }
 
 // ─── Store pages ────────────────────────────────────────────────────

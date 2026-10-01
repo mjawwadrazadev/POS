@@ -7,7 +7,7 @@ import { Organization } from "@/models/Organization";
 import { User } from "@/models/User";
 import { ImpersonationSession } from "@/models/ImpersonationSession";
 import { getJwtSecret } from "@/lib/config/platformConfig";
-import { isPlatformRole } from "@/lib/auth/permissions";
+import { isFullPlatformRole, isPlatformRole } from "@/lib/auth/permissions";
 
 // The signing secret is read on every call (never cached at module load) so a rotation from the
 // super admin Integrations tab takes effect immediately. It is never a hard-coded default:
@@ -24,7 +24,14 @@ export const IMPERSONATION_MAX_AGE_SECONDS = 30 * 60;
 // Tenant statuses that must never be granted a session.
 const BLOCKED_TENANT_STATUSES = ["suspended", "suspended_manual", "expired", "terminated"];
 
-export type SessionRole = "super_admin" | "platform_support" | "admin" | "manager" | "cashier";
+export type SessionRole =
+  | "super_admin"
+  | "platform_admin"
+  | "platform_support"
+  | "platform_agent"
+  | "admin"
+  | "manager"
+  | "cashier";
 
 export interface SessionPayload {
   userId: string;
@@ -123,7 +130,7 @@ export async function getSession(): Promise<SessionPayload | null> {
 
       if (!imp || !imp.isActive || new Date(imp.expiresAt) <= new Date()) return null;
       if (imp.targetOrganizationId.toString() !== payload.organizationId) return null;
-      if (!superAdmin || !superAdmin.isActive || superAdmin.role !== "super_admin") return null;
+      if (!superAdmin || !superAdmin.isActive || !isFullPlatformRole(superAdmin.role)) return null;
 
       const org = await Organization.findById(payload.organizationId).select("planTier taxRate subscriptionStatus").lean();
       if (!org) return null;

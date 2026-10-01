@@ -53,6 +53,8 @@ export interface IOrganization extends Document {
   lastPaymentDate?: Date;
   paymentHistory: IPaymentRecord[];
   fbr?: IFbrSettings;
+  // 24-hour sales demo store created by an agent; wiped (with all its data) when it expires
+  isDemo?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,6 +122,7 @@ const OrganizationSchema: Schema<IOrganization> = new Schema(
       scenarioId: { type: String, trim: true },
       updatedAt: { type: Date },
     },
+    isDemo: { type: Boolean, default: false, index: true },
     paymentHistory: [
       {
         amount: { type: Number, required: true },

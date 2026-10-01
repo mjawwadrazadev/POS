@@ -3,14 +3,14 @@ import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/mongoose";
 import { SupportTicket } from "@/models/SupportTicket";
 import { getSession } from "@/lib/auth/session";
-import { isPlatformRole, isStoreManagerRole } from "@/lib/auth/permissions";
+import { canPerformPlatformAction, isStoreManagerRole } from "@/lib/auth/permissions";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     // Store-side support tickets are raised and read by the store's admin/manager
-    if (!isPlatformRole(session.role) && !isStoreManagerRole(session.role)) {
+    if (!canPerformPlatformAction(session.role, "manage_support") && !isStoreManagerRole(session.role)) {
       return NextResponse.json({ error: "Forbidden - Manager or Admin required" }, { status: 403 });
     }
 
@@ -20,7 +20,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const ticket = await SupportTicket.findById(id).lean();
     if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
 
-    const isPlatformStaff = session.role === "super_admin" || session.role === "platform_support";
+    const isPlatformStaff = canPerformPlatformAction(session.role, "manage_support");
     if (!isPlatformStaff && ticket.organizationId.toString() !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -55,7 +55,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     // Store-side support tickets are raised and read by the store's admin/manager
-    if (!isPlatformRole(session.role) && !isStoreManagerRole(session.role)) {
+    if (!canPerformPlatformAction(session.role, "manage_support") && !isStoreManagerRole(session.role)) {
       return NextResponse.json({ error: "Forbidden - Manager or Admin required" }, { status: 403 });
     }
 
@@ -68,7 +68,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const ticket = await SupportTicket.findById(id);
     if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
 
-    const isPlatformStaff = session.role === "super_admin" || session.role === "platform_support";
+    const isPlatformStaff = canPerformPlatformAction(session.role, "manage_support");
     if (!isPlatformStaff && ticket.organizationId.toString() !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

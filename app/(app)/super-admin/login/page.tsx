@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { platformHomeFor } from "@/lib/auth/permissions";
 import {
   ShieldCheck,
   Lock,
@@ -40,7 +41,7 @@ export default function SuperAdminLoginPage() {
         throw new Error(data.error || "Super Admin Authentication failed");
       }
 
-      router.push("/super-admin");
+      router.push(platformHomeFor(data.user?.role));
     } catch (err: any) {
       setError(err.message || "Invalid Super Admin credentials");
     } finally {

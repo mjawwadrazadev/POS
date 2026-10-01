@@ -8,7 +8,7 @@ import { TenantHealthSnapshot } from "@/models/TenantHealthSnapshot";
 export async function computeTenantHealthSnapshots() {
   await dbConnect();
 
-  const orgs = await Organization.find({ code: { $ne: "rst-hq" }, subscriptionStatus: { $ne: "terminated" } }).lean();
+  const orgs = await Organization.find({ code: { $ne: "rst-hq" }, isDemo: { $ne: true }, subscriptionStatus: { $ne: "terminated" } }).lean();
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

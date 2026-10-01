@@ -13,6 +13,7 @@ import {
   SessionPayload,
 } from "@/lib/auth/session";
 import { logAudit } from "@/lib/audit/logger";
+import { isFullPlatformRole } from "@/lib/auth/permissions";
 import { getClientIp } from "@/lib/utils/server";
 
 export async function POST(req: Request) {
@@ -40,11 +41,13 @@ export async function POST(req: Request) {
       );
     }
 
+    const superAdminUser = await User.findById(session.originalSuperAdminId);
+
     await logAudit({
       organizationId: session.organizationId,
       actorId: session.originalSuperAdminId,
-      actorName: session.fullName ? `Super Admin (as ${session.fullName})` : "Super Admin",
-      actorRole: "super_admin",
+      actorName: session.fullName ? `Platform Admin (as ${session.fullName})` : "Platform Admin",
+      actorRole: superAdminUser?.role || "super_admin",
       action: "SUPER_ADMIN_IMPERSONATE_EXIT",
       targetCollection: "ImpersonationSession",
       targetId: session.impersonationSessionId,
@@ -52,9 +55,8 @@ export async function POST(req: Request) {
       ipAddress: getClientIp(req),
     });
 
-    // Only restore platform access if the super admin account is still valid
-    const superAdminUser = await User.findById(session.originalSuperAdminId);
-    if (!superAdminUser || !superAdminUser.isActive || superAdminUser.role !== "super_admin") {
+    // Only restore platform access if the super admin / admin account is still valid
+    if (!superAdminUser || !superAdminUser.isActive || !isFullPlatformRole(superAdminUser.role)) {
       const response = NextResponse.json(
         { error: "Super Admin account is no longer active", redirectTo: "/super-admin/login" },
         { status: 403 }
@@ -69,7 +71,7 @@ export async function POST(req: Request) {
       userId: (superAdminUser._id as any).toString(),
       fullName: superAdminUser.fullName,
       email: superAdminUser.email,
-      role: "super_admin",
+      role: superAdminUser.role,
       organizationId: superAdminUser.organizationId.toString(),
       organizationName: hqOrg?.name,
       orgCode: hqOrg?.code,

@@ -16,7 +16,7 @@ export async function GET() {
 
     // Precomputed health snapshots, refreshed when stale or when tenants were added/removed since
     let healthSnapshots = await TenantHealthSnapshot.find({}).lean();
-    const liveTenantCount = await Organization.countDocuments({ code: { $ne: "rst-hq" }, subscriptionStatus: { $ne: "terminated" } });
+    const liveTenantCount = await Organization.countDocuments({ code: { $ne: "rst-hq" }, isDemo: { $ne: true }, subscriptionStatus: { $ne: "terminated" } });
     const oldest = Math.min(...healthSnapshots.map((h: any) => new Date(h.updatedAt).getTime()));
     if (
       healthSnapshots.length !== liveTenantCount ||

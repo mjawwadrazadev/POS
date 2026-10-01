@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
+  canAccessPlatformPage,
   canAccessStorePage,
   canPerformPlatformAction,
+  isFullPlatformRole,
+  isPlatformRole,
+  platformHomeFor,
   isStoreApi,
   storeHomeFor,
 } from "@/lib/auth/permissions";
@@ -69,5 +73,42 @@ describe("store APIs", () => {
     expect(isStoreApi("/api/support")).toBe(false);
     expect(isStoreApi("/api/super-admin/health")).toBe(false);
     expect(isStoreApi("/api/ordersx")).toBe(false);
+  });
+});
+
+describe("platform admin and sales agent roles", () => {
+  it("gives platform admin the same powers as super admin", () => {
+    for (const action of ["impersonate_tenant", "terminate_tenant", "manage_pricing", "manage_platform_users", "view_agents", "run_demos"] as const) {
+      expect(canPerformPlatformAction("platform_admin", action)).toBe(true);
+    }
+    expect(isFullPlatformRole("platform_admin")).toBe(true);
+    expect(isPlatformRole("platform_admin")).toBe(true);
+  });
+
+  it("limits a sales agent to demos", () => {
+    expect(canPerformPlatformAction("platform_agent", "run_demos")).toBe(true);
+    for (const action of ["read_analytics", "record_payment", "manage_support", "manage_leads", "manage_platform_users", "view_agents", "impersonate_tenant"] as const) {
+      expect(canPerformPlatformAction("platform_agent", action)).toBe(false);
+    }
+  });
+
+  it("keeps support out of user management and demos", () => {
+    for (const action of ["manage_platform_users", "view_agents", "run_demos"] as const) {
+      expect(canPerformPlatformAction("platform_support", action)).toBe(false);
+    }
+  });
+
+  it("routes each platform role to its own pages", () => {
+    expect(platformHomeFor("platform_agent")).toBe("/super-admin/agent");
+    expect(platformHomeFor("platform_admin")).toBe("/super-admin");
+    expect(canAccessPlatformPage("platform_agent", "/super-admin/agent")).toBe(true);
+    for (const path of ["/super-admin", "/super-admin/tenants", "/super-admin/agents", "/super-admin/users", "/super-admin/support"]) {
+      expect(canAccessPlatformPage("platform_agent", path)).toBe(false);
+    }
+    for (const path of ["/super-admin", "/super-admin/users", "/super-admin/agents", "/super-admin/agent", "/super-admin/integrations"]) {
+      expect(canAccessPlatformPage("platform_admin", path)).toBe(true);
+    }
+    expect(canAccessPlatformPage("platform_support", "/super-admin/tenants")).toBe(true);
+    expect(canAccessPlatformPage("platform_support", "/super-admin/users")).toBe(false);
   });
 });

@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { dbConnect } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { Organization } from "@/models/Organization";
-import { PasswordResetToken } from "@/models/PasswordResetToken";
+import { PasswordResetToken, hashResetToken } from "@/models/PasswordResetToken";
 import { StaffResetRequest } from "@/models/StaffResetRequest";
 import { checkRateLimit, recordFailedAttempt } from "@/lib/security/rateLimiter";
 import { getClientIp } from "@/lib/utils/server";
@@ -25,7 +25,7 @@ const GENERIC_RESPONSE = {
     "If an active account exists for this email, we've sent a reset link — or, for staff accounts, asked your store owner to reset it.",
 };
 
-const SELF_SERVICE_ROLES = ["admin", "super_admin", "platform_support"];
+const SELF_SERVICE_ROLES = ["admin", "super_admin", "platform_admin", "platform_support", "platform_agent"];
 const STAFF_ROLES = ["manager", "cashier"];
 
 export async function POST(req: Request) {
@@ -76,7 +76,7 @@ async function sendSelfServiceLink(user: any, normalizedEmail: string) {
 
   // Only the newest link works
   await PasswordResetToken.updateMany({ userId: user._id, used: false }, { used: true });
-  await PasswordResetToken.create({ userId: user._id, email: normalizedEmail, token, expiresAt, used: false });
+  await PasswordResetToken.create({ userId: user._id, email: normalizedEmail, tokenHash: hashResetToken(token), expiresAt, used: false });
 
   const resetUrl = appUrl(`/reset-password?token=${token}&email=${encodeURIComponent(normalizedEmail)}`);
 

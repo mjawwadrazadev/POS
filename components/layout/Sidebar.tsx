@@ -4,7 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePosStore } from "@/lib/store/usePosStore";
-import { canAccessStorePage, ROLE_LABELS as ROLE_NAMES } from "@/lib/auth/permissions";
+import {
+  canAccessPlatformPage,
+  canAccessStorePage,
+  isPlatformRole,
+  ROLE_LABELS as ROLE_NAMES,
+} from "@/lib/auth/permissions";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import {
   LayoutDashboard,
@@ -34,6 +39,9 @@ import {
   LifeBuoy,
   Plug,
   Inbox,
+  UserCog,
+  Presentation,
+  Trophy,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -51,7 +59,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
   const [financeOpen, setFinanceOpen] = useState(true);
 
   useEffect(() => {
-    const platform = userSession?.role === "super_admin" || userSession?.role === "platform_support";
+    const platform = isPlatformRole(userSession?.role);
     if ((!platform || userSession?.isImpersonating) && userSession?.businessType) {
       setVertical(userSession.businessType);
     }
@@ -83,9 +91,9 @@ export function Sidebar({ session: userSession }: SidebarProps) {
   const isActive = (path: string) => pathname === path;
   const can = (path: string) => canAccessStorePage(userSession?.role, path);
   const isSection = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
-  // Platform staff (super admin / support) see the platform menu unless they are impersonating a store
-  const isSuperAdmin =
-    (userSession?.role === "super_admin" || userSession?.role === "platform_support") && !userSession?.isImpersonating;
+  // Platform staff (super admin / admin / support / agent) see the platform menu unless they are impersonating a store
+  const isSuperAdmin = isPlatformRole(userSession?.role) && !userSession?.isImpersonating;
+  const canPlatform = (path: string) => canAccessPlatformPage(userSession?.role, path);
   const brandContext = isSuperAdmin ? "Platform HQ" : userSession?.organizationName || "Store POS";
   const isStoreManager = userSession?.role === "admin" || userSession?.role === "manager";
   const isAccountingEnabled = userSession?.planTier === "billing_accounting" && isStoreManager;
@@ -126,41 +134,78 @@ export function Sidebar({ session: userSession }: SidebarProps) {
         {/* ─── 1. PLATFORM MODE (super admin / platform support) ─── */}
         {isSuperAdmin ? (
           <>
-            <label className="sidebar__section-label">Platform</label>
-            <Link
-              href="/super-admin"
-              className={`sidebar__link ${isActive("/super-admin") ? "sidebar__link--active" : ""}`}
-            >
-              <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-              <span>Dashboard</span>
-            </Link>
-            <Link
-              href="/super-admin/tenants"
-              className={`sidebar__link ${isSection("/super-admin/tenants") ? "sidebar__link--active" : ""}`}
-            >
-              <Building2 className="w-4 h-4 flex-shrink-0" />
-              <span>Tenants & Subscriptions</span>
-            </Link>
+            {canPlatform("/super-admin") && (
+              <>
+                <label className="sidebar__section-label">Platform</label>
+                <Link
+                  href="/super-admin"
+                  className={`sidebar__link ${isActive("/super-admin") ? "sidebar__link--active" : ""}`}
+                >
+                  <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link
+                  href="/super-admin/tenants"
+                  className={`sidebar__link ${isSection("/super-admin/tenants") ? "sidebar__link--active" : ""}`}
+                >
+                  <Building2 className="w-4 h-4 flex-shrink-0" />
+                  <span>Tenants & Subscriptions</span>
+                </Link>
+              </>
+            )}
 
-            <label className="sidebar__section-label mt-4">Support</label>
-            <Link
-              href="/super-admin/support"
-              className={`sidebar__link ${isSection("/super-admin/support") ? "sidebar__link--active" : ""}`}
-            >
-              <LifeBuoy className="w-4 h-4 flex-shrink-0" />
-              <span>Support Desk</span>
-            </Link>
-            <Link
-              href="/super-admin/leads"
-              className={`sidebar__link ${isSection("/super-admin/leads") ? "sidebar__link--active" : ""}`}
-            >
-              <Inbox className="w-4 h-4 flex-shrink-0" />
-              <span>Website Leads</span>
-            </Link>
+            {canPlatform("/super-admin/agent") && (
+              <>
+                <label className="sidebar__section-label mt-4">Sales</label>
+                <Link
+                  href="/super-admin/agent"
+                  className={`sidebar__link ${isSection("/super-admin/agent") ? "sidebar__link--active" : ""}`}
+                >
+                  <Presentation className="w-4 h-4 flex-shrink-0" />
+                  <span>{userSession?.role === "platform_agent" ? "My Demos" : "Demo Desk"}</span>
+                </Link>
+                {canPlatform("/super-admin/agents") && (
+                  <Link
+                    href="/super-admin/agents"
+                    className={`sidebar__link ${isSection("/super-admin/agents") ? "sidebar__link--active" : ""}`}
+                  >
+                    <Trophy className="w-4 h-4 flex-shrink-0" />
+                    <span>Agent Performance</span>
+                  </Link>
+                )}
+              </>
+            )}
 
-            {userSession?.role === "super_admin" && (
+            {canPlatform("/super-admin/support") && (
+              <>
+                <label className="sidebar__section-label mt-4">Support</label>
+                <Link
+                  href="/super-admin/support"
+                  className={`sidebar__link ${isSection("/super-admin/support") ? "sidebar__link--active" : ""}`}
+                >
+                  <LifeBuoy className="w-4 h-4 flex-shrink-0" />
+                  <span>Support Desk</span>
+                </Link>
+                <Link
+                  href="/super-admin/leads"
+                  className={`sidebar__link ${isSection("/super-admin/leads") ? "sidebar__link--active" : ""}`}
+                >
+                  <Inbox className="w-4 h-4 flex-shrink-0" />
+                  <span>Website Leads</span>
+                </Link>
+              </>
+            )}
+
+            {canPlatform("/super-admin/users") && (
               <>
                 <label className="sidebar__section-label mt-4">Settings</label>
+                <Link
+                  href="/super-admin/users"
+                  className={`sidebar__link ${isSection("/super-admin/users") ? "sidebar__link--active" : ""}`}
+                >
+                  <UserCog className="w-4 h-4 flex-shrink-0" />
+                  <span>User Management</span>
+                </Link>
                 <Link
                   href="/super-admin/integrations"
                   className={`sidebar__link ${isSection("/super-admin/integrations") ? "sidebar__link--active" : ""}`}

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface ITicketMessage {
-  senderRole: "super_admin" | "platform_support" | "admin" | "manager" | "cashier";
+  senderRole: string;
   senderName: string;
   senderId: mongoose.Types.ObjectId;
   content: string;

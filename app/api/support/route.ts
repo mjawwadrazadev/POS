@@ -3,7 +3,7 @@ import { dbConnect } from "@/lib/db/mongoose";
 import { SupportTicket } from "@/models/SupportTicket";
 import { Organization } from "@/models/Organization";
 import { getSession } from "@/lib/auth/session";
-import { isPlatformRole, isStoreManagerRole } from "@/lib/auth/permissions";
+import { canPerformPlatformAction, isStoreManagerRole } from "@/lib/auth/permissions";
 
 export async function GET() {
   try {
@@ -12,13 +12,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     // Store-side support tickets are raised and read by the store's admin/manager
-    if (!isPlatformRole(session.role) && !isStoreManagerRole(session.role)) {
+    if (!canPerformPlatformAction(session.role, "manage_support") && !isStoreManagerRole(session.role)) {
       return NextResponse.json({ error: "Forbidden - Manager or Admin required" }, { status: 403 });
     }
 
     await dbConnect();
 
-    const isPlatformStaff = session.role === "super_admin" || session.role === "platform_support";
+    const isPlatformStaff = canPerformPlatformAction(session.role, "manage_support");
 
     let tickets;
     if (isPlatformStaff) {
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     // Store-side support tickets are raised and read by the store's admin/manager
-    if (!isPlatformRole(session.role) && !isStoreManagerRole(session.role)) {
+    if (!canPerformPlatformAction(session.role, "manage_support") && !isStoreManagerRole(session.role)) {
       return NextResponse.json({ error: "Forbidden - Manager or Admin required" }, { status: 403 });
     }
 

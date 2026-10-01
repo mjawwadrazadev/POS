@@ -7,12 +7,17 @@ import { TopBar } from "@/components/layout/TopBar";
 import { SessionProvider } from "@/components/layout/SessionContext";
 import { ImpersonationBanner } from "@/components/super-admin/ImpersonationBanner";
 import { AnnouncementBanner } from "@/components/super-admin/AnnouncementBanner";
+import { isPlatformRole } from "@/lib/auth/permissions";
 
 function superAdminTitle(pathname: string) {
   if (pathname.startsWith("/super-admin/tenants/")) return "Tenant Details";
   if (pathname.startsWith("/super-admin/tenants")) return "Tenants & Subscriptions";
   if (pathname.startsWith("/super-admin/support")) return "Support Desk";
   if (pathname.startsWith("/super-admin/integrations")) return "Platform Integrations";
+  if (pathname.startsWith("/super-admin/users")) return "User Management";
+  if (pathname.startsWith("/super-admin/agents")) return "Agent Performance";
+  if (pathname.startsWith("/super-admin/agent")) return "Demo Desk";
+  if (pathname.startsWith("/super-admin/leads")) return "Website Leads";
   return "Platform Command Center";
 }
 
@@ -39,10 +44,10 @@ export default function DashboardLayout({
           return;
         }
 
-        const isSuperAdminOrSupport = data.user.role === "super_admin" || data.user.role === "platform_support";
+        const isPlatformStaff = isPlatformRole(data.user.role) && !data.user.isImpersonating;
 
-        // If trying to access /super-admin page as non-super_admin/platform_support -> redirect to home
-        if (pathname.startsWith("/super-admin") && !isSuperAdminOrSupport) {
+        // If trying to access /super-admin page as a store user -> redirect to home
+        if (pathname.startsWith("/super-admin") && !isPlatformStaff) {
           router.replace("/dashboard");
           return;
         }

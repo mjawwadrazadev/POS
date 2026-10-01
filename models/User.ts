@@ -1,7 +1,14 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import bcrypt from "bcryptjs";
 
-export type UserRole = "super_admin" | "platform_support" | "admin" | "manager" | "cashier";
+export type UserRole =
+  | "super_admin"
+  | "platform_admin"
+  | "platform_support"
+  | "platform_agent"
+  | "admin"
+  | "manager"
+  | "cashier";
 
 export interface IUser extends Document {
   organizationId: mongoose.Types.ObjectId;
@@ -14,6 +21,11 @@ export interface IUser extends Document {
   isActive: boolean;
   baseSalary?: number; // monthly base salary used by payroll
   avatar?: string;
+  // Platform staff profile (sales agents)
+  phone?: string;
+  territory?: string; // city / area an agent covers
+  commissionRate?: number; // % commission an agent earns on a closed sale
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 
@@ -29,10 +41,14 @@ const UserSchema: Schema<IUser> = new Schema(
     email: { type: String, required: true, lowercase: true, trim: true },
     password: { type: String, select: false }, // Hashed password, excluded from queries by default
     pin: { type: String, required: true, select: false }, // Hashed 4-digit PIN, excluded by default
-    role: { type: String, enum: ["super_admin", "platform_support", "admin", "manager", "cashier"], default: "cashier" },
+    role: { type: String, enum: ["super_admin", "platform_admin", "platform_support", "platform_agent", "admin", "manager", "cashier"], default: "cashier" },
     isActive: { type: Boolean, default: true },
     baseSalary: { type: Number, min: 0 },
     avatar: { type: String },
+    phone: { type: String, trim: true },
+    territory: { type: String, trim: true },
+    commissionRate: { type: Number, min: 0, max: 100 },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

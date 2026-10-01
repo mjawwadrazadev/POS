@@ -4,6 +4,7 @@ import { dbConnect } from "@/lib/db/mongoose";
 import { auditLedgerBalance } from "@/lib/accounting/auditBalance";
 import { requireAccountingPlan } from "@/lib/middleware/requireAccountingPlan";
 import { getSession } from "@/lib/auth/session";
+import { canPerformPlatformAction } from "@/lib/auth/permissions";
 
 export async function GET(req: Request) {
   try {
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const isPlatform = (session.role === "super_admin" || session.role === "platform_support") && !session.isImpersonating;
+    const isPlatform = canPerformPlatformAction(session.role, "read_analytics") && !session.isImpersonating;
     if (!isPlatform && session.role !== "admin" && session.role !== "manager") {
       return NextResponse.json({ error: "Forbidden — Manager or Admin required" }, { status: 403 });
     }

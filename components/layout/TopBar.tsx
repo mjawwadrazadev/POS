@@ -2,6 +2,7 @@
 
 import { usePosStore } from "@/lib/store/usePosStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
+import { isPlatformRole } from "@/lib/auth/permissions";
 import {
   Search,
   Building2,
@@ -18,8 +19,7 @@ export function TopBar({ title = "POS Control Center", session: userSession }: T
   const { currentVertical, selectedBranch, activeShiftOpen, toggleShift } = usePosStore();
 
   const verticalConfig = VERTICAL_CONFIGS[currentVertical];
-  const isSuperAdmin =
-    (userSession?.role === "super_admin" || userSession?.role === "platform_support") && !userSession?.isImpersonating;
+  const isSuperAdmin = isPlatformRole(userSession?.role) && !userSession?.isImpersonating;
 
   const branchDisplayText = isSuperAdmin
     ? "RST POS PLATFORM HQ"

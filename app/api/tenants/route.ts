@@ -10,6 +10,7 @@ import { PaymentHistory } from "@/models/PaymentHistory";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import { requireSuperAdminAction } from "@/lib/middleware/requireSuperAdminAction";
 import { logAudit } from "@/lib/audit/logger";
+import { PLATFORM_ROLES } from "@/lib/auth/permissions";
 import { generateTempPassword, isValidPin } from "@/lib/utils/server";
 import { TENANT_TEMPLATE_ITEMS, HOSPITAL_TEMPLATE_DOCTORS } from "@/lib/config/tenantTemplates";
 
@@ -25,7 +26,8 @@ export async function GET() {
     if (!auth.authorized) return auth.response;
 
     await dbConnect();
-    const orgs = await Organization.find({}).sort({ createdAt: -1 }).lean();
+    // 24-hour agent demo stores are not customers; they live on the Agents / Demo screens
+    const orgs = await Organization.find({ isDemo: { $ne: true } }).sort({ createdAt: -1 }).lean();
     const now = new Date();
 
     const tenants = await Promise.all(
@@ -93,7 +95,7 @@ export async function GET() {
           fbr: org.fbr?.enabled
             ? { enabled: true, mode: org.fbr.mode, environment: org.fbr.environment }
             : { enabled: false },
-          isPlatformOrg: !!(await User.exists({ organizationId: org._id, role: { $in: ["super_admin", "platform_support"] } })),
+          isPlatformOrg: !!(await User.exists({ organizationId: org._id, role: { $in: PLATFORM_ROLES } })),
         };
       })
     );

@@ -10,7 +10,7 @@ export async function computeMonthlyRevenueSnapshot() {
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   // Terminated tenants are gone for good and do not count anywhere
-  const orgs = await Organization.find({ code: { $ne: "rst-hq" }, subscriptionStatus: { $ne: "terminated" } }).lean();
+  const orgs = await Organization.find({ code: { $ne: "rst-hq" }, isDemo: { $ne: true }, subscriptionStatus: { $ne: "terminated" } }).lean();
   const totalTenants = orgs.length;
   // Only paying (active / expiring soon) tenants contribute recurring revenue
   const payingOrgs = orgs.filter((o: any) => o.subscriptionStatus === "active" || o.subscriptionStatus === "expiring_soon");
