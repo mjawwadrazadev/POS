@@ -342,6 +342,17 @@ body {
   color: rgba(255, 255, 255, 0.55);
 }
 
+/* Modal overlays (fixed inset-0 bg-black/..): while one is open, freeze the
+   page behind it so the topbar strip and the page scrollbar can't stay
+   undimmed above/beside the backdrop. */
+html:has(.fixed.inset-0[class*="bg-black/"]) {
+  overflow: hidden;
+}
+
+.fixed.inset-0[class*="bg-black/"] {
+  overscroll-behavior: contain;
+}
+
 /* ------------------------------------------------------------------ */
 /*  6. STICKY TOPBAR                                                   */
 /* ------------------------------------------------------------------ */
