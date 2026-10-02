@@ -10,10 +10,23 @@ import { roundMoney } from "@/lib/utils/server";
 
 // Cash collected by sales in this shift minus cash paid back through refunds during the shift
 async function computeShiftCash(shift: ICounterSession, until: Date) {
-  const orders = await Order.find({
-    counterSessionId: shift._id,
-    status: { $in: ["completed", "partially_refunded", "refunded"] },
-  }).select("paymentMethod grandTotal payments");
+  const [orders, cashRefunds] = await Promise.all([
+    Order.find({
+      counterSessionId: shift._id,
+      status: { $in: ["completed", "partially_refunded", "refunded"] },
+    })
+      .select("paymentMethod grandTotal payments")
+      .lean(),
+    Refund.find({
+      organizationId: shift.organizationId,
+      branchId: shift.branchId,
+      refundMethod: "cash",
+      status: "completed",
+      updatedAt: { $gte: shift.openedAt, $lte: until },
+    })
+      .select("totalRefundAmount")
+      .lean(),
+  ]);
 
   let cashSalesTotal = 0;
   for (const order of orders) {
@@ -24,13 +37,6 @@ async function computeShiftCash(shift: ICounterSession, until: Date) {
     }
   }
 
-  const cashRefunds = await Refund.find({
-    organizationId: shift.organizationId,
-    branchId: shift.branchId,
-    refundMethod: "cash",
-    status: "completed",
-    updatedAt: { $gte: shift.openedAt, $lte: until },
-  }).select("totalRefundAmount");
   const cashRefundTotal = cashRefunds.reduce((s, r) => s + r.totalRefundAmount, 0);
 
   return {

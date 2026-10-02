@@ -58,6 +58,8 @@ export default function DashboardLayout({
   const [userSession, setUserSession] = useState<any>(null);
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
 
+  // Load the session once. Moving between pages keeps it: middleware re-checks the token on every
+  // navigation and every API call re-verifies against the database, so refetching here only adds a round trip.
   useEffect(() => {
     async function checkAuth() {
       try {
@@ -65,16 +67,8 @@ export default function DashboardLayout({
         const data = await res.json();
 
         if (!res.ok || !data.authenticated || !data.user) {
-          const targetLogin = pathname.startsWith("/super-admin") ? "/super-admin/login" : "/login";
+          const targetLogin = window.location.pathname.startsWith("/super-admin") ? "/super-admin/login" : "/login";
           router.replace(targetLogin);
-          return;
-        }
-
-        const isPlatformStaff = isPlatformRole(data.user.role) && !data.user.isImpersonating;
-
-        // If trying to access /super-admin page as a store user -> redirect to home
-        if (pathname.startsWith("/super-admin") && !isPlatformStaff) {
-          router.replace("/dashboard");
           return;
         }
 
@@ -89,7 +83,14 @@ export default function DashboardLayout({
     }
 
     checkAuth();
-  }, [pathname, router]);
+  }, [router]);
+
+  // Store users who reach a /super-admin page go back to their dashboard
+  const isPlatformStaff = isPlatformRole(userSession?.role) && !userSession?.isImpersonating;
+  const blockedSuperAdminPage = authenticated && pathname.startsWith("/super-admin") && !isPlatformStaff;
+  useEffect(() => {
+    if (blockedSuperAdminPage) router.replace("/dashboard");
+  }, [blockedSuperAdminPage, router]);
 
   if (loading) {
     return (
@@ -102,7 +103,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (!authenticated) {
+  if (!authenticated || blockedSuperAdminPage) {
     return null;
   }
 

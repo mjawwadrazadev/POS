@@ -46,6 +46,8 @@ const KotTicketSchema: Schema<IKotTicket> = new Schema(
 );
 
 KotTicketSchema.index({ organizationId: 1, branchId: 1, status: 1, createdAt: -1 });
+// The kitchen board lists open tickets for the whole store, oldest first
+KotTicketSchema.index({ organizationId: 1, status: 1, createdAt: 1 });
 
 export const KotTicket: Model<IKotTicket> =
   mongoose.models.KotTicket || mongoose.model<IKotTicket>("KotTicket", KotTicketSchema);

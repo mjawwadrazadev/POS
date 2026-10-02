@@ -32,18 +32,20 @@ export async function deductStockFEFO(
 ): Promise<FEFODeductionResult> {
   const now = new Date();
 
-  // 1. Retire batches that have expired at this branch
-  await Batch.updateMany(
-    { productId, branchId, status: "active", expiryDate: { $lt: now } },
-    { $set: { status: "expired" } }
-  );
-
-  // 2. Atomically reserve the overall product stock
-  const product = await Product.findOneAndUpdate(
-    { _id: productId, organizationId, stock: { $gte: requestedQuantity } },
-    { $inc: { stock: -requestedQuantity } },
-    { new: true }
-  );
+  // 1. Retire batches that have expired at this branch, and
+  // 2. atomically reserve the overall product stock. Independent, so they run together;
+  //    step 3 skips expired batches by date either way.
+  const [, product] = await Promise.all([
+    Batch.updateMany(
+      { productId, branchId, status: "active", expiryDate: { $lt: now } },
+      { $set: { status: "expired" } }
+    ),
+    Product.findOneAndUpdate(
+      { _id: productId, organizationId, stock: { $gte: requestedQuantity } },
+      { $inc: { stock: -requestedQuantity } },
+      { new: true }
+    ),
+  ]);
 
   if (!product) {
     const existing = await Product.findOne({ _id: productId, organizationId }).select("name stock").lean();

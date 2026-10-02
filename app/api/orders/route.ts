@@ -10,7 +10,7 @@ import { deductStockFEFO, restoreStockDeductions, FEFODeductionResult } from "@/
 import { getSession, verifyToken } from "@/lib/auth/session";
 import { verifyOverrideToken, MAX_UNAPPROVED_DISCOUNT_PERCENT } from "@/lib/auth/override";
 import { resolveBranch } from "@/lib/tenant/resolveBranch";
-import { postSalesOrderToLedger, isAccountingEnabled } from "@/lib/accounting/ledger";
+import { postSalesOrderToLedger, planHasAccounting } from "@/lib/accounting/ledger";
 import { generateDocNumber, roundMoney } from "@/lib/utils/server";
 
 class ValidationError extends Error {}
@@ -32,7 +32,8 @@ export async function GET(req: Request) {
     const query: any = { organizationId: session.organizationId };
     if (status && ORDER_STATUSES.includes(status)) query.status = status;
 
-    const orders = await Order.find(query).sort({ createdAt: -1 }).limit(50);
+    const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 50);
+    const orders = await Order.find(query).sort({ createdAt: -1 }).limit(limit).lean();
     return NextResponse.json({ success: true, count: orders.length, orders });
   } catch (error: any) {
     return NextResponse.json(
@@ -103,22 +104,23 @@ export async function POST(req: Request) {
 
     // ─── 2. Idempotency for offline-queued orders ───
     const ref = typeof clientRef === "string" && clientRef.length <= 100 ? clientRef : undefined;
-    if (ref) {
-      const already = await Order.findOne({ organizationId: session.organizationId, clientRef: ref });
-      if (already) {
-        return NextResponse.json({ success: true, duplicate: true, order: already }, { status: 200 });
-      }
-    }
+    const productIds = [...lines.keys()];
 
-    const org = await Organization.findById(session.organizationId);
-    const branch = await resolveBranch(session);
+    // These lookups do not depend on each other, so they share one round trip
+    const [already, org, branch, products] = await Promise.all([
+      ref ? Order.findOne({ organizationId: session.organizationId, clientRef: ref }) : null,
+      Organization.findById(session.organizationId),
+      resolveBranch(session),
+      Product.find({ _id: { $in: productIds }, organizationId: session.organizationId }),
+    ]);
+    if (already) {
+      return NextResponse.json({ success: true, duplicate: true, order: already }, { status: 200 });
+    }
     if (!org || !branch) {
       return NextResponse.json({ error: "No organization or branch found for this account." }, { status: 400 });
     }
 
     // ─── 3. Price every line from the database — never trust client prices ───
-    const productIds = [...lines.keys()];
-    const products = await Product.find({ _id: { $in: productIds }, organizationId: org._id });
     if (products.length !== productIds.length) {
       return NextResponse.json({ error: "One or more products were not found in this store" }, { status: 400 });
     }
@@ -186,11 +188,23 @@ export async function POST(req: Request) {
     }
 
     // ─── 6. Deduct stock (atomic per item, rolled back on any failure) ───
-    const processedItems = [];
-    for (const line of pricedLines) {
-      const fefo = await deductStockFEFO(org._id as any, line.product._id as any, branch._id as any, line.quantity);
-      deductions.push(fefo);
-      processedItems.push({
+    // Lines are different products, so their stock is reserved together. Every successful
+    // deduction is recorded before any error is raised, so the catch below can undo all of them.
+    const [settled, activeShift] = await Promise.all([
+      Promise.allSettled(
+        pricedLines.map((line) =>
+          deductStockFEFO(org._id as any, line.product._id as any, branch._id as any, line.quantity)
+        )
+      ),
+      CounterSession.findOne({ branchId: branch._id, status: "open" }).select("_id").lean(),
+    ]);
+    for (const r of settled) if (r.status === "fulfilled") deductions.push(r.value);
+    const failed = settled.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed) throw failed.reason;
+
+    const processedItems = pricedLines.map((line, i) => {
+      const fefo = (settled[i] as PromiseFulfilledResult<FEFODeductionResult>).value;
+      return {
         productId: line.product._id,
         productName: line.product.name,
         sku: line.product.sku,
@@ -201,10 +215,8 @@ export async function POST(req: Request) {
         total: line.total,
         batchNumber: fefo.primaryBatchNumber,
         refundedQuantity: 0,
-      });
-    }
-
-    const activeShift = await CounterSession.findOne({ branchId: branch._id, status: "open" });
+      };
+    });
 
     const newOrder = await Order.create({
       organizationId: org._id,
@@ -233,7 +245,7 @@ export async function POST(req: Request) {
     deductions.length = 0; // order persisted — stock changes are now final
 
     // ─── 7. Post to the general ledger (accounting plans only) ───
-    if (await isAccountingEnabled(org._id as any)) {
+    if (planHasAccounting(org.planTier)) {
       try {
         const entry = await postSalesOrderToLedger({
           organizationId: org._id as any,

@@ -33,7 +33,9 @@ export async function GET() {
     const transfers = await StockTransfer.find({ organizationId: session.organizationId })
       .populate("fromBranchId", "name code")
       .populate("toBranchId", "name code")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
 
     return NextResponse.json({ success: true, count: transfers.length, transfers });
   } catch (error: any) {

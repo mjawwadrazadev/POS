@@ -93,15 +93,19 @@ export default function StockTransferPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const trRes = await fetch("/api/inventory/transfers");
-      const trData = await trRes.json();
+      // Independent calls, so they load together
+      const [trData, brData, prodData] = await Promise.all(
+        ["/api/inventory/transfers", "/api/branches", "/api/products"].map((url) =>
+          fetch(url)
+            .then((r) => r.json())
+            .catch(() => ({}))
+        )
+      );
       if (trData.success && trData.transfers) {
         setTransfers(trData.transfers);
       }
 
       // This organization's real branches
-      const brRes = await fetch("/api/branches");
-      const brData = await brRes.json();
       if (brData.success && Array.isArray(brData.branches)) {
         const list: BranchOption[] = brData.branches.map((b: any) => ({ id: b._id, name: b.name, code: b.code }));
         setBranches(list);
@@ -109,8 +113,6 @@ export default function StockTransferPage() {
         setToBranch((prev) => prev || list[1]?.id || "");
       }
 
-      const prodRes = await fetch("/api/products");
-      const prodData = await prodRes.json();
       if (prodData.success && prodData.products) {
         setProducts(
           prodData.products.map((p: any) => ({

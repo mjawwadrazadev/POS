@@ -140,19 +140,23 @@ export async function getSession(): Promise<SessionPayload | null> {
       return payload;
     }
 
-    const user = await User.findById(payload.userId).select("isActive role organizationId").lean();
+    const isStoreUser = !isPlatformRole(payload.role);
+    if (isStoreUser && !payload.organizationId) return null;
+
+    // Both lookups run together: this check sits in front of every API call, so one round trip instead of two
+    const [user, org] = await Promise.all([
+      User.findById(payload.userId).select("isActive role organizationId").lean(),
+      isStoreUser
+        ? Organization.findById(payload.organizationId).select("subscriptionStatus planTier expiryDate taxRate").lean()
+        : null,
+    ]);
     if (!user || !user.isActive || user.role !== payload.role) return null;
 
-    if (isPlatformRole(payload.role)) {
+    if (!isStoreUser) {
       return payload;
     }
 
-    if (!payload.organizationId || user.organizationId.toString() !== payload.organizationId) return null;
-
-    const org = await Organization.findById(payload.organizationId)
-      .select("subscriptionStatus planTier expiryDate taxRate")
-      .lean();
-
+    if (user.organizationId.toString() !== payload.organizationId) return null;
     if (!org) return null;
 
     const isPastExpiry = org.expiryDate && new Date(org.expiryDate) < new Date();

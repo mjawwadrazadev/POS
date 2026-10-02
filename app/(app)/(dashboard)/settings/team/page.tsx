@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users, Building2, LayoutGrid, Plus, RefreshCw, CheckCircle2, AlertCircle, Trash2, KeyRound } from "lucide-react";
 import { PageActions } from "@/components/layout/PageActions";
+import { useSessionUser } from "@/components/layout/SessionContext";
 
 interface StaffUser {
   _id: string;
@@ -56,7 +57,7 @@ async function api(url: string, method = "GET", body?: unknown) {
 
 export default function TeamSettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
-  const [role, setRole] = useState<string>("");
+  const sessionRole: string = useSessionUser()?.role || "";
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [tables, setTables] = useState<TableRow[]>([]);
@@ -74,14 +75,12 @@ export default function TeamSettingsPage() {
   // New table form
   const [tableForm, setTableForm] = useState({ label: "", capacity: 4 });
 
-  const isAdmin = role === "admin";
+  const isAdmin = sessionRole === "admin";
 
   async function loadAll() {
     setLoading(true);
     try {
-      const me = await api("/api/auth/me");
-      setRole(me.user.role);
-      if (me.user.role === "admin") {
+      if (sessionRole === "admin") {
         api("/api/staff-reset-requests")
           .then((r) => setResetRequests(r.requests || []))
           .catch(() => setResetRequests([]));

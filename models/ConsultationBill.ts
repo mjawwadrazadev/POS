@@ -54,6 +54,7 @@ const ConsultationBillSchema: Schema<IConsultationBill> = new Schema(
 );
 
 ConsultationBillSchema.index({ organizationId: 1, doctorId: 1, createdAt: -1 });
+ConsultationBillSchema.index({ organizationId: 1, createdAt: -1 });
 
 export const ConsultationBill: Model<IConsultationBill> =
   mongoose.models.ConsultationBill ||

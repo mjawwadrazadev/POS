@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { resolveBranch } from "@/lib/tenant/resolveBranch";
 import { checkRateLimit, recordFailedAttempt, clearRateLimit } from "@/lib/security/rateLimiter";
 import { isValidPin } from "@/lib/utils/server";
+import { findUserByPin } from "@/lib/auth/pinUniqueness";
 
 export async function GET() {
   try {
@@ -15,7 +16,8 @@ export async function GET() {
 
     const attendanceLogs = await Attendance.find({ organizationId: session.organizationId })
       .sort({ clockIn: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
     return NextResponse.json({ success: true, count: attendanceLogs.length, attendanceLogs });
   } catch (error: any) {
     return NextResponse.json(
@@ -48,13 +50,7 @@ export async function POST(req: Request) {
       const rate = await checkRateLimit(rateKey, 10, 15 * 60 * 1000);
       if (!rate.success) return NextResponse.json({ error: "Too many invalid PIN attempts. Try again later." }, { status: 429 });
 
-      const tenantUsers = await User.find({ organizationId: session.organizationId, isActive: true }).select("+pin");
-      for (const u of tenantUsers) {
-        if (await u.comparePin(String(pin))) {
-          staff = u;
-          break;
-        }
-      }
+      staff = await findUserByPin(session.organizationId, String(pin));
       if (!staff) {
         await recordFailedAttempt(rateKey, 15 * 60 * 1000);
         return NextResponse.json({ error: "Invalid staff PIN" }, { status: 400 });

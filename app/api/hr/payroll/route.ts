@@ -19,7 +19,7 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden — salary data is restricted to Managers and Admins" }, { status: 403 });
     }
 
-    const payrolls = await PayrollRun.find({ organizationId: session.organizationId }).sort({ createdAt: -1 });
+    const payrolls = await PayrollRun.find({ organizationId: session.organizationId }).sort({ createdAt: -1 }).limit(36).lean();
     return NextResponse.json({ success: true, count: payrolls.length, payrolls });
   } catch (error: any) {
     return NextResponse.json(

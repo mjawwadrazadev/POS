@@ -125,8 +125,12 @@ const OrderSchema: Schema<IOrder> = new Schema(
 );
 
 OrderSchema.index({ organizationId: 1, branchId: 1, createdAt: -1 });
+// Order lists, the dashboard and sales reports filter by store and sort/range on date
+OrderSchema.index({ organizationId: 1, createdAt: -1 });
 OrderSchema.index({ organizationId: 1, orderNumber: 1 }, { unique: true });
 OrderSchema.index({ organizationId: 1, "fbr.status": 1 });
+// Shift cash-up totals every sale taken during one counter session
+OrderSchema.index({ counterSessionId: 1 }, { partialFilterExpression: { counterSessionId: { $exists: true } } });
 OrderSchema.index(
   { organizationId: 1, clientRef: 1 },
   { unique: true, partialFilterExpression: { clientRef: { $type: "string" } } }

@@ -6,6 +6,7 @@ import { checkRateLimit, recordFailedAttempt, clearRateLimit } from "@/lib/secur
 import { logAudit } from "@/lib/audit/logger";
 import { isValidPin } from "@/lib/utils/server";
 import { OVERRIDE_TOKEN_PURPOSE, OVERRIDE_TTL_SECONDS } from "@/lib/auth/override";
+import { findUserByPin } from "@/lib/auth/pinUniqueness";
 
 const WINDOW_MS = 15 * 60 * 1000;
 
@@ -30,19 +31,7 @@ export async function POST(req: Request) {
     }
 
     await dbConnect();
-    const approvers = await User.find({
-      organizationId: session.organizationId,
-      isActive: true,
-      role: { $in: ["admin", "manager"] },
-    }).select("+pin");
-
-    let approver = null;
-    for (const u of approvers) {
-      if (await u.comparePin(String(pin))) {
-        approver = u;
-        break;
-      }
-    }
+    const approver = await findUserByPin(session.organizationId, String(pin), { role: { $in: ["admin", "manager"] } });
 
     if (!approver) {
       await recordFailedAttempt(rateKey, WINDOW_MS);

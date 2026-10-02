@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { ProductImage } from "@/components/products/ProductImage";
 import { PageActions } from "@/components/layout/PageActions";
+import { useSessionUser } from "@/components/layout/SessionContext";
 
 type PaymentMethod = "cash" | "card" | "wallet" | "split";
 
@@ -97,18 +98,17 @@ export default function PosBillingPage() {
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
   const [offlineNotice, setOfflineNotice] = useState("");
 
+  // The layout already loaded the session; no need to ask the server again
+  const sessionUser = useSessionUser();
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.authenticated) return;
-        setTaxRate(Number(d.user.taxRate) || 0);
-        setUserRole(d.user.role);
-        setUserName(d.user.fullName || d.user.name || d.user.email);
-        setBranchLabel(d.user.branchName || d.user.organizationName || "");
-      })
-      .catch(() => {});
+    if (!sessionUser) return;
+    setTaxRate(Number(sessionUser.taxRate) || 0);
+    setUserRole(sessionUser.role);
+    setUserName(sessionUser.fullName || sessionUser.name || sessionUser.email);
+    setBranchLabel(sessionUser.branchName || sessionUser.organizationName || "");
+  }, [sessionUser, setTaxRate]);
 
+  useEffect(() => {
     fetch("/api/tables")
       .then((r) => r.json())
       .then((d) => {

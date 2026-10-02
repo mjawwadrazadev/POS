@@ -7,6 +7,7 @@ import { signToken, setSessionCookie, SessionPayload, isPlatformRole, isBlockedT
 import { checkRateLimit, recordFailedAttempt, clearRateLimit } from "@/lib/security/rateLimiter";
 import { logAudit } from "@/lib/audit/logger";
 import { getClientIp, isValidPin } from "@/lib/utils/server";
+import { findUserByPin } from "@/lib/auth/pinUniqueness";
 
 const WINDOW_MS = 15 * 60 * 1000;
 
@@ -86,18 +87,7 @@ export async function POST(req: Request) {
 
       const org = await Organization.findOne({ code: normalizedCode }).select("_id").lean();
       if (org) {
-        const storeUsers = await User.find({
-          organizationId: org._id,
-          isActive: true,
-          role: { $in: ["admin", "manager", "cashier"] },
-        }).select("+pin");
-
-        for (const u of storeUsers) {
-          if (await u.comparePin(String(pin))) {
-            user = u;
-            break;
-          }
-        }
+        user = await findUserByPin(org._id, String(pin), { role: { $in: ["admin", "manager", "cashier"] } });
       }
 
       if (!user) {

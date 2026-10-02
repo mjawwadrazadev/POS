@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     const query: any = { organizationId: session.organizationId };
     query.status = status && KOT_STATUSES.includes(status) ? status : { $ne: "served" };
 
-    const tickets = await KotTicket.find(query).sort({ createdAt: 1 });
+    const tickets = await KotTicket.find(query).sort({ createdAt: 1 }).limit(300).lean();
     return NextResponse.json({ success: true, count: tickets.length, tickets });
   } catch (error: any) {
     return NextResponse.json(

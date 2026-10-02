@@ -7,32 +7,24 @@ import {
 } from "lucide-react";
 import { PageActions } from "@/components/layout/PageActions";
 
-interface ConsultationBill {
-  _id: string;
-  receiptNumber: string;
-  perchiNumber: number;
-  doctorNameSnapshot: string;
-  doctorSpecializationSnapshot?: string;
-  visitType: string;
-  feeCharged: number;
-  patientName: string;
-  patientPhone?: string;
-  paymentMethod: string;
-  consultationTime: string;
-  createdAt: string;
+interface DoctorTotals {
+  name: string;
+  specialization: string;
+  consultationsCount: number;
+  totalRevenue: number;
 }
 
 export default function DoctorRevenueReportPage() {
-  const [bills, setBills] = useState<ConsultationBill[]>([]);
+  const [doctorTotals, setDoctorTotals] = useState<DoctorTotals[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function fetchConsultationBills() {
     setLoading(true);
     try {
-      const res = await fetch("/api/consultations");
+      const res = await fetch("/api/consultations?summary=doctor");
       const data = await res.json();
       if (data.success) {
-        setBills(data.bills);
+        setDoctorTotals(data.doctors);
       }
     } catch (err) {
       console.error("Failed to fetch consultation report", err);
@@ -45,27 +37,12 @@ export default function DoctorRevenueReportPage() {
     fetchConsultationBills();
   }, []);
 
-  // Doctor-wise Aggregates
-  const doctorSummary = bills.reduce((acc, bill) => {
-    const docName = bill.doctorNameSnapshot || "Unknown Doctor";
-    if (!acc[docName]) {
-      acc[docName] = {
-        name: docName,
-        specialization: bill.doctorSpecializationSnapshot || "Specialist",
-        consultationsCount: 0,
-        totalRevenue: 0,
-        hospitalCut: 0,
-        doctorPayout: 0,
-      };
-    }
-    acc[docName].consultationsCount += 1;
-    acc[docName].totalRevenue += bill.feeCharged;
-    acc[docName].hospitalCut += bill.feeCharged * 0.2; // 20% default hospital share
-    acc[docName].doctorPayout += bill.feeCharged * 0.8; // 80% default doctor share
-    return acc;
-  }, {} as Record<string, { name: string; specialization: string; consultationsCount: number; totalRevenue: number; hospitalCut: number; doctorPayout: number }>);
-
-  const doctorList = Object.values(doctorSummary);
+  // Hospital keeps 20% by default; the doctor is paid the other 80%
+  const doctorList = doctorTotals.map((d) => ({
+    ...d,
+    hospitalCut: d.totalRevenue * 0.2,
+    doctorPayout: d.totalRevenue * 0.8,
+  }));
   const grandTotalRevenue = doctorList.reduce((sum, d) => sum + d.totalRevenue, 0);
   const totalConsultations = doctorList.reduce((sum, d) => sum + d.consultationsCount, 0);
 

@@ -24,10 +24,15 @@ export function accountForMethod(method: string) {
   return ACCOUNTS.BANK; // card, card_reversal, wallet
 }
 
+/** Use when the organization is already loaded, to skip a second lookup. */
+export function planHasAccounting(planTier?: string): boolean {
+  return planTier === "billing_accounting";
+}
+
 export async function isAccountingEnabled(organizationId: Id): Promise<boolean> {
   await dbConnect();
   const org = await Organization.findById(organizationId).select("planTier").lean();
-  return org?.planTier === "billing_accounting";
+  return planHasAccounting(org?.planTier);
 }
 
 export interface PostJournalParams {

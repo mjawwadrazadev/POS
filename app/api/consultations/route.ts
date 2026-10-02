@@ -23,7 +23,40 @@ export async function GET(req: Request) {
     const doctorId = searchParams.get("doctorId");
     if (doctorId && mongoose.isValidObjectId(doctorId)) query.doctorId = doctorId;
 
-    const bills = await ConsultationBill.find(query).sort({ createdAt: -1 }).lean();
+    // Doctor-wise totals are added up in the database, so the report never downloads every bill
+    if (searchParams.get("summary") === "doctor") {
+      const doctors = await ConsultationBill.aggregate([
+        {
+          // Aggregation pipelines do not cast strings, so ids must be ObjectIds here
+          $match: {
+            organizationId: new mongoose.Types.ObjectId(session.organizationId),
+            ...(query.doctorId ? { doctorId: new mongoose.Types.ObjectId(String(query.doctorId)) } : {}),
+          },
+        },
+        {
+          $group: {
+            _id: { $ifNull: ["$doctorNameSnapshot", "Unknown Doctor"] },
+            specialization: { $first: "$doctorSpecializationSnapshot" },
+            consultationsCount: { $sum: 1 },
+            totalRevenue: { $sum: "$feeCharged" },
+          },
+        },
+        { $sort: { totalRevenue: -1 } },
+      ]);
+      return NextResponse.json({
+        success: true,
+        doctors: doctors.map((d) => ({
+          name: d._id,
+          specialization: d.specialization || "Specialist",
+          consultationsCount: d.consultationsCount,
+          totalRevenue: d.totalRevenue,
+        })),
+      });
+    }
+
+    // Newest bills only; the history grows without end
+    const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 200, 1), 1000);
+    const bills = await ConsultationBill.find(query).sort({ createdAt: -1 }).limit(limit).lean();
 
     return NextResponse.json({
       success: true,

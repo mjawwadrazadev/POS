@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import bcrypt from "bcryptjs";
+import { pinLookupFor, pinLookupKeyId } from "@/lib/auth/pinLookup";
 
 export type UserRole =
   | "super_admin"
@@ -17,6 +18,8 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   pin: string; // 4-digit cashier quick switch pin (hashed)
+  pinLookup?: string; // keyed HMAC of (store, PIN) so PIN login finds the user with one indexed query
+  pinLookupKeyId?: string;
   role: UserRole;
   isActive: boolean;
   baseSalary?: number; // monthly base salary used by payroll
@@ -41,6 +44,8 @@ const UserSchema: Schema<IUser> = new Schema(
     email: { type: String, required: true, lowercase: true, trim: true },
     password: { type: String, select: false }, // Hashed password, excluded from queries by default
     pin: { type: String, required: true, select: false }, // Hashed 4-digit PIN, excluded by default
+    pinLookup: { type: String, select: false },
+    pinLookupKeyId: { type: String, select: false },
     role: { type: String, enum: ["super_admin", "platform_admin", "platform_support", "platform_agent", "admin", "manager", "cashier"], default: "cashier" },
     isActive: { type: Boolean, default: true },
     baseSalary: { type: Number, min: 0 },
@@ -55,6 +60,7 @@ const UserSchema: Schema<IUser> = new Schema(
 
 // Email is the global login identifier, so it must be unique across the whole platform
 UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ organizationId: 1, pinLookup: 1 });
 
 // Pre-save hook to hash password and PIN
 UserSchema.pre("save", async function (next) {
@@ -66,6 +72,9 @@ UserSchema.pre("save", async function (next) {
 
   if (this.isModified("pin") && this.pin) {
     if (!this.pin.startsWith("$2a$") && !this.pin.startsWith("$2b$")) {
+      // The plain PIN is only available here, before hashing
+      this.pinLookup = pinLookupFor(this.organizationId, this.pin);
+      this.pinLookupKeyId = pinLookupKeyId();
       this.pin = await bcrypt.hash(this.pin, 10);
     }
   }

@@ -44,21 +44,6 @@ export async function GET(req: Request) {
       matchQuery.branchId = new mongoose.Types.ObjectId(branchId);
     }
 
-    // Aggregation pipeline for totals
-    const salesStats = await Order.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: null,
-          totalOrders: { $sum: 1 },
-          totalSubtotal: { $sum: "$subtotal" },
-          totalTax: { $sum: "$taxAmount" },
-          totalDiscounts: { $sum: "$discountTotal" },
-          totalRevenue: { $sum: "$grandTotal" },
-        },
-      },
-    ]);
-
     // Cost of goods sold from the per-item cost snapshot
     const cogsExpr = {
       $sum: {
@@ -68,40 +53,6 @@ export async function GET(req: Request) {
         },
       },
     };
-    const cogsStats = await Order.aggregate([
-      { $match: matchQuery },
-      { $group: { _id: null, totalCogs: { $sum: cogsExpr } } },
-    ]);
-
-    // Monthly breakdown pipeline (for previous month / previous year analysis)
-    const monthlyBreakdown = await Order.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          monthlyCogs: { $sum: cogsExpr },
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
-          },
-          ordersCount: { $sum: 1 },
-          monthlyRevenue: { $sum: "$grandTotal" },
-          monthlyTax: { $sum: "$taxAmount" },
-        },
-      },
-      { $sort: { "_id.year": -1, "_id.month": -1 } },
-    ]);
-
-    // Order Types breakdown (Bakery, Restaurant Dine-in, Takeaway, Prescription, Retail)
-    const typeBreakdown = await Order.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: "$orderType",
-          count: { $sum: 1 },
-          revenue: { $sum: "$grandTotal" },
-        },
-      },
-    ]);
 
     const refundMatch: any = {
       organizationId: orgObjectId,
@@ -109,10 +60,66 @@ export async function GET(req: Request) {
       updatedAt: { $gte: startDate, $lte: endDate },
     };
     if (matchQuery.branchId) refundMatch.branchId = matchQuery.branchId;
-    const refundStats = await Refund.aggregate([
-      { $match: refundMatch },
-      { $group: { _id: null, totalRefunds: { $sum: "$totalRefundAmount" }, refundTax: { $sum: "$taxAmount" }, count: { $sum: 1 } } },
+
+    // One pass over the orders for every breakdown, alongside the refunds query
+    const [[facets], refundStats] = await Promise.all([
+      Order.aggregate([
+        { $match: matchQuery },
+        {
+          $facet: {
+            totals: [
+              {
+                $group: {
+                  _id: null,
+                  totalOrders: { $sum: 1 },
+                  totalSubtotal: { $sum: "$subtotal" },
+                  totalTax: { $sum: "$taxAmount" },
+                  totalDiscounts: { $sum: "$discountTotal" },
+                  totalRevenue: { $sum: "$grandTotal" },
+                  totalCogs: { $sum: cogsExpr },
+                },
+              },
+            ],
+            // Monthly breakdown (for previous month / previous year analysis)
+            monthly: [
+              {
+                $group: {
+                  monthlyCogs: { $sum: cogsExpr },
+                  _id: {
+                    year: { $year: "$createdAt" },
+                    month: { $month: "$createdAt" },
+                  },
+                  ordersCount: { $sum: 1 },
+                  monthlyRevenue: { $sum: "$grandTotal" },
+                  monthlyTax: { $sum: "$taxAmount" },
+                },
+              },
+              { $sort: { "_id.year": -1, "_id.month": -1 } },
+            ],
+            // Order Types breakdown (Bakery, Restaurant Dine-in, Takeaway, Prescription, Retail)
+            types: [
+              {
+                $group: {
+                  _id: "$orderType",
+                  count: { $sum: 1 },
+                  revenue: { $sum: "$grandTotal" },
+                },
+              },
+            ],
+          },
+        },
+      ]),
+      Refund.aggregate([
+        { $match: refundMatch },
+        { $group: { _id: null, totalRefunds: { $sum: "$totalRefundAmount" }, refundTax: { $sum: "$taxAmount" }, count: { $sum: 1 } } },
+      ]),
     ]);
+
+    const { totalCogs = 0, ...salesTotals } = facets.totals[0] || {};
+    const salesStats = facets.totals.length ? [salesTotals] : [];
+    const cogsStats = [{ totalCogs }];
+    const monthlyBreakdown = facets.monthly;
+    const typeBreakdown = facets.types;
 
     const base = salesStats[0] || {
       totalOrders: 0,

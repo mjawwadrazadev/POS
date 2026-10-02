@@ -38,6 +38,8 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
 );
 
 AttendanceSchema.index({ organizationId: 1, branchId: 1, date: -1 });
+// The attendance log lists the latest clock-ins for the whole store
+AttendanceSchema.index({ organizationId: 1, clockIn: -1 });
 
 export const Attendance: Model<IAttendance> =
   mongoose.models.Attendance || mongoose.model<IAttendance>("Attendance", AttendanceSchema);

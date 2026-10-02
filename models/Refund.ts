@@ -71,5 +71,8 @@ const RefundSchema: Schema<IRefund> = new Schema(
   { timestamps: true }
 );
 
+// Sales reports subtract refunds completed within the date range
+RefundSchema.index({ organizationId: 1, status: 1, updatedAt: -1 });
+
 export const Refund: Model<IRefund> =
   mongoose.models.Refund || mongoose.model<IRefund>("Refund", RefundSchema);

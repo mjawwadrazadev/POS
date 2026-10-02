@@ -40,6 +40,11 @@ export async function dbConnect() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      // Each serverless instance keeps its own pool; a small one stops many instances together
+      // from using up the cluster's connection limit
+      maxPoolSize: 10,
+      // Fail fast with a clear error instead of hanging the request for 30 seconds
+      serverSelectionTimeoutMS: 8000,
     };
 
     cached.uri = uri;

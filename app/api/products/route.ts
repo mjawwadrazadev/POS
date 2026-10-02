@@ -37,7 +37,14 @@ export async function GET(req: Request) {
       query.category = String(category);
     }
 
-    const products = await Product.find(query).sort({ updatedAt: -1 }).limit(1000);
+    // Dashboards only need how many items are running low, not the items themselves
+    const lowStockBelow = Number(searchParams.get("lowStockBelow"));
+    if (Number.isFinite(lowStockBelow) && lowStockBelow > 0) {
+      const lowStockCount = await Product.countDocuments({ ...query, stock: { $lt: lowStockBelow } });
+      return NextResponse.json({ success: true, lowStockCount });
+    }
+
+    const products = await Product.find(query).sort({ updatedAt: -1 }).limit(1000).lean();
     return NextResponse.json({ success: true, count: products.length, products });
   } catch (error: any) {
     return NextResponse.json(

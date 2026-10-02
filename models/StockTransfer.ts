@@ -73,6 +73,7 @@ const StockTransferSchema: Schema<IStockTransfer> = new Schema(
 );
 
 StockTransferSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
+StockTransferSchema.index({ organizationId: 1, createdAt: -1 });
 
 export const StockTransfer: Model<IStockTransfer> =
   mongoose.models.StockTransfer || mongoose.model<IStockTransfer>("StockTransfer", StockTransferSchema);

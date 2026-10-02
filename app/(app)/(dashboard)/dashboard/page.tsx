@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { isPlatformRole } from "@/lib/auth/permissions";
+import { useSessionUser } from "@/components/layout/SessionContext";
 import {
   DollarSign,
   TrendingUp,
@@ -30,7 +31,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [userSession, setUserSession] = useState<any | null>(null);
+  const userSession = useSessionUser();
   const [stats, setStats] = useState({
     todayRevenue: 0,
     totalOrders: 0,
@@ -39,28 +40,33 @@ export default function DashboardPage() {
   });
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
 
+  const isPlatformStaff = isPlatformRole(userSession?.role) && !userSession?.isImpersonating;
+
   useEffect(() => {
+    // Super Admin on the store dashboard goes to the Tenant Command Center
+    if (isPlatformStaff) {
+      router.replace("/super-admin");
+      return;
+    }
+
     async function loadDashboardData() {
+      // The three calls are independent, so they go out together instead of one after another
+      const getJson = (url: string) =>
+        fetch(url)
+          .then((r) => r.json())
+          .catch(() => null);
+
       try {
-        // 1. Fetch Auth Session
-        const authRes = await fetch("/api/auth/me");
-        const authData = await authRes.json();
+        // "Today" starts at local midnight; the report defaults to 30 days otherwise
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const [summaryData, ordersData, prodData] = await Promise.all([
+          getJson(`/api/reports/sales-summary?startDate=${encodeURIComponent(todayStart.toISOString())}`),
+          getJson("/api/orders?limit=5"),
+          getJson("/api/products?lowStockBelow=10"),
+        ]);
 
-        if (authData.authenticated && authData.user) {
-          setUserSession(authData.user);
-
-          // If Super Admin accesses main dashboard, redirect to Tenant Command Center
-          if (isPlatformRole(authData.user.role) && !authData.user.isImpersonating) {
-            router.replace("/super-admin");
-            return;
-          }
-        }
-
-        // 2. Fetch Live Sales Summary
-        const summaryRes = await fetch("/api/reports/sales-summary");
-        const summaryData = await summaryRes.json();
-
-        if (summaryData.success && summaryData.summary) {
+        if (summaryData?.success && summaryData.summary) {
           setStats((prev) => ({
             ...prev,
             todayRevenue: summaryData.summary.netRevenue ?? summaryData.summary.totalRevenue ?? 0,
@@ -68,11 +74,7 @@ export default function DashboardPage() {
           }));
         }
 
-        // 3. Fetch Live Orders
-        const ordersRes = await fetch("/api/orders");
-        const ordersData = await ordersRes.json();
-
-        if (ordersData.success && Array.isArray(ordersData.orders)) {
+        if (ordersData?.success && Array.isArray(ordersData.orders)) {
           setRecentTransactions(
             ordersData.orders.slice(0, 5).map((o: any) => ({
               id: o._id,
@@ -89,13 +91,8 @@ export default function DashboardPage() {
           );
         }
 
-        // 4. Fetch Products to calculate low stock count
-        const prodRes = await fetch("/api/products");
-        const prodData = await prodRes.json();
-
-        if (prodData.success && Array.isArray(prodData.products)) {
-          const lowStock = prodData.products.filter((p: any) => (p.stock || 0) < 10).length;
-          setStats((prev) => ({ ...prev, lowStockCount: lowStock }));
+        if (prodData?.success && typeof prodData.lowStockCount === "number") {
+          setStats((prev) => ({ ...prev, lowStockCount: prodData.lowStockCount }));
         }
       } catch (err) {
         console.error("Failed to load dashboard statistics:", err);
@@ -105,7 +102,7 @@ export default function DashboardPage() {
     }
 
     loadDashboardData();
-  }, [router]);
+  }, [isPlatformStaff, router]);
 
   if (loading) {
     return (
@@ -149,7 +146,7 @@ export default function DashboardPage() {
         {/* Stat 2: Total Orders */}
         <div className="stat-card">
           <div className="flex items-center justify-between">
-            <span className="stat-card__label">Total Orders</span>
+            <span className="stat-card__label">Orders Today</span>
             <div className="w-10 h-10 bg-accent-subtle text-accent flex items-center justify-center">
               <ShoppingBag className="w-5 h-5" />
             </div>

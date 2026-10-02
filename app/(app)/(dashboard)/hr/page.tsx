@@ -71,19 +71,16 @@ export default function HrPayrollPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const attRes = await fetch("/api/hr/attendance");
-      const attData = await attRes.json();
+      // Payroll figures are for managers only; cashiers just use the clock-in terminal
+      const [attData, payData] = await Promise.all([
+        fetch("/api/hr/attendance").then((r) => r.json()),
+        canManagePayroll ? fetch("/api/hr/payroll").then((r) => r.json()) : null,
+      ]);
       if (attData.success && attData.attendanceLogs) {
         setAttendanceList(attData.attendanceLogs);
       }
-
-      // Payroll figures are for managers only; cashiers just use the clock-in terminal
-      if (canManagePayroll) {
-        const payRes = await fetch("/api/hr/payroll");
-        const payData = await payRes.json();
-        if (payData.success && payData.payrolls) {
-          setPayrollList(payData.payrolls);
-        }
+      if (payData?.success && payData.payrolls) {
+        setPayrollList(payData.payrolls);
       }
     } catch (err) {
       console.error("Failed to load HR data", err);

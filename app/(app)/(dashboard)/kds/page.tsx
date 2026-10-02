@@ -75,11 +75,20 @@ export default function KitchenDisplaySystemPage() {
 
   useEffect(() => {
     fetchTickets();
-    const poll = setInterval(fetchTickets, 10000); // Auto-refresh KDS every 10 seconds
+    // Auto-refresh every 10 seconds while the board is on screen; a hidden tab skips polls
+    // and catches up the moment it is shown again
+    const poll = setInterval(() => {
+      if (document.visibilityState === "visible") fetchTickets();
+    }, 10000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchTickets();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     const clock = setInterval(() => setNow(Date.now()), 30000); // Keep ticket timers moving between polls
     return () => {
       clearInterval(poll);
       clearInterval(clock);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
