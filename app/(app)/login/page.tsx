@@ -15,6 +15,8 @@ import {
   Sparkles,
   CheckCircle2,
   Store,
+  Delete,
+  Loader2,
 } from "lucide-react";
 
 // A terminal is set up for one store; its code is remembered on this device
@@ -39,14 +41,24 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // The 4th digit signs in straight away, so the keypad has no Enter key
   function handlePinPress(num: string) {
-    if (pin.length < 4) {
-      const nextPin = pin + num;
-      setPin(nextPin);
-      if (nextPin.length === 4 && orgCode.trim()) {
-        submitLogin({ pin: nextPin, orgCode: orgCode.trim() });
-      }
+    if (loading || pin.length >= 4) return;
+    const nextPin = pin + num;
+    if (nextPin.length === 4 && !orgCode.trim()) {
+      setPin("");
+      setError("Enter your store code first");
+      return;
     }
+    setPin(nextPin);
+    setError("");
+    if (nextPin.length === 4) {
+      submitLogin({ pin: nextPin, orgCode: orgCode.trim() });
+    }
+  }
+
+  function handlePinBackspace() {
+    setPin((p) => p.slice(0, -1));
   }
 
   function handlePinClear() {
@@ -89,7 +101,6 @@ export default function LoginPage() {
     } catch (err: any) {
       setError(err.message || "Invalid PIN or credentials");
       setPin("");
-    } finally {
       setLoading(false);
     }
   }
@@ -253,10 +264,15 @@ export default function LoginPage() {
               </div>
 
               <div className="text-center space-y-3 bg-[#0b0b0d] border border-[rgba(255,255,255,0.08)] py-4">
-                <p className="text-[1.2rem] font-accent uppercase text-[rgba(255,255,255,0.6)]">
-                  Enter 4-Digit Terminal PIN
+                <p className="text-[1.2rem] font-accent uppercase text-[rgba(255,255,255,0.6)]" aria-live="polite">
+                  {loading ? "Verifying PIN..." : "Enter 4-Digit Terminal PIN"}
                 </p>
-                {/* PIN Dots */}
+                {/* PIN Dots, swapped for a spinner while the PIN is checked */}
+                {loading ? (
+                  <div className="flex justify-center py-1">
+                    <Loader2 className="w-7 h-7 text-[#819ffe] animate-spin" aria-label="Signing in" />
+                  </div>
+                ) : (
                 <div className="flex justify-center gap-5 py-1">
                   {[0, 1, 2, 3].map((idx) => (
                     <div
@@ -269,6 +285,7 @@ export default function LoginPage() {
                     />
                   ))}
                 </div>
+                )}
               </div>
 
               {/* Keypad Grid */}
@@ -287,7 +304,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handlePinClear}
-                  className="py-4 bg-[#0b0b0d] border border-[rgba(255,255,255,0.12)] text-red-400 text-[1.3rem] font-bold uppercase hover:bg-red-500/20"
+                  disabled={loading}
+                  className="py-4 bg-[#0b0b0d] border border-[rgba(255,255,255,0.12)] text-red-400 text-[1.3rem] font-bold uppercase hover:bg-red-500/20 disabled:opacity-40"
                 >
                   Clear
                 </button>
@@ -301,11 +319,12 @@ export default function LoginPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => submitLogin({ pin, orgCode: orgCode.trim() })}
-                  disabled={pin.length !== 4 || !orgCode.trim() || loading}
-                  className="py-4 bg-[#002bba] hover:bg-[#0035e0] text-white text-[1.3rem] font-bold uppercase disabled:opacity-40 transition-colors"
+                  onClick={handlePinBackspace}
+                  disabled={loading || pin.length === 0}
+                  aria-label="Delete last digit"
+                  className="py-4 flex items-center justify-center bg-[#0b0b0d] border border-[rgba(255,255,255,0.12)] text-white hover:bg-[#002bba] hover:border-[#819ffe] disabled:opacity-40 disabled:hover:bg-[#0b0b0d] disabled:hover:border-[rgba(255,255,255,0.12)] transition-colors"
                 >
-                  Enter
+                  <Delete className="w-6 h-6" />
                 </button>
               </div>
             </div>
@@ -362,8 +381,9 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-[#002bba] hover:bg-[#0035e0] text-white py-4 font-accent text-[1.4rem] font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors disabled:opacity-50 mt-4"
               >
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
                 <span>{loading ? "Authenticating..." : "Sign In to Terminal"}</span>
-                <ArrowRight className="w-5 h-5" />
+                {!loading && <ArrowRight className="w-5 h-5" />}
               </button>
             </form>
           )}
