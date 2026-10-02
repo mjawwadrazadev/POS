@@ -8,6 +8,18 @@ const STRING_FIELDS = [
 const NUMBER_FIELDS = ["price", "costPrice", "warrantyMonths", "preparationTime", "weightGrams"] as const;
 const DATE_FIELDS = ["expiryDate", "bakedDate"] as const;
 
+// Product photos are resized in the browser before upload, so a few hundred KB is plenty
+const MAX_IMAGE_LENGTH = 400_000;
+const IMAGE_PATTERN = /^(https:\/\/\S+|\/(?!\/)\S*|data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+)$/;
+
+function sanitizeImageUrl(value: unknown): { value?: string; error?: string } {
+  const url = String(value ?? "").trim();
+  if (!url) return { value: "" };
+  if (url.length > MAX_IMAGE_LENGTH) return { error: "Product image is too large" };
+  if (!IMAGE_PATTERN.test(url)) return { error: "Product image must be an https link or an uploaded photo" };
+  return { value: url };
+}
+
 export function sanitizeProductInput(body: any, { partial }: { partial: boolean }): { data: Record<string, any>; error?: string } {
   const data: Record<string, any> = {};
 
@@ -32,6 +44,11 @@ export function sanitizeProductInput(body: any, { partial }: { partial: boolean 
     data[f] = d;
   }
   if (body.isPerishable !== undefined) data.isPerishable = !!body.isPerishable;
+  if (body.imageUrl !== undefined) {
+    const image = sanitizeImageUrl(body.imageUrl);
+    if (image.error) return { data, error: image.error };
+    data.imageUrl = image.value;
+  }
   // HS / PCT code reported to FBR — optional, but must look like a code when given
   if (data.hsCode && !/^\d{4}(\.?\d{2,6})?$/.test(data.hsCode)) {
     return { data, error: "HS code must look like 2106.9090" };

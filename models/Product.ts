@@ -26,6 +26,7 @@ export interface IProduct extends Document {
   weightGrams?: number;
   flavour?: string;
   isPerishable?: boolean;
+  imageUrl?: string; // https URL, site path, or a small base64 photo uploaded from the product form
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +58,7 @@ const ProductSchema: Schema<IProduct> = new Schema(
     weightGrams: { type: Number },
     flavour: { type: String },
     isPerishable: { type: Boolean, default: false },
+    imageUrl: { type: String },
   },
   { timestamps: true }
 );

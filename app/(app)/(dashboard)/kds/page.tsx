@@ -8,6 +8,10 @@ import {
   ChefHat,
   Bell,
   Check,
+  Armchair,
+  ShoppingBag,
+  Utensils,
+  Inbox,
 } from "lucide-react";
 
 interface KotItem {
@@ -29,16 +33,53 @@ interface KotTicketRecord {
   createdAt: string;
 }
 
+type ActiveStatus = "queued" | "preparing" | "ready";
+
+const COLUMNS: {
+  status: ActiveStatus;
+  title: string;
+  hint: string;
+  accent: string;
+  dot: string;
+}[] = [
+  { status: "queued", title: "New", hint: "Waiting to start", accent: "border-t-amber-500", dot: "bg-amber-500" },
+  { status: "preparing", title: "Preparing", hint: "On the stove", accent: "border-t-blue-600", dot: "bg-blue-600" },
+  { status: "ready", title: "Ready", hint: "Waiting for pickup", accent: "border-t-emerald-600", dot: "bg-emerald-600" },
+];
+
+const NEXT_ACTION: Record<ActiveStatus, { to: "preparing" | "ready" | "served"; label: string; icon: React.ReactNode; className: string }> = {
+  queued: { to: "preparing", label: "Start preparing", icon: <Flame className="w-5 h-5" />, className: "bg-blue-600 hover:bg-blue-500 text-white" },
+  preparing: { to: "ready", label: "Mark ready", icon: <Bell className="w-5 h-5" />, className: "bg-emerald-600 hover:bg-emerald-500 text-white" },
+  ready: { to: "served", label: "Served", icon: <Check className="w-5 h-5" />, className: "bg-base-opp text-[var(--t-opp-bright)] hover:opacity-90" },
+};
+
+const STATIONS = ["All", "Mains", "Grill", "Drinks", "Bakery"];
+
+function elapsedMinutes(createdAt: string, now: number) {
+  return Math.max(0, Math.floor((now - new Date(createdAt).getTime()) / 60000));
+}
+
+function timerStyle(mins: number) {
+  if (mins >= 15) return "bg-rose-600 text-white animate-pulse";
+  if (mins >= 10) return "bg-amber-400 text-black";
+  return "bg-base-tint text-medium border border-stroke-muted";
+}
+
 export default function KitchenDisplaySystemPage() {
   const [tickets, setTickets] = useState<KotTicketRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState("All");
-  const [actionLoading, setActionLoading] = useState(false);
+  const [busyTicket, setBusyTicket] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     fetchTickets();
-    const timer = setInterval(fetchTickets, 10000); // Auto-refresh KDS every 10 seconds
-    return () => clearInterval(timer);
+    const poll = setInterval(fetchTickets, 10000); // Auto-refresh KDS every 10 seconds
+    const clock = setInterval(() => setNow(Date.now()), 30000); // Keep ticket timers moving between polls
+    return () => {
+      clearInterval(poll);
+      clearInterval(clock);
+    };
   }, []);
 
   const fetchTickets = async () => {
@@ -47,6 +88,7 @@ export default function KitchenDisplaySystemPage() {
       const data = await res.json();
       if (data.success && data.tickets) {
         setTickets(data.tickets);
+        setNow(Date.now());
       }
     } catch (err) {
       console.error("Failed to fetch KDS tickets", err);
@@ -56,7 +98,7 @@ export default function KitchenDisplaySystemPage() {
   };
 
   const handleUpdateStatus = async (ticketId: string, newStatus: "preparing" | "ready" | "served") => {
-    setActionLoading(true);
+    setBusyTicket(ticketId);
     try {
       const res = await fetch("/api/kot", {
         method: "PATCH",
@@ -66,187 +108,153 @@ export default function KitchenDisplaySystemPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update status");
 
-      fetchTickets();
+      await fetchTickets();
     } catch (err: any) {
       alert(err.message);
     } finally {
-      setActionLoading(false);
+      setBusyTicket(null);
     }
   };
-
-  const getElapsedTimeMins = (createdAtStr: string) => {
-    const created = new Date(createdAtStr).getTime();
-    const now = new Date().getTime();
-    return Math.floor((now - created) / 60000);
-  };
-
-  const stations = ["All", "Mains", "Grill", "Drinks", "Bakery"];
 
   const filteredTickets = tickets.filter((t) => {
     if (selectedStation === "All") return true;
     return t.items.some((i) => (i.station || "mains").toLowerCase() === selectedStation.toLowerCase());
   });
 
+  const lateCount = filteredTickets.filter((t) => t.status !== "ready" && elapsedMinutes(t.createdAt, now) >= 15).length;
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* KDS Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#0b0b0d] border border-orange-500/40 p-6 text-white shadow-xl">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-orange-400 uppercase tracking-widest mb-1">
-            <ChefHat className="w-4 h-4" /> Real-time Kitchen Operations
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-12.8rem)]">
+      {/* Header */}
+      <div className="bg-base-bright border border-stroke-muted px-5 py-4 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-[4.4rem] h-[4.4rem] flex items-center justify-center bg-orange-500/10 text-orange-600 border border-orange-500/30">
+            <ChefHat className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-bold font-mono tracking-tight text-white flex items-center gap-2">
-            Kitchen Display System (KDS)
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Live order tickets dispatch, station preparation status, and order ready alerts.
-          </p>
+          <div>
+            <h1 className="text-[2rem] font-extrabold text-bright leading-tight">Kitchen Display</h1>
+            <p className="text-[1.3rem] text-muted">
+              {filteredTickets.length} active ticket{filteredTickets.length === 1 ? "" : "s"}
+              {lateCount > 0 && <span className="text-rose-600 font-semibold"> · {lateCount} running late</span>}
+              <span className="hidden sm:inline"> · updates every 10 seconds</span>
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex bg-gray-900 border border-gray-800 p-1 font-mono text-xs">
-            {stations.map((s) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex bg-base-tint border border-stroke-muted p-1">
+            {STATIONS.map((s) => (
               <button
                 key={s}
                 onClick={() => setSelectedStation(s)}
-                className={`px-3 py-1 font-bold uppercase transition ${
-                  selectedStation === s ? "bg-orange-600 text-white" : "text-gray-400 hover:text-white"
+                className={`px-3.5 py-2 text-[1.3rem] font-semibold transition-colors ${
+                  selectedStation === s ? "bg-orange-600 text-white" : "text-medium hover:text-bright"
                 }`}
               >
                 {s}
               </button>
             ))}
           </div>
-          <button
-            onClick={fetchTickets}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-mono px-3 py-2 border border-gray-700 transition"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <button onClick={fetchTickets} className="btn btn-secondary py-2.5 px-3.5 text-[1.2rem]" title="Refresh now">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Active KDS Ticket Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredTickets.length === 0 ? (
-          <div className="col-span-full bg-[#0b0b0d] border border-gray-800 p-12 text-center text-gray-500 font-mono text-sm space-y-2">
-            <ChefHat className="w-10 h-10 mx-auto text-gray-700" />
-            <p>No active kitchen tickets. New restaurant orders will appear here automatically.</p>
-          </div>
-        ) : (
-          filteredTickets.map((ticket) => {
-            const elapsed = getElapsedTimeMins(ticket.createdAt);
-            const isLate = elapsed > 15;
-
-            return (
-              <div
-                key={ticket._id}
-                className={`bg-[#0b0b0d] border flex flex-col justify-between overflow-hidden shadow-xl font-mono text-xs ${
-                  ticket.status === "queued"
-                    ? "border-amber-500/50"
-                    : ticket.status === "preparing"
-                    ? "border-blue-500/60"
-                    : "border-emerald-500/60"
-                }`}
-              >
-                {/* Ticket Top Header */}
-                <div
-                  className={`px-4 py-3 border-b flex justify-between items-center ${
-                    ticket.status === "queued"
-                      ? "bg-amber-950/40 border-amber-500/30 text-amber-300"
-                      : ticket.status === "preparing"
-                      ? "bg-blue-950/40 border-blue-500/30 text-blue-300"
-                      : "bg-emerald-950/40 border-emerald-500/30 text-emerald-300"
-                  }`}
-                >
-                  <div>
-                    <span className="font-extrabold text-sm text-white">{ticket.orderNumber}</span>
-                    <span className="ml-2 text-[10px] uppercase font-bold text-gray-400">
-                      ({ticket.orderType.replace("_", " ")})
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {ticket.tableNumber && (
-                      <span className="bg-gray-900 border border-gray-700 px-2 py-0.5 font-bold text-white text-[11px]">
-                        {ticket.tableNumber}
-                      </span>
-                    )}
-                    <span
-                      className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 border ${
-                        isLate
-                          ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse"
-                          : "bg-gray-900 text-gray-300 border-gray-700"
-                      }`}
-                    >
-                      <Clock className="w-3 h-3" /> {elapsed}m ago
-                    </span>
-                  </div>
+      {/* Board */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+        {COLUMNS.map((col) => {
+          const colTickets = filteredTickets.filter((t) => t.status === col.status);
+          return (
+            <section
+              key={col.status}
+              className={`flex flex-col min-h-[30rem] lg:min-h-0 bg-base-tint border border-stroke-muted border-t-4 ${col.accent}`}
+            >
+              <header className="flex items-center justify-between px-4 py-3 border-b border-stroke-muted bg-base-bright flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className={`avatar-round w-2.5 h-2.5 ${col.dot}`} />
+                  <h2 className="text-[1.6rem] font-bold text-bright">{col.title}</h2>
+                  <span className="text-[1.25rem] text-muted">{col.hint}</span>
                 </div>
+                <span className="min-w-[2.8rem] text-center px-2 py-0.5 bg-base-tint border border-stroke-muted text-[1.3rem] font-bold text-bright">
+                  {colTickets.length}
+                </span>
+              </header>
 
-                {/* Ticket Items List */}
-                <div className="p-4 flex-1 space-y-3 divide-y divide-gray-800/80">
-                  {ticket.items.map((item, idx) => (
-                    <div key={idx} className="pt-2 first:pt-0 flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-base text-orange-400">
-                            {item.quantity}x
-                          </span>
-                          <span className="font-bold text-white text-sm">{item.productName}</span>
-                        </div>
-                        {item.notes && (
-                          <div className="text-[11px] text-amber-400 italic mt-0.5">
-                            Note: {item.notes}
+              <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar p-3 space-y-3">
+                {colTickets.length === 0 ? (
+                  <div className="h-full min-h-[16rem] flex flex-col items-center justify-center gap-2 text-center text-muted">
+                    <Inbox className="w-8 h-8 text-stroke-medium" />
+                    <p className="text-[1.3rem]">
+                      {col.status === "queued" ? "New kitchen orders from the POS land here." : "Nothing here right now."}
+                    </p>
+                  </div>
+                ) : (
+                  colTickets.map((ticket) => {
+                    const mins = elapsedMinutes(ticket.createdAt, now);
+                    const action = NEXT_ACTION[col.status];
+                    const isDineIn = ticket.orderType === "dine_in";
+                    return (
+                      <article key={ticket._id} className="bg-base-bright border border-stroke-muted shadow-sm">
+                        <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[1.7rem] font-extrabold text-bright">#{ticket.orderNumber}</span>
+                              {ticket.priority === "rush" && (
+                                <span className="px-1.5 py-0.5 text-[1rem] font-bold bg-rose-600 text-white uppercase">Rush</span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[1.2rem] text-medium">
+                              <span className="inline-flex items-center gap-1 capitalize">
+                                {isDineIn ? <Utensils className="w-3.5 h-3.5" /> : <ShoppingBag className="w-3.5 h-3.5" />}
+                                {ticket.orderType.replace("_", " ")}
+                              </span>
+                              {ticket.tableNumber && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-accent text-white font-bold">
+                                  <Armchair className="w-3.5 h-3.5" /> {ticket.tableNumber}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                      <span className="text-[10px] uppercase text-gray-500 bg-gray-900 border border-gray-800 px-1.5 py-0.5">
-                        {item.station || "Mains"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-[1.25rem] font-bold flex-shrink-0 ${timerStyle(mins)}`}>
+                            <Clock className="w-3.5 h-3.5" /> {mins}m
+                          </span>
+                        </div>
 
-                {/* Status Bar & Action Footer */}
-                <div className="p-3 bg-gray-900 border-t border-gray-800 flex items-center justify-between">
-                  <span className="uppercase text-[10px] font-bold text-gray-400">
-                    Status: <b className="text-white">{ticket.status}</b>
-                  </span>
+                        <ul className="px-4 py-2 border-t border-dashed border-stroke-muted space-y-1.5">
+                          {ticket.items.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-3">
+                              <span className="min-w-[3.2rem] text-center py-0.5 bg-orange-500/10 text-orange-700 font-extrabold text-[1.5rem]">
+                                {item.quantity}×
+                              </span>
+                              <div className="flex-1 min-w-0 pt-0.5">
+                                <div className="text-[1.45rem] font-semibold text-bright leading-snug">{item.productName}</div>
+                                {item.notes && <div className="text-[1.2rem] text-amber-700 italic">Note: {item.notes}</div>}
+                              </div>
+                              <span className="text-[1.05rem] uppercase text-muted pt-1">{item.station || "Mains"}</span>
+                            </li>
+                          ))}
+                        </ul>
 
-                  {ticket.status === "queued" && (
-                    <button
-                      disabled={actionLoading}
-                      onClick={() => handleUpdateStatus(ticket._id, "preparing")}
-                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 uppercase tracking-wider transition flex items-center gap-1"
-                    >
-                      <Flame className="w-3.5 h-3.5" /> Start Preparing
-                    </button>
-                  )}
-
-                  {ticket.status === "preparing" && (
-                    <button
-                      disabled={actionLoading}
-                      onClick={() => handleUpdateStatus(ticket._id, "ready")}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 uppercase tracking-wider transition flex items-center gap-1"
-                    >
-                      <Bell className="w-3.5 h-3.5" /> Mark Ready
-                    </button>
-                  )}
-
-                  {ticket.status === "ready" && (
-                    <button
-                      disabled={actionLoading}
-                      onClick={() => handleUpdateStatus(ticket._id, "served")}
-                      className="bg-gray-800 hover:bg-gray-700 text-emerald-400 border border-emerald-500/40 font-bold px-3 py-1.5 uppercase tracking-wider transition flex items-center gap-1"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Serve Ticket
-                    </button>
-                  )}
-                </div>
+                        <div className="p-3 pt-2">
+                          <button
+                            disabled={busyTicket === ticket._id}
+                            onClick={() => handleUpdateStatus(ticket._id, action.to)}
+                            className={`w-full flex items-center justify-center gap-2 py-3 text-[1.4rem] font-bold transition disabled:opacity-50 ${action.className}`}
+                          >
+                            {action.icon}
+                            {busyTicket === ticket._id ? "Updating…" : action.label}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
               </div>
-            );
-          })
-        )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );

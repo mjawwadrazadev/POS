@@ -114,7 +114,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
 
       {/* Active Engine Badge (Only for Client Store) */}
       {!isSuperAdmin && (
-        <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)]">
+        <div className="px-5 py-4 flex-shrink-0 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)]">
           <div className="flex items-center justify-between mb-1.5">
             <label className="sidebar__section-label p-0 block">Active Engine</label>
             <span className="text-[1rem] font-accent text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5">
@@ -234,7 +234,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
             <button
               type="button"
               onClick={() => setPosGroupOpen(!posGroupOpen)}
-              className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-2"
+              className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-1"
             >
               <div className="flex items-center gap-3">
                 <ShoppingCart className="w-4 h-4 flex-shrink-0" />
@@ -247,7 +247,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
               />
             </button>
             {posGroupOpen && (
-              <div className="flex flex-col gap-1 pl-4">
+              <div className="sidebar__group">
                 <Link
                   href="/pos"
                   className={`sidebar__link ${isActive("/pos") ? "sidebar__link--active" : ""}`}
@@ -315,7 +315,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
               <button
                 type="button"
                 onClick={() => setInventoryOpen(!inventoryOpen)}
-                className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-2"
+                className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-1"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Package className="w-4 h-4 flex-shrink-0" />
@@ -328,7 +328,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
                 />
               </button>
               {inventoryOpen && (
-                <div className="flex flex-col gap-1 pl-4">
+                <div className="sidebar__group">
                   <Link
                     href="/products"
                     className={`sidebar__link ${isActive("/products") ? "sidebar__link--active" : ""}`}
@@ -354,7 +354,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
                 <button
                   type="button"
                   onClick={() => setFinanceOpen(!financeOpen)}
-                  className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-2"
+                  className="sidebar__link w-full justify-between focus:outline-none cursor-pointer mt-1"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <FileSpreadsheet className="w-4 h-4 flex-shrink-0" />
@@ -367,7 +367,7 @@ export function Sidebar({ session: userSession }: SidebarProps) {
                   />
                 </button>
                 {financeOpen && (
-                  <div className="flex flex-col gap-1 pl-4">
+                  <div className="sidebar__group">
                     <Link
                       href="/accounting/ledger"
                       className={`sidebar__link ${isActive("/accounting/ledger") ? "sidebar__link--active" : ""}`}

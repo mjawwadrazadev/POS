@@ -6,6 +6,7 @@ import { usePosStore } from "@/lib/store/usePosStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import { ProductFormModal } from "@/components/products/ProductFormModal";
 import { BarcodeLabelModal } from "@/components/products/BarcodeLabelModal";
+import { ProductImage } from "@/components/products/ProductImage";
 import {
   Package,
   Plus,
@@ -170,8 +171,11 @@ export default function ProductsPage() {
             {filtered.map((item) => (
               <tr key={item.id}>
                 <td className="font-accent font-bold text-accent">{item.sku}</td>
-                <td className="font-bold text-bright max-w-[18rem]">
-                  <span className="line-clamp-1">{item.name}</span>
+                <td className="font-bold text-bright max-w-[22rem]">
+                  <div className="flex items-center gap-3">
+                    <ProductImage name={item.name} src={item.imageUrl} className="w-14 h-14 flex-shrink-0" textClassName="text-[1.3rem]" />
+                    <span className="line-clamp-1">{item.name}</span>
+                  </div>
                 </td>
                 <td className="font-accent text-medium">{item.category}</td>
                 <td className="font-accent font-bold text-bright">PKR {item.price.toLocaleString()}</td>

@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useInventoryStore, InventoryItem } from "@/lib/store/useInventoryStore";
 import { usePosStore } from "@/lib/store/usePosStore";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
+import { compressImage } from "@/lib/utils/compressImage";
+import { ProductImage } from "@/components/products/ProductImage";
 import {
   X,
   Save,
   Package,
+  ImagePlus,
+  Trash2,
+  Link2,
 } from "lucide-react";
 
 interface ProductFormModalProps {
@@ -55,11 +60,30 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
     weightGrams: editItem?.weightGrams || 0,
     expiryTime: editItem?.expiryTime || "",
     isPerishable: editItem?.isPerishable || false,
+    imageUrl: editItem?.imageUrl || "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [imageError, setImageError] = useState("");
+  const [imageBusy, setImageBusy] = useState(false);
+  const [showImageLink, setShowImageLink] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImageFile(file?: File) {
+    if (!file) return;
+    setImageError("");
+    setImageBusy(true);
+    try {
+      set("imageUrl", await compressImage(file));
+    } catch (err: any) {
+      setImageError(err.message || "Could not use this image");
+    } finally {
+      setImageBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   function set(field: string, value: any) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -91,7 +115,7 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#171719] border border-[rgba(255,255,255,0.12)] w-full max-w-2xl shadow-2xl">
+      <div className="bg-[#171719] border border-[rgba(255,255,255,0.12)] w-full max-w-[72rem] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[rgba(255,255,255,0.08)]">
           <div className="flex items-center gap-2">
@@ -113,6 +137,82 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
             <span className="font-accent text-[1.1rem] text-blue-300 uppercase font-bold">
               Active Vertical: {config.title}
             </span>
+          </div>
+
+          {/* Product photo — shown on the POS product cards */}
+          <div className="flex gap-4 items-start">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleImageFile(e.dataTransfer.files?.[0]);
+              }}
+              className="relative w-[12rem] h-[12rem] flex-shrink-0 border border-dashed border-[rgba(255,255,255,0.25)] hover:border-[#819ffe] overflow-hidden group"
+              title="Upload product photo"
+            >
+              {form.imageUrl ? (
+                <ProductImage name={form.name || "Product"} src={form.imageUrl} className="w-full h-full" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-gray-400 group-hover:text-white">
+                  <ImagePlus className="w-7 h-7" />
+                  <span className="font-accent text-[1rem]">{imageBusy ? "Processing…" : "Add Photo"}</span>
+                </div>
+              )}
+            </button>
+            <div className="flex-1 space-y-2">
+              <label className="form-label text-[rgba(255,255,255,0.6)]">Product Photo (optional)</label>
+              <p className="text-[1.2rem] text-gray-400">
+                Shown on the POS product cards. Tap the box or drop a photo — it is resized automatically.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={imageBusy}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[rgba(255,255,255,0.15)] bg-[#0b0b0d] text-white text-[1.2rem] font-semibold hover:border-[#819ffe] disabled:opacity-50"
+                >
+                  <ImagePlus className="w-4 h-4" />
+                  <span>{form.imageUrl ? "Change" : "Upload"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImageLink((v) => !v)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[rgba(255,255,255,0.15)] bg-[#0b0b0d] text-white text-[1.2rem] font-semibold hover:border-[#819ffe] disabled:opacity-50"
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span>Image Link</span>
+                </button>
+                {form.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => set("imageUrl", "")}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[rgba(255,255,255,0.15)] bg-[#0b0b0d] text-red-400 text-[1.2rem] font-semibold hover:border-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
+              {showImageLink && (
+                <input
+                  type="url"
+                  value={form.imageUrl?.startsWith("data:") ? "" : form.imageUrl || ""}
+                  onChange={(e) => set("imageUrl", e.target.value.trim())}
+                  placeholder="https://… link to a product photo"
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.15)] text-white px-3 py-2 text-[1.3rem] outline-none focus:border-[#002bba]"
+                />
+              )}
+              {imageError && <p className="text-red-400 text-[1.1rem]">{imageError}</p>}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => handleImageFile(e.target.files?.[0])}
+              />
+            </div>
           </div>
 
           {/* Row 1: SKU + Name */}

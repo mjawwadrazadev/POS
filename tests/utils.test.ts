@@ -62,4 +62,20 @@ describe("sanitizeProductInput", () => {
   it("rejects negative numbers", () => {
     expect(sanitizeProductInput({ costPrice: -5 }, { partial: true }).error).toBeTruthy();
   });
+
+  it("accepts product photos as https links, site paths or small uploaded images", () => {
+    for (const imageUrl of ["https://cdn.example.com/latte.jpg", "/uploads/latte.jpg", "data:image/jpeg;base64,AAAA", ""]) {
+      const { data, error } = sanitizeProductInput({ imageUrl }, { partial: true });
+      expect(error).toBeUndefined();
+      expect(data.imageUrl).toBe(imageUrl);
+    }
+  });
+
+  it("rejects unsafe or oversized product photos", () => {
+    for (const imageUrl of ["javascript:alert(1)", "http://insecure.example.com/a.jpg", "//evil.example.com/a.jpg", "data:text/html;base64,AAAA"]) {
+      expect(sanitizeProductInput({ imageUrl }, { partial: true }).error).toBeTruthy();
+    }
+    const huge = "data:image/jpeg;base64," + "A".repeat(500_000);
+    expect(sanitizeProductInput({ imageUrl: huge }, { partial: true }).error).toBeTruthy();
+  });
 });

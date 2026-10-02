@@ -28,6 +28,7 @@ export interface InventoryItem {
   weightGrams?: number;
   expiryTime?: string;
   isPerishable?: boolean;
+  imageUrl?: string;
 }
 
 export type MutationResult = { ok: true } | { ok: false; error: string };
@@ -68,6 +69,7 @@ function toInventoryItem(p: any): InventoryItem {
     weightGrams: p.weightGrams,
     expiryTime: p.expiryTime,
     isPerishable: p.isPerishable,
+    imageUrl: p.imageUrl || undefined,
   };
 }
 

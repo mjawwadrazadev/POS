@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
+  ArrowRight,
   ArrowRightLeft,
   Plus,
   Package,
@@ -11,6 +13,10 @@ import {
   RefreshCw,
   AlertCircle,
   Truck,
+  X,
+  Trash2,
+  Building2,
+  Boxes,
 } from "lucide-react";
 
 interface BranchOption {
@@ -39,6 +45,27 @@ interface TransferRecord {
   notes?: string;
 }
 
+type StatusFilter = "all" | "in_transit" | "received" | "cancelled";
+
+interface TransferLine {
+  key: number;
+  productId: string;
+  quantity: number;
+}
+
+const STATUS_META: Record<TransferRecord["status"], { label: string; icon: React.ReactNode; className: string }> = {
+  pending: { label: "Pending", icon: <Clock className="w-3.5 h-3.5" />, className: "bg-slate-500/10 text-slate-600 border-slate-500/30" },
+  in_transit: { label: "In transit", icon: <Truck className="w-3.5 h-3.5" />, className: "bg-amber-500/10 text-amber-700 border-amber-500/30" },
+  received: { label: "Received", icon: <CheckCircle2 className="w-3.5 h-3.5" />, className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
+  cancelled: { label: "Cancelled", icon: <XCircle className="w-3.5 h-3.5" />, className: "bg-rose-500/10 text-rose-600 border-rose-500/30" },
+};
+
+const inputClass =
+  "w-full bg-base-bright border border-stroke-muted text-bright px-3 py-2.5 text-[1.4rem] outline-none focus:border-accent";
+
+let lineKey = 0;
+const newLine = (productId = ""): TransferLine => ({ key: ++lineKey, productId, quantity: 1 });
+
 export default function StockTransferPage() {
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -48,13 +75,14 @@ export default function StockTransferPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [formError, setFormError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   // New transfer form state
   const [fromBranch, setFromBranch] = useState("");
   const [toBranch, setToBranch] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [transferQty, setTransferQty] = useState(1);
+  const [lines, setLines] = useState<TransferLine[]>([newLine()]);
   const [transferNotes, setTransferNotes] = useState("");
 
   useEffect(() => {
@@ -64,14 +92,13 @@ export default function StockTransferPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch transfers
       const trRes = await fetch("/api/inventory/transfers");
       const trData = await trRes.json();
       if (trData.success && trData.transfers) {
         setTransfers(trData.transfers);
       }
 
-      // Fetch this organization's real branches
+      // This organization's real branches
       const brRes = await fetch("/api/branches");
       const brData = await brRes.json();
       if (brData.success && Array.isArray(brData.branches)) {
@@ -81,7 +108,6 @@ export default function StockTransferPage() {
         setToBranch((prev) => prev || list[1]?.id || "");
       }
 
-      // Fetch products for dropdown
       const prodRes = await fetch("/api/products");
       const prodData = await prodRes.json();
       if (prodData.success && prodData.products) {
@@ -93,9 +119,6 @@ export default function StockTransferPage() {
             stock: p.stock,
           }))
         );
-        if (prodData.products.length > 0) {
-          setSelectedProductId(prodData.products[0]._id);
-        }
       }
     } catch (err: any) {
       console.error("Failed to load transfer data", err);
@@ -104,27 +127,47 @@ export default function StockTransferPage() {
     }
   };
 
+  const openModal = () => {
+    setFormError("");
+    setTransferNotes("");
+    setLines([newLine(products.find((p) => p.stock > 0)?.id || products[0]?.id || "")]);
+    setIsModalOpen(true);
+  };
+
+  const updateLine = (key: number, patch: Partial<TransferLine>) =>
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+
   const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg("");
+    setFormError("");
     setSuccessMsg("");
 
-    if (!selectedProductId) {
-      setErrorMsg("Please select a product to transfer.");
-      return;
-    }
-
-    const targetProd = products.find((p) => p.id === selectedProductId);
-    if (!targetProd) return;
-
     if (!fromBranch || !toBranch || fromBranch === toBranch) {
-      setErrorMsg("Select two different branches. Add branches in Settings → Team & Branches.");
+      setFormError("Pick two different branches.");
       return;
     }
 
-    if (transferQty > targetProd.stock) {
-      setErrorMsg(`Cannot transfer ${transferQty} units. Available stock: ${targetProd.stock}`);
+    const chosen = lines.filter((l) => l.productId);
+    if (chosen.length === 0) {
+      setFormError("Add at least one product to transfer.");
       return;
+    }
+    const ids = chosen.map((l) => l.productId);
+    if (new Set(ids).size !== ids.length) {
+      setFormError("Each product can only appear once — combine the quantities into one line.");
+      return;
+    }
+    for (const line of chosen) {
+      const product = products.find((p) => p.id === line.productId);
+      if (!product) continue;
+      if (line.quantity < 1) {
+        setFormError(`Enter a quantity for ${product.name}.`);
+        return;
+      }
+      if (line.quantity > product.stock) {
+        setFormError(`Only ${product.stock} unit(s) of ${product.name} are in stock.`);
+        return;
+      }
     }
 
     setActionLoading(true);
@@ -135,12 +178,7 @@ export default function StockTransferPage() {
         body: JSON.stringify({
           fromBranchId: fromBranch,
           toBranchId: toBranch,
-          items: [
-            {
-              productId: targetProd.id,
-              quantity: Number(transferQty),
-            },
-          ],
+          items: chosen.map((l) => ({ productId: l.productId, quantity: Number(l.quantity) })),
           notes: transferNotes,
         }),
       });
@@ -148,29 +186,30 @@ export default function StockTransferPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to dispatch transfer");
 
-      setSuccessMsg(`Transfer ${data.transfer.transferNumber} dispatched in-transit successfully!`);
+      setSuccessMsg(`Transfer ${data.transfer.transferNumber} is on its way.`);
       setIsModalOpen(false);
-      setTransferNotes("");
       fetchData();
     } catch (err: any) {
-      setErrorMsg(err.message);
+      setFormError(err.message);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleUpdateStatus = async (transferId: string, action: "receive" | "cancel") => {
-    if (!confirm(`Are you sure you want to ${action} this stock transfer?`)) return;
+    const question =
+      action === "receive"
+        ? "Confirm that this stock has arrived at the destination branch?"
+        : "Cancel this transfer and return the stock to the source branch?";
+    if (!confirm(question)) return;
 
     setActionLoading(true);
+    setErrorMsg("");
     try {
       const res = await fetch("/api/inventory/transfers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transferId,
-          action,
-        }),
+        body: JSON.stringify({ transferId, action }),
       });
 
       const data = await res.json();
@@ -179,7 +218,7 @@ export default function StockTransferPage() {
       setSuccessMsg(data.message);
       fetchData();
     } catch (err: any) {
-      alert(err.message);
+      setErrorMsg(err.message);
     } finally {
       setActionLoading(false);
     }
@@ -192,252 +231,354 @@ export default function StockTransferPage() {
     return found ? found.name : b;
   };
 
+  const counts = {
+    all: transfers.length,
+    in_transit: transfers.filter((t) => t.status === "in_transit").length,
+    received: transfers.filter((t) => t.status === "received").length,
+    cancelled: transfers.filter((t) => t.status === "cancelled").length,
+  };
+  const unitsInTransit = transfers
+    .filter((t) => t.status === "in_transit")
+    .reduce((sum, t) => sum + t.items.reduce((n, i) => n + i.quantity, 0), 0);
+  const visibleTransfers = statusFilter === "all" ? transfers : transfers.filter((t) => t.status === statusFilter);
+  const needsBranches = !loading && branches.length < 2;
+
+  const stats = [
+    { label: "In transit", value: counts.in_transit, sub: `${unitsInTransit} unit(s) on the road`, icon: <Truck className="w-5 h-5" />, tone: "text-amber-600 bg-amber-500/10" },
+    { label: "Received", value: counts.received, sub: "Stock added at destination", icon: <CheckCircle2 className="w-5 h-5" />, tone: "text-emerald-600 bg-emerald-500/10" },
+    { label: "Cancelled", value: counts.cancelled, sub: "Returned to source", icon: <XCircle className="w-5 h-5" />, tone: "text-rose-600 bg-rose-500/10" },
+    { label: "Branches", value: branches.length, sub: "Locations you can move stock between", icon: <Building2 className="w-5 h-5" />, tone: "text-accent bg-accent-subtle" },
+  ];
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#0b0b0d] border border-gray-800 p-6 text-white">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-blue-400 uppercase tracking-widest mb-1">
-            <Truck className="w-4 h-4" /> Multi-Branch Logistics
-          </div>
-          <h1 className="text-2xl font-bold font-mono tracking-tight text-white">
-            Inter-Branch Stock Transfer Engine
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Dispatch, track in-transit items, and confirm branch inventory receipts with real-time stock sync.
+          <h1 className="text-[2.4rem] font-extrabold text-bright leading-tight">Stock Transfers</h1>
+          <p className="text-[1.4rem] text-muted mt-1">
+            Move stock between your branches. Stock leaves the source when dispatched and is added at the destination once received.
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchData}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-mono px-3 py-2 border border-gray-700 transition"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+        <div className="flex items-center gap-2">
+          <button onClick={fetchData} className="btn btn-secondary py-2.5 px-3.5 text-[1.2rem]" title="Refresh">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
-          <button
-            onClick={() => {
-              setErrorMsg("");
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 bg-[#002bba] hover:bg-blue-700 text-white text-xs font-mono px-4 py-2 uppercase tracking-wider transition font-bold"
-          >
-            <Plus className="w-4 h-4" /> New Dispatch Transfer
+          <button onClick={openModal} disabled={needsBranches} className="btn btn-primary py-2.5 text-[1.25rem] disabled:opacity-40 disabled:cursor-not-allowed">
+            <Plus className="w-4 h-4" /> New Transfer
           </button>
         </div>
       </div>
 
-      {/* Messages */}
+      {needsBranches && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-accent-subtle border border-[rgba(0,43,186,0.3)] px-4 py-3.5">
+          <div className="flex items-center gap-3 text-[1.4rem] text-bright">
+            <Building2 className="w-5 h-5 text-accent flex-shrink-0" />
+            <span>
+              Transfers need at least <b>two branches</b>. You have {branches.length}. Add another branch to start moving stock.
+            </span>
+          </div>
+          <Link href="/settings/team" className="btn btn-primary py-2 text-[1.2rem]">
+            Add a branch
+          </Link>
+        </div>
+      )}
+
       {successMsg && (
-        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-4 text-xs font-mono flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-          <span>{successMsg}</span>
+        <div className="flex items-center justify-between gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 px-4 py-3 text-[1.35rem]">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> {successMsg}
+          </span>
+          <button onClick={() => setSuccessMsg("")} aria-label="Dismiss">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
       {errorMsg && (
-        <div className="bg-rose-950/80 border border-rose-500/50 text-rose-300 p-4 text-xs font-mono flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-          <span>{errorMsg}</span>
+        <div className="flex items-center justify-between gap-2 bg-rose-500/10 border border-rose-500/30 text-rose-600 px-4 py-3 text-[1.35rem]">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" /> {errorMsg}
+          </span>
+          <button onClick={() => setErrorMsg("")} aria-label="Dismiss">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* Stock Transfer History Table */}
-      <div className="bg-[#0b0b0d] border border-gray-800 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-          <h3 className="text-sm font-bold font-mono text-white flex items-center gap-2 uppercase tracking-wider">
-            <ArrowRightLeft className="w-4 h-4 text-blue-400" /> Transfer Records ({transfers.length})
-          </h3>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-900/80 text-gray-400 text-xs font-mono uppercase tracking-wider border-b border-gray-800">
-                <th className="p-4">Transfer Ref</th>
-                <th className="p-4">From Branch</th>
-                <th className="p-4">To Branch</th>
-                <th className="p-4">Items / Qty</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Date</th>
-                <th className="p-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/60 text-xs font-mono">
-              {transfers.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-500">
-                    No stock transfer records found. Click &quot;New Dispatch Transfer&quot; to initiate a transfer.
-                  </td>
-                </tr>
-              ) : (
-                transfers.map((tr) => (
-                  <tr key={tr._id} className="hover:bg-gray-900/40 transition">
-                    <td className="p-4 font-bold text-white tracking-wider">{tr.transferNumber}</td>
-                    <td className="p-4 text-gray-300">{getBranchName(tr.fromBranchId)}</td>
-                    <td className="p-4 text-gray-300">{getBranchName(tr.toBranchId)}</td>
-                    <td className="p-4 text-gray-200">
-                      {tr.items.map((i, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <Package className="w-3 h-3 text-blue-400" />
-                          <span className="font-semibold text-white">{i.productName}</span>
-                          <span className="text-gray-400">({i.quantity} units)</span>
-                        </div>
-                      ))}
-                    </td>
-                    <td className="p-4">
-                      {tr.status === "in_transit" && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase">
-                          <Clock className="w-3 h-3" /> In Transit
-                        </span>
-                      )}
-                      {tr.status === "received" && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase">
-                          <CheckCircle2 className="w-3 h-3" /> Received
-                        </span>
-                      )}
-                      {tr.status === "cancelled" && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 uppercase">
-                          <XCircle className="w-3 h-3" /> Cancelled
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 text-gray-400">
-                      {new Date(tr.createdAt).toLocaleDateString()} {new Date(tr.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="p-4 text-right">
-                      {tr.status === "in_transit" && (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            disabled={actionLoading}
-                            onClick={() => handleUpdateStatus(tr._id, "receive")}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-mono px-3 py-1 uppercase tracking-wider font-bold transition"
-                          >
-                            Confirm Receipt
-                          </button>
-                          <button
-                            disabled={actionLoading}
-                            onClick={() => handleUpdateStatus(tr._id, "cancel")}
-                            className="bg-gray-800 hover:bg-rose-950 text-rose-300 border border-rose-800 text-[11px] font-mono px-2.5 py-1 uppercase tracking-wider transition"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                      {tr.status === "received" && (
-                        <span className="text-gray-500 italic text-[11px]">Stock Synced</span>
-                      )}
-                      {tr.status === "cancelled" && (
-                        <span className="text-gray-500 italic text-[11px]">Reverted</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Summary */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        {stats.map((s) => (
+          <div key={s.label} className="bg-base-bright border border-stroke-muted p-4 flex items-start gap-3">
+            <div className={`w-[4rem] h-[4rem] flex items-center justify-center flex-shrink-0 ${s.tone}`}>{s.icon}</div>
+            <div className="min-w-0">
+              <div className="text-[1.3rem] text-muted">{s.label}</div>
+              <div className="text-[2.6rem] font-extrabold text-bright leading-tight">{s.value}</div>
+              <div className="text-[1.2rem] text-muted truncate">{s.sub}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* New Dispatch Transfer Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#0b0b0d] border border-blue-600/50 w-full max-w-lg p-6 shadow-2xl space-y-5">
-            <div className="flex justify-between items-center border-b border-gray-800 pb-3">
-              <h3 className="text-base font-bold font-mono text-white uppercase tracking-wider flex items-center gap-2">
-                <Truck className="w-4 h-4 text-blue-400" /> Dispatch Stock Transfer
-              </h3>
+      {/* Transfer list */}
+      <div className="bg-base-bright border border-stroke-muted">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-stroke-muted">
+          <div className="inline-flex bg-base-tint border border-stroke-muted p-1">
+            {(
+              [
+                ["all", "All"],
+                ["in_transit", "In transit"],
+                ["received", "Received"],
+                ["cancelled", "Cancelled"],
+              ] as [StatusFilter, string][]
+            ).map(([key, label]) => (
               <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-white text-xs font-mono uppercase"
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                className={`px-3.5 py-1.5 text-[1.3rem] font-semibold transition-colors ${
+                  statusFilter === key ? "bg-accent text-white" : "text-medium hover:text-bright"
+                }`}
               >
-                [Close]
+                {label}
+                <span className={`ml-1.5 text-[1.15rem] ${statusFilter === key ? "opacity-75" : "text-muted"}`}>{counts[key]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {visibleTransfers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center gap-3 py-16 px-6">
+            <div className="w-[6.4rem] h-[6.4rem] flex items-center justify-center bg-base-tint border border-stroke-muted">
+              <ArrowRightLeft className="w-8 h-8 text-stroke-medium" />
+            </div>
+            <p className="text-[1.6rem] font-semibold text-bright">
+              {transfers.length === 0 ? "No transfers yet" : "No transfers with this status"}
+            </p>
+            <p className="text-[1.35rem] text-muted max-w-[44rem]">
+              {transfers.length === 0
+                ? "When one branch runs low, send stock from another. Every transfer is tracked here until it is received."
+                : "Pick another filter above to see the rest."}
+            </p>
+            {transfers.length === 0 && !needsBranches && (
+              <button onClick={openModal} className="btn btn-primary py-2.5 text-[1.25rem] mt-1">
+                <Plus className="w-4 h-4" /> Create first transfer
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto thin-scrollbar">
+            <table className="w-full text-left border-collapse min-w-[80rem]">
+              <thead>
+                <tr className="text-[1.2rem] text-muted border-b border-stroke-muted bg-base-tint">
+                  <th className="px-4 py-3 font-semibold">Transfer</th>
+                  <th className="px-4 py-3 font-semibold">Route</th>
+                  <th className="px-4 py-3 font-semibold">Items</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--st-muted)] text-[1.35rem]">
+                {visibleTransfers.map((tr) => {
+                  const meta = STATUS_META[tr.status];
+                  const units = tr.items.reduce((n, i) => n + i.quantity, 0);
+                  return (
+                    <tr key={tr._id} className="hover:bg-accent-subtle align-top">
+                      <td className="px-4 py-3.5">
+                        <div className="font-bold text-bright">{tr.transferNumber}</div>
+                        <div className="text-[1.2rem] text-muted">
+                          {new Date(tr.createdAt).toLocaleDateString()} ·{" "}
+                          {new Date(tr.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2 font-semibold text-bright">
+                          <span className="truncate max-w-[16rem]">{getBranchName(tr.fromBranchId)}</span>
+                          <ArrowRight className="w-4 h-4 text-accent flex-shrink-0" />
+                          <span className="truncate max-w-[16rem]">{getBranchName(tr.toBranchId)}</span>
+                        </div>
+                        {tr.notes && <div className="text-[1.2rem] text-muted mt-0.5 line-clamp-1">{tr.notes}</div>}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap gap-1.5 max-w-[34rem]">
+                          {tr.items.map((i, idx) => (
+                            <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 bg-base-tint border border-stroke-muted text-[1.25rem]">
+                              <Package className="w-3.5 h-3.5 text-accent" />
+                              <span className="text-bright">{i.productName}</span>
+                              <b className="text-medium">×{i.quantity}</b>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="text-[1.15rem] text-muted mt-1">{units} unit(s) total</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[1.2rem] font-semibold border ${meta.className}`}>
+                          {meta.icon} {meta.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        {tr.status === "in_transit" ? (
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => handleUpdateStatus(tr._id, "receive")}
+                              className="btn py-2 px-3 text-[1.15rem] bg-emerald-600 hover:bg-emerald-500 text-white"
+                            >
+                              <CheckCircle2 className="w-4 h-4" /> Receive
+                            </button>
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => handleUpdateStatus(tr._id, "cancel")}
+                              className="btn btn-secondary py-2 px-3 text-[1.15rem] text-rose-600"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[1.25rem] text-muted">
+                            {tr.status === "received" ? "Stock added" : tr.status === "cancelled" ? "Stock returned" : "—"}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* New transfer modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-base-bright border border-stroke-muted w-full max-w-[68rem] shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-stroke-muted">
+              <h3 className="text-[1.8rem] font-bold text-bright flex items-center gap-2">
+                <Truck className="w-5 h-5 text-accent" /> New Stock Transfer
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-bright p-1" aria-label="Close">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTransfer} className="space-y-4 text-xs font-mono">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-400 uppercase tracking-wider mb-1">Source Branch</label>
-                  <select
-                    value={fromBranch}
-                    onChange={(e) => setFromBranch(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none focus:border-blue-500"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
+            <form onSubmit={handleCreateTransfer} className="flex flex-col min-h-0">
+              <div className="p-5 space-y-5 overflow-y-auto thin-scrollbar">
+                {/* Route */}
+                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                  <label className="block">
+                    <span className="block text-[1.3rem] font-semibold text-medium mb-1.5">From branch</span>
+                    <select value={fromBranch} onChange={(e) => setFromBranch(e.target.value)} className={inputClass}>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="w-[4rem] h-[4.4rem] flex items-center justify-center text-accent">
+                    <ArrowRight className="w-6 h-6" />
+                  </div>
+                  <label className="block">
+                    <span className="block text-[1.3rem] font-semibold text-medium mb-1.5">To branch</span>
+                    <select value={toBranch} onChange={(e) => setToBranch(e.target.value)} className={inputClass}>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id} disabled={b.id === fromBranch}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
 
+                {/* Product lines */}
                 <div>
-                  <label className="block text-gray-400 uppercase tracking-wider mb-1">Target Branch</label>
-                  <select
-                    value={toBranch}
-                    onChange={(e) => setToBranch(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none focus:border-blue-500"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[1.3rem] font-semibold text-medium flex items-center gap-1.5">
+                      <Boxes className="w-4 h-4" /> Products
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLines((prev) => [...prev, newLine()])}
+                      className="text-[1.3rem] font-semibold text-accent hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" /> Add product
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {lines.map((line) => {
+                      const product = products.find((p) => p.id === line.productId);
+                      const over = product ? line.quantity > product.stock : false;
+                      return (
+                        <div key={line.key} className="grid grid-cols-[1fr_9rem_auto] gap-2 items-start">
+                          <div>
+                            <select
+                              value={line.productId}
+                              onChange={(e) => updateLine(line.key, { productId: e.target.value })}
+                              className={inputClass}
+                            >
+                              <option value="">Select a product…</option>
+                              {products.map((p) => (
+                                <option key={p.id} value={p.id} disabled={p.stock <= 0}>
+                                  {p.name} ({p.sku}) — {p.stock} in stock
+                                </option>
+                              ))}
+                            </select>
+                            {product && (
+                              <span className={`block text-[1.2rem] mt-1 ${over ? "text-rose-600 font-semibold" : "text-muted"}`}>
+                                {over ? `Only ${product.stock} available` : `${product.stock} available`}
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            min={1}
+                            value={line.quantity}
+                            onChange={(e) => updateLine(line.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                            className={`${inputClass} font-bold text-center ${over ? "border-rose-500" : ""}`}
+                            aria-label="Quantity"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setLines((prev) => (prev.length > 1 ? prev.filter((l) => l.key !== line.key) : prev))}
+                            disabled={lines.length === 1}
+                            className="w-[4.4rem] h-[4.4rem] flex items-center justify-center border border-stroke-muted text-muted hover:text-rose-600 disabled:opacity-30"
+                            aria-label="Remove product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {products.length === 0 && (
+                    <p className="text-[1.3rem] text-muted mt-2">No products found. Add products in Inventory → Products & SKUs first.</p>
+                  )}
                 </div>
+
+                <label className="block">
+                  <span className="block text-[1.3rem] font-semibold text-medium mb-1.5">Note (optional)</span>
+                  <textarea
+                    rows={2}
+                    value={transferNotes}
+                    onChange={(e) => setTransferNotes(e.target.value)}
+                    placeholder="e.g. Weekend restock for the DHA branch"
+                    className={inputClass}
+                  />
+                </label>
+
+                {formError && (
+                  <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/30 text-rose-600 px-3 py-2.5 text-[1.3rem]">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" /> {formError}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="block text-gray-400 uppercase tracking-wider mb-1">Select Inventory Product</label>
-                <select
-                  value={selectedProductId}
-                  onChange={(e) => setSelectedProductId(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none focus:border-blue-500"
-                >
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (SKU: {p.sku}) — Available: {p.stock} units
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-gray-400 uppercase tracking-wider mb-1">Transfer Quantity</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={transferQty}
-                  onChange={(e) => setTransferQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none focus:border-blue-500 font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-400 uppercase tracking-wider mb-1">Notes / Inter-Branch Reason</label>
-                <textarea
-                  rows={2}
-                  value={transferNotes}
-                  onChange={(e) => setTransferNotes(e.target.value)}
-                  placeholder="e.g. Stock replenishment request from DHA manager"
-                  className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 uppercase font-mono tracking-wider"
-                >
+              <div className="flex justify-end gap-2 px-5 py-4 border-t border-stroke-muted bg-base-tint">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary py-2.5 text-[1.25rem]">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="bg-[#002bba] hover:bg-blue-700 text-white px-5 py-2 uppercase font-mono tracking-wider font-bold"
-                >
-                  {actionLoading ? "Dispatching..." : "Dispatch Transfer"}
+                <button type="submit" disabled={actionLoading} className="btn btn-primary py-2.5 text-[1.25rem] disabled:opacity-50">
+                  <Truck className="w-4 h-4" />
+                  {actionLoading ? "Sending…" : "Send Stock"}
                 </button>
               </div>
             </form>

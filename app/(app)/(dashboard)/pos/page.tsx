@@ -40,7 +40,14 @@ import {
   Unlock,
   Printer,
   Camera,
+  Store,
+  UserRound,
+  WifiOff,
+  Armchair,
+  Package,
+  Percent,
 } from "lucide-react";
+import { ProductImage } from "@/components/products/ProductImage";
 
 type PaymentMethod = "cash" | "card" | "wallet" | "split";
 
@@ -462,85 +469,89 @@ export default function PosBillingPage() {
 
   return (
     <>
-      <div className="space-y-4">
-        {/* Top Shift Counter Bar */}
-        <div className="bg-[#0b0b0d] border border-stroke-muted p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 uppercase tracking-wider">Branch: <b className="text-white">{branchLabel || "—"}</b></span>
-            <span className="text-gray-600">|</span>
-            <span className="text-gray-400 uppercase tracking-wider">Cashier: <b className="text-white">{userName || "—"}</b></span>
+      <div className="flex flex-col gap-4 lg:h-[calc(100dvh-12.8rem)]">
+        {/* Shift / counter status bar */}
+        <div className="bg-base-bright border border-stroke-muted px-4 py-3 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 text-[1.25rem]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-base-tint border border-stroke-muted text-medium">
+              <Store className="w-4 h-4 text-accent" />
+              <b className="text-bright font-semibold">{branchLabel || "—"}</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-base-tint border border-stroke-muted text-medium">
+              <UserRound className="w-4 h-4 text-accent" />
+              <b className="text-bright font-semibold">{userName || "—"}</b>
+            </span>
             {offlineQueueCount > 0 && (
-              <>
-                <span className="text-gray-600">|</span>
-                <span className="text-amber-400 uppercase tracking-wider font-bold">Offline queue: {offlineQueueCount}</span>
-              </>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 font-semibold">
+                <WifiOff className="w-4 h-4" /> {offlineQueueCount} offline sale(s) waiting to sync
+              </span>
             )}
-            <span className="text-gray-600">|</span>
             {activeSession ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <Unlock className="w-3.5 h-3.5" /> SHIFT OPEN (Float: PKR {activeSession.openingFloat.toLocaleString()})
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 font-semibold">
+                <span className="avatar-round w-2 h-2 bg-emerald-500" />
+                Shift open · Float PKR {activeSession.openingFloat.toLocaleString()}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">
-                <Lock className="w-3.5 h-3.5" /> SHIFT CLOSED
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-600 font-semibold">
+                <span className="avatar-round w-2 h-2 bg-rose-500" />
+                Shift closed
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {!activeSession ? (
-              <button
-                onClick={() => setIsOpenShiftModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 uppercase tracking-wider transition flex items-center gap-1.5"
-              >
-                <Unlock className="w-3.5 h-3.5" /> Open Counter Shift
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  setActualCashInput(activeSession.expectedCashInDrawer || activeSession.openingFloat);
-                  setIsCloseShiftModalOpen(true);
-                }}
-                className="bg-rose-700 hover:bg-rose-600 text-white font-bold px-3 py-1.5 uppercase tracking-wider transition flex items-center gap-1.5"
-              >
-                <Lock className="w-3.5 h-3.5" /> Close Shift (EOD)
-              </button>
-            )}
-          </div>
+          {!activeSession ? (
+            <button
+              onClick={() => setIsOpenShiftModalOpen(true)}
+              className="btn py-2 px-4 text-[1.2rem] bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              <Unlock className="w-4 h-4" /> Open Shift
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setActualCashInput(activeSession.expectedCashInDrawer || activeSession.openingFloat);
+                setIsCloseShiftModalOpen(true);
+              }}
+              className="btn btn-secondary py-2 px-4 text-[1.2rem] text-rose-600"
+            >
+              <Lock className="w-4 h-4" /> Close Shift (EOD)
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" style={{ height: "calc(100vh - 16rem)" }}>
-          {/* LEFT — Product Catalogue (7 cols) */}
-          <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
-            {/* Search + Barcode */}
-            <div className="bg-base-tint border border-stroke-muted p-3 flex gap-3">
-              <div className="flex-1 flex items-center gap-2 bg-base-bright border border-stroke-muted px-3 py-2">
-                <Search className="w-4 h-4 text-muted flex-shrink-0" />
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_32rem] xl:grid-cols-[minmax(0,1fr)_38rem] 2xl:grid-cols-[minmax(0,1fr)_42rem] gap-4 flex-1 min-h-0">
+          {/* LEFT — Product catalogue */}
+          <section className="flex flex-col gap-3 min-h-0">
+            {/* Search + scan */}
+            <div className="flex gap-2 flex-shrink-0">
+              <div className="flex-1 flex items-center gap-2 bg-base-bright border border-stroke-muted px-4 focus-within:border-accent transition-colors">
+                <Search className="w-5 h-5 text-muted flex-shrink-0" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={`Search ${config.terminology.item || "product"} by name or SKU...`}
-                  className="w-full bg-transparent text-[1.4rem] outline-none text-bright font-sans"
+                  placeholder={`Search ${config.terminology.item || "product"} by name or SKU…`}
+                  className="w-full bg-transparent text-[1.5rem] py-3 outline-none text-bright font-sans"
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery("")}>
-                    <X className="w-4 h-4 text-muted hover:text-error" />
+                  <button onClick={() => setSearchQuery("")} aria-label="Clear search">
+                    <X className="w-5 h-5 text-muted hover:text-error" />
                   </button>
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => setIsCameraModalOpen(true)}
-                className="btn btn-secondary py-2 px-3 flex items-center gap-1 bg-[#002bba] text-white hover:bg-blue-700"
+                className="btn btn-primary px-4 text-[1.2rem]"
+                title="Scan a barcode with the camera"
               >
-                <Camera className="w-4 h-4 text-white" />
-                <span className="font-accent text-[1.2rem] hidden sm:inline font-bold">Camera Scan</span>
+                <Camera className="w-5 h-5" />
+                <span className="hidden sm:inline">Scan</span>
               </button>
             </div>
 
             {offlineNotice && (
-              <div className="flex items-center justify-between gap-2 bg-amber-500/15 border border-amber-500/30 text-amber-300 px-4 py-2.5 font-accent text-[1.2rem]">
+              <div className="flex items-center justify-between gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-700 px-4 py-2.5 text-[1.3rem] flex-shrink-0">
                 <span>{offlineNotice}</span>
                 <button type="button" onClick={() => setOfflineNotice("")} aria-label="Dismiss">
                   <X className="w-4 h-4" />
@@ -548,27 +559,23 @@ export default function PosBillingPage() {
               </div>
             )}
 
-            {/* Stock error banner */}
             {stockError && (
-              <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-4 py-2.5 font-accent text-[1.2rem]">
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-600 px-4 py-2.5 text-[1.3rem] flex-shrink-0">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 <span>{stockError}</span>
               </div>
             )}
 
-            {/* Order Type + Table Selector */}
-            <div className="bg-base-tint border border-stroke-muted p-3 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 font-accent text-[1.2rem]">
-                <span className="text-muted font-semibold">Type:</span>
+            {/* Order type + table */}
+            <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+              <div className="inline-flex flex-wrap bg-base-bright border border-stroke-muted p-1">
                 {(["retail_sale", "dine_in", "takeaway", "prescription"] as const).map((type) => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setOrderType(type)}
-                    className={`px-3 py-1 text-[1.1rem] font-bold uppercase transition-colors ${
-                      orderType === type
-                        ? "bg-accent text-white"
-                        : "bg-base-bright border border-stroke-muted text-bright hover:bg-accent-subtle"
+                    className={`px-3.5 py-2 text-[1.25rem] font-semibold capitalize transition-colors ${
+                      orderType === type ? "bg-accent text-white" : "text-medium hover:text-bright hover:bg-accent-subtle"
                     }`}
                   >
                     {type.replace("_", " ")}
@@ -577,181 +584,243 @@ export default function PosBillingPage() {
               </div>
 
               {(currentVertical === "restaurant" || orderType === "dine_in") && (
-                <div className="flex items-center gap-2 font-accent text-[1.2rem] ml-auto">
-                  <span className="text-muted">Table:</span>
+                <label className="inline-flex items-center gap-2 bg-base-bright border border-stroke-muted px-3 py-1 text-[1.25rem] ml-auto">
+                  <Armchair className="w-4 h-4 text-accent" />
+                  <span className="text-muted">Table</span>
                   <select
                     value={selectedTable}
                     onChange={(e) => setSelectedTable(e.target.value)}
-                    className="bg-base-bright border border-stroke-muted px-2 py-1 text-[1.2rem] text-bright outline-none font-bold"
+                    className="bg-transparent py-1.5 text-bright outline-none font-bold"
                   >
                     {tableOptions.length === 0 && <option value="">No tables configured</option>}
                     {tableOptions.map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
-                </div>
+                </label>
               )}
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex gap-2 flex-wrap">
-              {allCategories.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 font-accent text-[1.2rem] font-bold uppercase transition-colors ${
-                    selectedCategory === cat
-                      ? "bg-accent text-white"
-                      : "bg-base-tint border border-stroke-muted text-medium hover:border-accent hover:text-bright"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+            {/* Category chips */}
+            <div className="flex gap-2 overflow-x-auto pb-1 flex-shrink-0 thin-scrollbar">
+              {allCategories.map((cat) => {
+                const count = cat === "All" ? inventoryItems.length : inventoryItems.filter((i) => i.category === cat).length;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 text-[1.3rem] font-semibold border transition-colors ${
+                      selectedCategory === cat
+                        ? "bg-base-opp text-[var(--t-opp-bright)] border-transparent"
+                        : "bg-base-bright border-stroke-muted text-medium hover:border-accent hover:text-bright"
+                    }`}
+                  >
+                    {cat}
+                    <span className={`text-[1.1rem] ${selectedCategory === cat ? "opacity-70" : "text-muted"}`}>{count}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Product Grid */}
-            <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1">
-              {filteredProducts.length === 0 && (
-                <div className="col-span-3 text-center py-12 text-muted font-accent text-[1.3rem]">
-                  No products found. Add products from Inventory page.
+            {/* Product cards */}
+            <div className="max-h-[70vh] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto thin-scrollbar pr-1">
+              {filteredProducts.length === 0 ? (
+                <div className="h-full min-h-[24rem] flex flex-col items-center justify-center gap-3 text-center border border-dashed border-stroke-muted bg-base-bright p-8">
+                  <Package className="w-10 h-10 text-stroke-medium" />
+                  <p className="text-[1.5rem] font-semibold text-bright">
+                    {inventoryItems.length === 0 ? "No products yet" : "No products match your search"}
+                  </p>
+                  <p className="text-[1.3rem] text-muted max-w-[34rem]">
+                    {inventoryItems.length === 0
+                      ? "Add products (with photos) from Inventory → Products & SKUs and they will show up here."
+                      : "Try a different name, SKU or category."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(14.5rem, 1fr))" }}>
+                  {filteredProducts.map((p) => {
+                    const outOfStock = p.stock <= 0;
+                    const lowStock = !outOfStock && p.stock < 10;
+                    const inCart = cart.find((c) => c.id === p.id)?.quantity || 0;
+                    const meta = p.preparationTime
+                      ? { icon: <Utensils className="w-3.5 h-3.5" />, text: `${p.preparationTime} min prep` }
+                      : p.batchNumber
+                      ? { icon: <Pill className="w-3.5 h-3.5" />, text: `Batch ${p.batchNumber}` }
+                      : p.flavour
+                      ? { icon: <Cake className="w-3.5 h-3.5" />, text: `${p.flavour}${p.weightGrams ? ` · ${p.weightGrams}g` : ""}` }
+                      : null;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleAddToCart(p)}
+                        disabled={outOfStock}
+                        className={`group relative text-left flex flex-col bg-base-bright border transition-all select-none ${
+                          outOfStock
+                            ? "border-stroke-muted opacity-60 cursor-not-allowed"
+                            : inCart
+                            ? "border-accent shadow-[0_0_0_1px_var(--accent)] active:scale-[0.98]"
+                            : "border-stroke-muted hover:border-accent hover:shadow-lg active:scale-[0.98]"
+                        }`}
+                      >
+                        <div className="relative aspect-[4/3] overflow-hidden bg-base-tint">
+                          <ProductImage
+                            name={p.name}
+                            src={p.imageUrl}
+                            className={`w-full h-full transition-transform duration-300 ${outOfStock ? "grayscale" : "group-hover:scale-105"}`}
+                            textClassName="text-[3rem]"
+                          />
+                          <span
+                            className={`absolute top-2 left-2 px-2 py-0.5 text-[1.1rem] font-bold ${
+                              outOfStock
+                                ? "bg-rose-600 text-white"
+                                : lowStock
+                                ? "bg-amber-400 text-black"
+                                : "bg-white/90 text-gray-800"
+                            }`}
+                          >
+                            {outOfStock ? "Out of stock" : `${p.stock} ${p.unit}`}
+                          </span>
+                          {inCart > 0 && (
+                            <span className="avatar-round absolute top-2 right-2 min-w-[2.6rem] h-[2.6rem] px-1 flex items-center justify-center bg-accent text-white text-[1.3rem] font-extrabold shadow">
+                              {inCart}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col flex-1 p-3 gap-1">
+                          <h4 className="font-bold text-[1.4rem] leading-snug text-bright line-clamp-2 min-h-[3.8rem]">{p.name}</h4>
+                          {meta && (
+                            <span className="inline-flex items-center gap-1 text-[1.15rem] text-muted">
+                              {meta.icon}
+                              {meta.text}
+                            </span>
+                          )}
+                          <div className="mt-auto pt-2 flex items-center justify-between gap-2">
+                            <span className="text-[1.6rem] font-extrabold text-bright">
+                              <span className="text-[1.1rem] font-semibold text-muted mr-1">PKR</span>
+                              {p.price.toLocaleString()}
+                            </span>
+                            <span
+                              className={`w-[3.2rem] h-[3.2rem] flex items-center justify-center flex-shrink-0 transition-colors ${
+                                outOfStock ? "bg-base-tint text-muted" : "bg-accent text-white group-hover:bg-accent-hover"
+                              }`}
+                            >
+                              <Plus className="w-5 h-5" />
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
-              {filteredProducts.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => handleAddToCart(p)}
-                  className={`bg-base-tint border flex flex-col justify-between p-4 transition-all group cursor-pointer ${
-                    p.stock === 0
-                      ? "border-red-500/30 opacity-50 cursor-not-allowed"
-                      : "border-stroke-muted hover:border-accent hover:shadow-md"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-accent text-[1.1rem] text-accent font-bold">{p.sku}</span>
-                      <span className={`font-accent text-[1rem] px-1.5 py-0.5 border ${p.stock < 10 ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-muted border-stroke-muted bg-base-bright"}`}>
-                        {p.stock === 0 ? "OUT" : `${p.stock} ${p.unit}`}
-                      </span>
-                    </div>
-                    <h4 className="font-bold text-[1.35rem] text-bright line-clamp-2 group-hover:text-accent transition-colors">
-                      {p.name}
-                    </h4>
-                    <div className="mt-1 text-[1.1rem] font-accent text-muted space-y-0.5">
-                      {p.batchNumber && (
-                        <div className="flex items-center gap-1 text-emerald-600">
-                          <Pill className="w-3 h-3" />
-                          <span>Batch: {p.batchNumber}</span>
-                        </div>
-                      )}
-                      {p.flavour && (
-                        <div className="flex items-center gap-1 text-amber-500">
-                          <Cake className="w-3 h-3" />
-                          <span>{p.flavour}{p.weightGrams ? ` · ${p.weightGrams}g` : ""}</span>
-                        </div>
-                      )}
-                      {p.preparationTime && (
-                        <div className="flex items-center gap-1 text-emerald-500">
-                          <Utensils className="w-3 h-3" />
-                          <span>Prep: {p.preparationTime}m</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-stroke-muted flex items-center justify-between">
-                    <span className="font-accent text-[1.6rem] font-extrabold text-bright">
-                      PKR {p.price.toLocaleString()}
-                    </span>
-                    <div className="bg-accent text-white p-1.5 group-hover:bg-accent-hover transition-colors">
-                      <Plus className="w-4 h-4" />
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
-          </div>
+          </section>
 
-          {/* RIGHT — Cart & Checkout (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col bg-base-tint border border-stroke-muted overflow-hidden">
-            {/* Cart Header */}
-            <div className="p-4 border-b border-stroke-muted flex items-center justify-between bg-base-bright flex-shrink-0">
+          {/* RIGHT — Cart & checkout */}
+          <aside className="flex flex-col bg-base-bright border border-stroke-muted min-h-[48rem] lg:min-h-0">
+            <div className="px-4 py-3.5 border-b border-stroke-muted flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-accent" />
-                <h3 className="font-accent font-bold text-[1.4rem] uppercase text-bright">
-                  Billing Cart
-                </h3>
+                <h3 className="font-bold text-[1.6rem] text-bright">Current Order</h3>
                 {cart.length > 0 && (
-                  <span className="badge badge-accent font-accent">{cart.length}</span>
+                  <span className="bg-accent text-white text-[1.15rem] font-bold px-2 py-0.5">
+                    {cart.reduce((n, c) => n + c.quantity, 0)} items
+                  </span>
                 )}
               </div>
               {cart.length > 0 && (
-                <button onClick={clearCart} className="text-error font-accent text-[1.1rem] hover:underline flex items-center gap-1">
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Clear</span>
+                <button onClick={clearCart} className="text-[1.25rem] text-rose-600 hover:underline flex items-center gap-1">
+                  <Trash2 className="w-4 h-4" />
+                  Clear
                 </button>
               )}
             </div>
 
-            {/* Customer Name */}
-            <div className="px-4 py-2.5 border-b border-stroke-muted bg-base-bright flex-shrink-0">
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Customer Name (optional)"
-                className="w-full bg-base-tint border border-stroke-muted text-bright text-[1.3rem] px-3 py-2 outline-none focus:border-accent font-sans"
-              />
+            <div className="px-4 py-3 border-b border-stroke-muted flex-shrink-0">
+              <div className="flex items-center gap-2 bg-base-tint border border-stroke-muted px-3 focus-within:border-accent">
+                <UserRound className="w-4 h-4 text-muted flex-shrink-0" />
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Customer name (optional)"
+                  className="w-full bg-transparent text-bright text-[1.35rem] py-2.5 outline-none font-sans"
+                />
+              </div>
             </div>
 
-            {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* Cart lines */}
+            <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar">
               {cart.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-muted gap-3 py-10">
-                  <ShoppingCart className="w-12 h-12 stroke-[1.5] text-stroke-muted" />
-                  <p className="font-accent text-[1.3rem] uppercase">Cart is Empty</p>
-                  <p className="text-[1.2rem] text-center">Click products on the left to add</p>
+                <div className="h-full flex flex-col items-center justify-center text-muted gap-2 py-12 px-6 text-center">
+                  <div className="w-16 h-16 flex items-center justify-center bg-base-tint border border-stroke-muted mb-1">
+                    <ShoppingCart className="w-7 h-7 text-stroke-medium" />
+                  </div>
+                  <p className="text-[1.5rem] font-semibold text-bright">No items yet</p>
+                  <p className="text-[1.3rem]">Tap a product or scan a barcode to add it to this order.</p>
                 </div>
               ) : (
-                cart.map((item) => (
-                  <div key={item.id} className="bg-base-bright border border-stroke-muted p-3 flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-[1.3rem] text-bright truncate">{item.name}</div>
-                      <div className="font-accent text-[1.1rem] text-muted">
-                        {item.sku} · PKR {item.price.toLocaleString()} ea
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-base-tint border border-stroke-muted px-2 py-1 flex-shrink-0">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="text-bright hover:text-accent">
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="font-accent font-bold text-[1.3rem] w-5 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="text-bright hover:text-accent">
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-accent font-bold text-[1.4rem] text-bright">
-                        PKR {(item.price * item.quantity - item.discount).toLocaleString()}
-                      </div>
-                      <button onClick={() => removeFromCart(item.id)} className="text-error hover:opacity-80">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                <ul className="divide-y divide-[var(--st-muted)]">
+                  {cart.map((item) => {
+                    const product = inventoryItems.find((p) => p.id === item.id);
+                    return (
+                      <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+                        <ProductImage
+                          name={item.name}
+                          src={product?.imageUrl}
+                          className="w-[4.8rem] h-[4.8rem] flex-shrink-0"
+                          textClassName="text-[1.5rem]"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-[1.4rem] text-bright truncate">{item.name}</div>
+                          <div className="text-[1.2rem] text-muted">PKR {item.price.toLocaleString()} each</div>
+                          <div className="mt-1.5 inline-flex items-center border border-stroke-muted">
+                            <button
+                              onClick={() => updateQuantity(item.id, -1)}
+                              className="w-[3rem] h-[3rem] flex items-center justify-center text-bright hover:bg-accent-subtle"
+                              aria-label="Decrease quantity"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="w-[3.4rem] text-center font-bold text-[1.4rem]">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.id, 1)}
+                              className="w-[3rem] h-[3rem] flex items-center justify-center text-bright hover:bg-accent-subtle"
+                              aria-label="Increase quantity"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                          <span className="font-bold text-[1.45rem] text-bright">
+                            PKR {(item.price * item.quantity - item.discount).toLocaleString()}
+                          </span>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="w-[3rem] h-[3rem] flex items-center justify-center text-muted hover:text-rose-600 hover:bg-rose-500/10"
+                            aria-label={`Remove ${item.name}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </div>
 
-            {/* Totals + Discount + Payment */}
-            <div className="p-4 border-t border-stroke-muted bg-base-bright space-y-3 flex-shrink-0">
-              {/* Discount slider */}
+            {/* Totals + discount + payment */}
+            <div className="p-4 border-t border-stroke-muted bg-base-tint space-y-3 flex-shrink-0">
               <div className="space-y-1">
-                <div className="flex items-center justify-between font-accent text-[1.2rem]">
-                  <span className="text-muted flex items-center gap-1">
-                    <span>Discount:</span>
+                <div className="flex items-center justify-between text-[1.3rem]">
+                  <span className="text-muted flex items-center gap-1.5">
+                    <Percent className="w-4 h-4" /> Discount
                     {isManagerAuthorized && (
-                      <span className="text-emerald-400 font-bold text-[1rem] bg-emerald-500/10 border border-emerald-500/30 px-1">
+                      <span className="text-emerald-700 font-bold text-[1rem] bg-emerald-500/10 border border-emerald-500/30 px-1">
                         MANAGER AUTHORIZED
                       </span>
                     )}
@@ -765,40 +834,38 @@ export default function PosBillingPage() {
                   step={5}
                   value={discountGlobalPercent}
                   onChange={(e) => handleDiscountChange(Number(e.target.value))}
-                  className="w-full accent-accent cursor-pointer"
+                  className="w-full accent-[var(--accent)] cursor-pointer"
                 />
               </div>
 
-              {/* Totals */}
-              <div className="space-y-1 font-accent text-[1.2rem]">
+              <div className="space-y-1 text-[1.35rem]">
                 <div className="flex justify-between text-muted">
-                  <span>Subtotal:</span>
+                  <span>Subtotal</span>
                   <span className="text-bright">PKR {subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-muted">
-                  <span>Sales Tax ({taxRate}%):</span>
+                  <span>Sales tax ({taxRate}%)</span>
                   <span className="text-bright">PKR {taxAmount.toLocaleString()}</span>
                 </div>
                 {discountTotal > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-muted">Discount ({discountGlobalPercent}%):</span>
-                    <span className="text-error font-bold">- PKR {discountTotal.toLocaleString()}</span>
+                    <span className="text-muted">Discount ({discountGlobalPercent}%)</span>
+                    <span className="text-rose-600 font-bold">- PKR {discountTotal.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-[1.8rem] font-extrabold text-bright pt-2 border-t border-stroke-muted">
-                  <span>TOTAL:</span>
-                  <span className="text-accent">PKR {grandTotal.toLocaleString()}</span>
+                <div className="flex justify-between items-baseline pt-2 border-t border-stroke-muted">
+                  <span className="text-[1.5rem] font-bold text-bright">Total</span>
+                  <span className="text-[2.4rem] font-extrabold text-accent">PKR {grandTotal.toLocaleString()}</span>
                 </div>
               </div>
 
-              {/* Payment Method selector */}
               <div className="grid grid-cols-4 gap-1.5">
-                {(["cash","card","wallet","split"] as const).map((method) => {
+                {(["cash", "card", "wallet", "split"] as const).map((method) => {
                   const icons = {
-                    cash: <Banknote className="w-3.5 h-3.5" />,
-                    card: <CreditCard className="w-3.5 h-3.5" />,
-                    wallet: <QrCode className="w-3.5 h-3.5" />,
-                    split: <Split className="w-3.5 h-3.5" />,
+                    cash: <Banknote className="w-5 h-5" />,
+                    card: <CreditCard className="w-5 h-5" />,
+                    wallet: <QrCode className="w-5 h-5" />,
+                    split: <Split className="w-5 h-5" />,
                   };
                   return (
                     <button
@@ -810,22 +877,23 @@ export default function PosBillingPage() {
                           handleOpenSplitModal();
                         }
                       }}
-                      className={`btn py-2 text-[1rem] flex items-center justify-center gap-1 transition-colors ${
-                        selectedPayment === method ? "btn-primary" : "btn-secondary"
+                      className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[1.15rem] font-semibold capitalize border transition-colors ${
+                        selectedPayment === method
+                          ? "bg-accent border-accent text-white"
+                          : "bg-base-bright border-stroke-muted text-medium hover:border-accent hover:text-bright"
                       }`}
                     >
                       {icons[method]}
-                      <span className="uppercase">{method}</span>
+                      {method}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button type="button" className="btn btn-secondary py-3 text-[1.2rem]">
-                  <PauseCircle className="w-4 h-4" />
-                  <span>Hold Order</span>
+              <div className="grid grid-cols-[auto_1fr] gap-2">
+                <button type="button" className="btn btn-secondary py-3.5 px-4 text-[1.2rem]" title="Hold order">
+                  <PauseCircle className="w-5 h-5" />
+                  <span className="hidden xl:inline">Hold</span>
                 </button>
                 <button
                   type="button"
@@ -837,14 +905,14 @@ export default function PosBillingPage() {
                     }
                   }}
                   disabled={cart.length === 0 || checkoutLoading}
-                  className="btn btn-primary py-3 text-[1.3rem] disabled:opacity-40"
+                  className="btn btn-primary py-3.5 text-[1.4rem] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <CheckCircle2 className="w-5 h-5" />
-                  <span>{checkoutLoading ? "Processing..." : `Pay PKR ${grandTotal.toLocaleString()}`}</span>
+                  <span>{checkoutLoading ? "Processing..." : `Charge PKR ${grandTotal.toLocaleString()}`}</span>
                 </button>
               </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
 
