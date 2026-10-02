@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  BarChart3,
   Calendar,
   Download,
   Printer,
@@ -13,6 +12,7 @@ import {
   PieChart,
   CheckCircle2,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 type DatePreset = "today" | "7days" | "30days" | "last_month" | "last_year" | "custom";
 
@@ -134,35 +134,20 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-base-tint border border-stroke-muted p-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-accent" />
-            <h2 className="font-extrabold text-[2.2rem] text-bright">
-              Historical Financial & Sales Reports (&quot;Hisab Kitab&quot;)
-            </h2>
-          </div>
-          <p className="text-medium text-[1.4rem] mt-1">
-            Compare monthly & yearly revenue, profit margins, tax liability across Bakery, Restaurant, Cafe & all verticals.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => window.print()} className="btn btn-secondary py-3 px-4 text-[1.2rem]">
-            <Printer className="w-4 h-4" />
-            <span>Print Report</span>
-          </button>
-          <button type="button" onClick={handleExportCSV} className="btn btn-primary py-3 px-5 text-[1.3rem]">
-            <Download className="w-4 h-4" />
-            <span>Export CSV / Excel</span>
-          </button>
-        </div>
-      </div>
+      <PageActions>
+        <button type="button" onClick={() => window.print()} className="btn btn-secondary py-2.5 px-4 text-[1.2rem]">
+          <Printer className="w-4 h-4" />
+          <span>Print Report</span>
+        </button>
+        <button type="button" onClick={handleExportCSV} className="btn btn-primary py-2.5 px-5 text-[1.3rem]">
+          <Download className="w-4 h-4" />
+          <span>Export CSV / Excel</span>
+        </button>
+      </PageActions>
 
       {exportNotice && (
-        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-4 text-xs font-mono flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 px-4 py-3 text-[1.35rem] flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span>{exportNotice}</span>
         </div>
       )}

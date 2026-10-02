@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import {
-  Stethoscope,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface ConsultationBill {
   _id: string;
@@ -71,29 +71,15 @@ export default function DoctorRevenueReportPage() {
 
   return (
     <div className="space-y-6">
-      {/* Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-base-tint border border-stroke-muted p-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <Stethoscope className="w-6 h-6 text-accent" />
-            <h2 className="font-extrabold text-[2.2rem] text-bright">
-              Doctor-Wise Revenue & Consultation Report
-            </h2>
-          </div>
-          <p className="text-medium text-[1.4rem] mt-1">
-            Track patient visit volumes, doctor consultation revenues, hospital share cuts, and doctor payouts.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchConsultationBills}
-            className="btn btn-secondary py-3 px-4 text-[1.3rem]"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-      </div>
+      <PageActions>
+        <button
+          onClick={fetchConsultationBills}
+          className="btn btn-secondary py-2.5 px-4 text-[1.3rem]"
+          title="Refresh"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
+      </PageActions>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -16,7 +16,6 @@ export interface CartItem {
 interface PosState {
   currentVertical: BusinessType;
   selectedBranch: string;
-  activeShiftOpen: boolean;
   shiftCashier: string;
   cart: CartItem[];
   orderType: "dine_in" | "takeaway" | "delivery" | "retail_sale" | "prescription";
@@ -28,7 +27,6 @@ interface PosState {
   setTaxRate: (rate: number) => void;
   setVertical: (type: BusinessType) => void;
   setBranch: (branch: string) => void;
-  toggleShift: () => void;
   setOrderType: (type: PosState["orderType"]) => void;
   setSelectedTable: (table: string) => void;
   addToCart: (product: { id: string; name: string; sku: string; price: number; batchNumber?: string; serialNumber?: string }) => void;
@@ -47,7 +45,6 @@ interface PosState {
 export const usePosStore = create<PosState>((set, get) => ({
   currentVertical: "bakery",
   selectedBranch: "Main Branch",
-  activeShiftOpen: false,
   shiftCashier: "",
   cart: [],
   orderType: "retail_sale",
@@ -58,7 +55,6 @@ export const usePosStore = create<PosState>((set, get) => ({
   setTaxRate: (rate) => set({ taxRate: Number.isFinite(rate) ? rate : 0 }),
   setVertical: (type) => set({ currentVertical: type }),
   setBranch: (branch) => set({ selectedBranch: branch }),
-  toggleShift: () => set((state) => ({ activeShiftOpen: !state.activeShiftOpen })),
   setOrderType: (type) => set({ orderType: type }),
   setSelectedTable: (table) => set({ selectedTable: table }),
 

@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { usePosStore } from "@/lib/store/usePosStore";
-import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
 import { isPlatformRole } from "@/lib/auth/permissions";
 import {
   DollarSign,
@@ -16,6 +14,7 @@ import {
   AlertTriangle,
   Clock,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface Transaction {
   id: string;
@@ -29,8 +28,6 @@ interface Transaction {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { currentVertical, selectedBranch } = usePosStore();
-  const config = VERTICAL_CONFIGS[currentVertical];
 
   const [loading, setLoading] = useState(true);
   const [userSession, setUserSession] = useState<any | null>(null);
@@ -121,30 +118,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-tint border border-stroke-muted p-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="badge badge-accent">ACTIVE ENGINE</span>
-            <span className="font-accent font-bold text-accent uppercase text-[1.4rem]">
-              {config.title}
-            </span>
-          </div>
-          <h2 className="text-[2.4rem] font-extrabold text-bright mt-2">
-            Welcome back, {userSession?.fullName || "Store Manager"}
-          </h2>
-          <p className="text-medium text-[1.4rem]">
-            {userSession?.branchName || selectedBranch || "Main Branch"} — Real-time performance overview & POS operations.
-          </p>
-        </div>
+      <PageActions>
+        <Link href="/pos" className="btn btn-primary py-2.5 px-5 text-[1.3rem]">
+          <Plus className="w-5 h-5" />
+          <span>Launch POS Terminal</span>
+        </Link>
+      </PageActions>
 
-        <div className="flex items-center gap-3">
-          <Link href="/pos" className="btn btn-primary py-3 px-6 text-[1.4rem]">
-            <Plus className="w-5 h-5" />
-            <span>Launch POS Terminal</span>
-          </Link>
-        </div>
-      </div>
+      <p className="text-[1.6rem] text-medium -mb-2">
+        Welcome back, <b className="text-bright">{userSession?.fullName || "Store Manager"}</b>
+      </p>
 
       {/* Industrial Stat Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

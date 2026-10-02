@@ -16,7 +16,9 @@ import {
   ScanBarcode,
   Camera,
   Plus,
+  X,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 import type { PrinterConfig, PrinterLanguage, PrinterPaperWidth, PrinterRole, PrinterTransport } from "@/lib/printer/types";
 import { PrinterService } from "@/lib/printer/PrinterService";
 import {
@@ -110,8 +112,8 @@ const EMPTY_DRAFT: Draft = {
   baudRate: 9600,
 };
 
-const inputClass = "w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none focus:border-blue-500";
-const labelClass = "block text-gray-400 uppercase tracking-wider mb-1 text-[11px]";
+const inputClass = "w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white text-[1.4rem] p-2.5 outline-none focus:border-[#819ffe]";
+const labelClass = "block font-accent text-gray-300 uppercase font-semibold mb-1.5 text-[1.15rem]";
 
 export default function PrinterSettingsPage() {
   const session = useSessionUser();
@@ -296,43 +298,37 @@ export default function PrinterSettingsPage() {
     (t === "usb" && !support.usb) || (t === "serial" && !support.serial) || (t === "bluetooth" && !support.bluetooth);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 font-mono text-xs">
+    <div className="space-y-6">
       {/* Keyboard + serial scanners feed the test panel while this page is open */}
       <BarcodeScannerListener onScan={recordScan("USB / Bluetooth keyboard scanner")} />
       <SerialScannerListener key={serialListenerKey} onScan={recordScan("Serial COM scanner")} />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#0b0b0d] border border-gray-800 p-6 text-white shadow-xl">
-        <div>
-          <div className="flex items-center gap-2 text-blue-400 uppercase tracking-widest mb-1">
-            <Printer className="w-4 h-4" /> Hardware for this terminal
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Printers & Barcode Scanners</h1>
-          <p className="text-gray-400 mt-1 max-w-2xl">
-            Printers are saved on this computer/tablet only, so every counter can use its own hardware. Any printer
-            installed in the operating system works through &quot;System printer&quot;.
-          </p>
-        </div>
+      <PageActions>
         <button
           onClick={() => {
             say("");
             setDraft({ ...EMPTY_DRAFT });
           }}
-          className="flex items-center gap-2 bg-[#002bba] hover:bg-blue-700 text-white px-4 py-2.5 uppercase tracking-wider font-bold"
+          className="btn btn-primary py-2.5 px-5 text-[1.3rem]"
         >
           <Plus className="w-4 h-4" /> Add printer
         </button>
-      </div>
+      </PageActions>
+
+      <p className="text-[1.35rem] text-medium max-w-[80rem]">
+        Printers are saved on this computer or tablet only, so every counter can use its own hardware. Any printer
+        installed in the operating system works through &quot;System printer&quot;.
+      </p>
 
       {statusMsg && (
-        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-4 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 px-4 py-3 text-[1.35rem]">
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
           <span>{statusMsg}</span>
         </div>
       )}
       {errorMsg && (
-        <div className="bg-rose-950/80 border border-rose-500/50 text-rose-300 p-4 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+        <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/30 text-rose-600 px-4 py-3 text-[1.35rem]">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
@@ -340,19 +336,19 @@ export default function PrinterSettingsPage() {
       {/* Print bridge status */}
       {needsBridge && (
         <div
-          className={`border p-4 flex items-start gap-3 ${
-            bridgeOnline ? "bg-emerald-950/40 border-emerald-700/50 text-emerald-300" : "bg-amber-950/40 border-amber-700/50 text-amber-200"
+          className={`border px-4 py-3 flex items-start gap-3 text-[1.35rem] ${
+            bridgeOnline ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700" : "bg-amber-500/10 border-amber-500/30 text-amber-700"
           }`}
         >
-          <Wifi className="w-4 h-4 mt-0.5 shrink-0" />
+          <Wifi className="w-5 h-5 mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <div className="font-bold uppercase">
+            <div className="font-bold">
               Print bridge: {bridgeOnline === null ? "checking…" : bridgeOnline ? "running" : "not running"}
             </div>
             {!bridgeOnline && (
               <p>
                 Network printers need the RST print bridge on this computer. In the POS folder run{" "}
-                <code className="bg-black/40 px-1">npm run print-bridge</code> and keep the window open.
+                <code className="bg-black/5 border border-black/10 px-1.5 font-mono">npm run print-bridge</code> and keep the window open.
               </p>
             )}
           </div>
@@ -360,167 +356,183 @@ export default function PrinterSettingsPage() {
       )}
 
       {/* Printers */}
-      <div className="bg-[#0b0b0d] border border-gray-800 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-800">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Printer className="w-4 h-4 text-blue-400" /> Printers ({printers.length})
+      <div className="data-table-wrapper">
+        <div className="px-5 py-4 border-b border-stroke-muted bg-base-tint">
+          <h3 className="font-bold text-[1.6rem] flex items-center gap-2">
+            <Printer className="w-5 h-5 text-accent" /> Printers
+            <span className="text-muted font-semibold">{printers.length}</span>
           </h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-900/80 text-gray-400 uppercase tracking-wider border-b border-gray-800">
-                <th className="p-4">Printer</th>
-                <th className="p-4">Connection</th>
-                <th className="p-4">Used for</th>
-                <th className="p-4">Paper / Label</th>
-                <th className="p-4 text-right">Actions</th>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Printer</th>
+              <th>Connection</th>
+              <th>Used for</th>
+              <th>Paper / Label</th>
+              <th className="!text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {printers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="!py-14">
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <div className="w-14 h-14 bg-base-tint border border-stroke-muted flex items-center justify-center">
+                      <Printer className="w-6 h-6 text-muted" />
+                    </div>
+                    <p className="font-bold text-[1.5rem]">No printers added yet</p>
+                    <p className="text-muted text-[1.3rem] max-w-[44rem]">
+                      Receipts and labels use the system print dialog until you add one.
+                    </p>
+                    <button
+                      onClick={() => {
+                        say("");
+                        setDraft({ ...EMPTY_DRAFT });
+                      }}
+                      className="btn btn-primary py-2.5 px-5 text-[1.3rem] mt-1"
+                    >
+                      <Plus className="w-4 h-4" /> Add printer
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/60">
-              {printers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-gray-500">
-                    No printers added yet. Receipts and labels use the system print dialog until you add one.
-                  </td>
-                </tr>
-              ) : (
-                printers.map((p) => {
-                  const Icon = TRANSPORT_ICONS[p.transport] ?? Monitor;
-                  return (
-                    <tr key={p.id} className="hover:bg-gray-900/40">
-                      <td className="p-4 font-bold text-white">
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-blue-400" />
-                          <span>{p.name}</span>
-                          {p.isDefault && (
-                            <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-1.5 uppercase">
-                              Default
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4 text-gray-300 uppercase">
-                        {p.transport}
-                        {p.ipAddress ? ` (${p.ipAddress}:${p.port})` : ""}
-                        {p.transport !== "system" && p.role === "barcode_label" ? ` · ${p.language}` : ""}
-                      </td>
-                      <td className="p-4">
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase">
-                          {ROLE_LABELS[p.role]}
-                        </span>
-                      </td>
-                      <td className="p-4 text-gray-300">
-                        {p.role === "barcode_label" ? `${p.labelWidthMm ?? 50} × ${p.labelHeightMm ?? 30} mm` : p.paperWidth}
-                        {p.openCashDrawer ? " · cash drawer" : ""}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          {!p.isDefault && (
-                            <button
-                              onClick={() => makeDefault(p)}
-                              className="bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 px-2.5 py-1 uppercase text-[11px] flex items-center gap-1"
-                              title="Use this printer by default for its role"
-                            >
-                              <Star className="w-3 h-3" /> Default
-                            </button>
-                          )}
+            ) : (
+              printers.map((p) => {
+                const Icon = TRANSPORT_ICONS[p.transport] ?? Monitor;
+                return (
+                  <tr key={p.id}>
+                    <td className="font-bold">
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4 text-accent" />
+                        <span>{p.name}</span>
+                        {p.isDefault && <span className="badge badge-warning">Default</span>}
+                      </div>
+                    </td>
+                    <td className="text-medium uppercase text-[1.25rem] font-accent">
+                      {p.transport}
+                      {p.ipAddress ? ` (${p.ipAddress}:${p.port})` : ""}
+                      {p.transport !== "system" && p.role === "barcode_label" ? ` · ${p.language}` : ""}
+                    </td>
+                    <td>
+                      <span className="badge badge-accent">{ROLE_LABELS[p.role]}</span>
+                    </td>
+                    <td className="text-medium">
+                      {p.role === "barcode_label" ? `${p.labelWidthMm ?? 50} × ${p.labelHeightMm ?? 30} mm` : p.paperWidth}
+                      {p.openCashDrawer ? " · cash drawer" : ""}
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-end gap-2">
+                        {!p.isDefault && (
                           <button
-                            disabled={busy}
-                            onClick={() => testPrint(p)}
-                            className="bg-[#002bba] hover:bg-blue-700 text-white px-3 py-1 uppercase font-bold flex items-center gap-1 text-[11px]"
+                            onClick={() => makeDefault(p)}
+                            className="btn btn-secondary py-1.5 px-3 text-[1.15rem]"
+                            title="Use this printer by default for its role"
                           >
-                            <Play className="w-3 h-3" /> Test print
+                            <Star className="w-3.5 h-3.5" /> Default
                           </button>
-                          <button
-                            onClick={() => removePrinter(p.id)}
-                            className="bg-gray-800 hover:bg-rose-950 text-rose-300 border border-rose-800 px-2.5 py-1"
-                            aria-label={`Remove ${p.name}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        )}
+                        <button
+                          disabled={busy}
+                          onClick={() => testPrint(p)}
+                          className="btn btn-primary py-1.5 px-3 text-[1.15rem] disabled:opacity-50"
+                        >
+                          <Play className="w-3.5 h-3.5" /> Test print
+                        </button>
+                        <button
+                          onClick={() => removePrinter(p.id)}
+                          className="btn btn-secondary py-1.5 px-2.5 text-rose-600"
+                          aria-label={`Remove ${p.name}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Scanners */}
-      <div className="bg-[#0b0b0d] border border-gray-800 p-6 space-y-5 text-white">
-        <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-          <ScanBarcode className="w-4 h-4 text-blue-400" /> Barcode scanners
-        </h3>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="border border-gray-800 p-4 space-y-2">
-            <div className="font-bold uppercase text-blue-300">USB / wireless / Bluetooth</div>
-            <p className="text-gray-400">
-              Plug-and-play. Scanners that type like a keyboard (USB, 2.4 GHz dongle, Bluetooth HID) work on every
-              browser and device with no setup, with Enter, Tab or no suffix.
-            </p>
-            <p className="text-emerald-400 font-bold">Always on</p>
-          </div>
-
-          <div className="border border-gray-800 p-4 space-y-2">
-            <div className="font-bold uppercase text-blue-300">Serial / COM port</div>
-            <p className="text-gray-400">
-              RS-232 scanners, USB scanners in &quot;virtual COM&quot; mode and Bluetooth SPP scanners. Chrome/Edge only.
-            </p>
-            {serialScanner ? (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-emerald-400 font-bold">{serialScanner.name} · {serialScanner.baudRate} baud</span>
-                <button onClick={disconnectSerialScanner} className="text-rose-300 border border-rose-800 px-2 py-1 uppercase text-[11px]">
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <select value={scannerBaud} onChange={(e) => setScannerBaud(Number(e.target.value))} className="bg-gray-900 border border-gray-700 p-2">
-                  {[9600, 19200, 38400, 57600, 115200].map((b) => (
-                    <option key={b} value={b}>
-                      {b} baud
-                    </option>
-                  ))}
-                </select>
-                <button
-                  disabled={!support.serial}
-                  onClick={connectSerialScanner}
-                  className="flex-1 bg-[#002bba] hover:bg-blue-700 disabled:opacity-40 px-3 py-2 uppercase font-bold"
-                >
-                  {support.serial ? "Connect" : "Needs Chrome/Edge"}
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="border border-gray-800 p-4 space-y-2">
-            <div className="font-bold uppercase text-blue-300">Camera</div>
-            <p className="text-gray-400">
-              Phone, tablet or webcam. Reads EAN, UPC, Code 128/39/93, ITF, Codabar, QR and Data Matrix in every browser.
-            </p>
-            <button onClick={() => setCameraOpen(true)} className="bg-[#002bba] hover:bg-blue-700 px-3 py-2 uppercase font-bold flex items-center gap-2">
-              <Camera className="w-4 h-4" /> Test camera
-            </button>
-          </div>
+      <div className="bg-base-bright border border-stroke-muted">
+        <div className="px-5 py-4 border-b border-stroke-muted bg-base-tint">
+          <h3 className="font-bold text-[1.6rem] flex items-center gap-2">
+            <ScanBarcode className="w-5 h-5 text-accent" /> Barcode scanners
+          </h3>
         </div>
 
-        <div className="border border-dashed border-gray-700 p-4">
-          <div className="text-gray-400 uppercase mb-1">Scanner test — scan any barcode now</div>
-          {lastScan ? (
-            <div className="text-lg font-bold text-emerald-400">
-              {lastScan.code}{" "}
-              <span className="text-xs text-gray-400 font-normal">
-                via {lastScan.source} at {lastScan.at}
-              </span>
+        <div className="p-5 space-y-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="border border-stroke-muted bg-base-tint p-4 flex flex-col gap-2">
+              <div className="font-bold text-[1.45rem]">USB / wireless / Bluetooth</div>
+              <p className="text-medium text-[1.3rem] flex-1">
+                Plug-and-play. Scanners that type like a keyboard (USB, 2.4 GHz dongle, Bluetooth HID) work on every
+                browser and device with no setup, with Enter, Tab or no suffix.
+              </p>
+              <span className="badge badge-success self-start">Always on</span>
             </div>
-          ) : (
-            <div className="text-gray-500">Waiting for a scan… (click an empty area of the page first, not a text box)</div>
-          )}
+
+            <div className="border border-stroke-muted bg-base-tint p-4 flex flex-col gap-2">
+              <div className="font-bold text-[1.45rem]">Serial / COM port</div>
+              <p className="text-medium text-[1.3rem] flex-1">
+                RS-232 scanners, USB scanners in &quot;virtual COM&quot; mode and Bluetooth SPP scanners. Chrome/Edge only.
+              </p>
+              {serialScanner ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-emerald-700 font-bold text-[1.3rem]">
+                    {serialScanner.name} · {serialScanner.baudRate} baud
+                  </span>
+                  <button onClick={disconnectSerialScanner} className="btn btn-secondary py-1.5 px-3 text-[1.15rem] text-rose-600">
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <select value={scannerBaud} onChange={(e) => setScannerBaud(Number(e.target.value))} className="form-select py-2 w-auto">
+                    {[9600, 19200, 38400, 57600, 115200].map((b) => (
+                      <option key={b} value={b}>
+                        {b} baud
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    disabled={!support.serial}
+                    onClick={connectSerialScanner}
+                    className="btn btn-primary flex-1 py-2 px-3 text-[1.2rem] disabled:opacity-40"
+                  >
+                    {support.serial ? "Connect" : "Needs Chrome/Edge"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="border border-stroke-muted bg-base-tint p-4 flex flex-col gap-2">
+              <div className="font-bold text-[1.45rem]">Camera</div>
+              <p className="text-medium text-[1.3rem] flex-1">
+                Phone, tablet or webcam. Reads EAN, UPC, Code 128/39/93, ITF, Codabar, QR and Data Matrix in every browser.
+              </p>
+              <button onClick={() => setCameraOpen(true)} className="btn btn-primary self-start py-2 px-4 text-[1.2rem]">
+                <Camera className="w-4 h-4" /> Test camera
+              </button>
+            </div>
+          </div>
+
+          <div className="border border-dashed border-stroke-muted p-4">
+            <div className="text-muted font-accent uppercase text-[1.15rem] font-semibold mb-1">Scanner test — scan any barcode now</div>
+            {lastScan ? (
+              <div className="text-[1.8rem] font-bold text-emerald-700">
+                {lastScan.code}{" "}
+                <span className="text-[1.2rem] text-muted font-normal">
+                  via {lastScan.source} at {lastScan.at}
+                </span>
+              </div>
+            ) : (
+              <div className="text-medium text-[1.3rem]">Waiting for a scan… (click an empty area of the page first, not a text box)</div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -555,14 +567,14 @@ export default function PrinterSettingsPage() {
         <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
           <form
             onSubmit={savePrinter}
-            className="bg-[#0b0b0d] border border-blue-500/50 w-full max-w-xl p-6 text-white space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-[#171719] border border-[rgba(255,255,255,0.12)] w-full max-w-[60rem] p-6 text-white text-[1.3rem] space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="font-bold text-blue-400 text-sm uppercase tracking-wider flex items-center gap-2">
-                <Printer className="w-4 h-4" /> Add printer
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] pb-4">
+              <h3 className="font-accent font-extrabold text-[1.5rem] uppercase flex items-center gap-2">
+                <Printer className="w-5 h-5 text-[#819ffe]" /> Add printer
               </h3>
-              <button type="button" onClick={() => setDraft(null)} className="text-gray-400 hover:text-white">
-                [Close]
+              <button type="button" onClick={() => setDraft(null)} className="text-gray-400 hover:text-white p-1" aria-label="Close">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -600,7 +612,7 @@ export default function PrinterSettingsPage() {
 
             {needsDevice && (
               <div className="flex items-center gap-3">
-                <button type="button" onClick={pickDevice} className="bg-[#002bba] hover:bg-blue-700 px-4 py-2 uppercase font-bold">
+                <button type="button" onClick={pickDevice} className="btn btn-primary py-2.5 px-4 text-[1.3rem]">
                   Choose device
                 </button>
                 <span className={draft.device ? "text-emerald-400" : "text-gray-500"}>
@@ -695,10 +707,10 @@ export default function PrinterSettingsPage() {
             </label>
 
             <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => setDraft(null)} className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 uppercase">
+              <button type="button" onClick={() => setDraft(null)} className="btn bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-gray-300 hover:text-white py-2.5 px-4 text-[1.3rem]">
                 Cancel
               </button>
-              <button type="submit" className="bg-[#002bba] hover:bg-blue-700 text-white px-5 py-2 uppercase font-bold">
+              <button type="submit" className="btn btn-primary py-2.5 px-5 text-[1.3rem]">
                 Save printer
               </button>
             </div>

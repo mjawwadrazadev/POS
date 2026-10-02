@@ -14,6 +14,7 @@ import {
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface Doctor {
   _id: string;
@@ -189,37 +190,22 @@ export default function DoctorManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-base-tint border border-stroke-muted p-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <Stethoscope className="w-6 h-6 text-accent" />
-            <h2 className="font-extrabold text-[2.2rem] text-bright">
-              Hospital Doctors & Specialist Roster
-            </h2>
-          </div>
-          <p className="text-medium text-[1.4rem] mt-1">
-            Manage hospital medical staff, doctor consultation fee schedules, PMDC registration IDs, and revenue share commissions.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchDoctors}
-            className="btn btn-secondary py-3 px-4 text-[1.3rem]"
-            title="Refresh Doctors List"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            onClick={handleOpenAddModal}
-            className="btn btn-primary py-3 px-6 text-[1.3rem]"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add New Doctor</span>
-          </button>
-        </div>
-      </div>
+      <PageActions>
+        <button
+          onClick={fetchDoctors}
+          className="btn btn-secondary py-2.5 px-4 text-[1.3rem]"
+          title="Refresh Doctors List"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
+        <button
+          onClick={handleOpenAddModal}
+          className="btn btn-primary py-2.5 px-5 text-[1.3rem]"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Add New Doctor</span>
+        </button>
+      </PageActions>
 
       {/* Filter & Search Bar */}
       <div className="bg-base-tint border border-stroke-muted p-4 flex flex-wrap items-center justify-between gap-4">

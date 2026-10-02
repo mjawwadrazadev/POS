@@ -8,7 +8,6 @@ import { ProductFormModal } from "@/components/products/ProductFormModal";
 import { BarcodeLabelModal } from "@/components/products/BarcodeLabelModal";
 import { ProductImage } from "@/components/products/ProductImage";
 import {
-  Package,
   Plus,
   Search,
   Edit,
@@ -23,6 +22,7 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 export default function ProductsPage() {
   const { currentVertical } = usePosStore();
@@ -76,34 +76,22 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-base-tint border border-stroke-muted p-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <Package className="w-5 h-5 text-accent" />
-            <h2 className="font-extrabold text-[2.2rem] text-bright">
-              {config.title} — Inventory Management
-            </h2>
-            {lowStockCount > 0 && (
-              <span className="badge badge-warning flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                {lowStockCount} Low Stock
-              </span>
-            )}
-          </div>
-          <p className="text-medium text-[1.4rem] mt-1">
-            Add, edit, delete and manage all {config.terminology.item || "products"} with real-time stock tracking.
-          </p>
-        </div>
+      <PageActions>
+        {lowStockCount > 0 && (
+          <span className="badge badge-warning flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            {lowStockCount} Low Stock
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setShowAddModal(true)}
-          className="btn btn-primary py-3 px-6 text-[1.3rem]"
+          className="btn btn-primary py-2.5 px-5 text-[1.3rem]"
         >
           <Plus className="w-5 h-5" />
           <span>Add {config.terminology.item || "Product"}</span>
         </button>
-      </div>
+      </PageActions>
 
       {/* Filter Bar */}
       <div className="bg-base-tint border border-stroke-muted p-4 flex flex-wrap items-center justify-between gap-4">

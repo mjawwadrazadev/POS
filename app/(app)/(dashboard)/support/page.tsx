@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LifeBuoy, Plus, MessageSquare, Send } from "lucide-react";
+import { LifeBuoy, Plus, MessageSquare, Send, X, Loader2 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface Ticket {
   id: string;
@@ -112,75 +113,60 @@ export default function TenantSupportPage() {
     }
   };
 
+  const statusBadge = (status: string) =>
+    status === "open" ? "badge-warning" : status === "in_progress" ? "badge-accent" : "badge-success";
+
+  const darkField =
+    "w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white text-[1.4rem] px-3 py-2.5 outline-none focus:border-[#819ffe]";
+  const darkLabel = "block font-accent text-[1.15rem] uppercase text-gray-300 font-semibold mb-1.5";
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="p-3 bg-blue-100 text-blue-700 rounded-lg">
-            <LifeBuoy className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Platform Support & Help Desk</h1>
-            <p className="text-sm text-gray-500">
-              Submit support tickets directly to the RST POS Platform HQ technical team
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-lg flex items-center space-x-2 transition shadow-sm"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Raise New Support Ticket</span>
+    <div className="space-y-6">
+      <PageActions>
+        <button onClick={() => setShowModal(true)} className="btn btn-primary py-2.5 px-5 text-[1.3rem]">
+          <Plus className="w-4 h-4" /> New Support Ticket
         </button>
-      </div>
+      </PageActions>
+
+      <p className="text-[1.35rem] text-medium">
+        Tickets go straight to the RST POS platform team. Replies show up in the conversation on the right.
+      </p>
 
       {/* Tickets & Detail Split View */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Ticket List */}
-        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
-          <div className="p-4 border-b border-gray-200 bg-gray-50 font-bold text-gray-800 text-sm flex items-center justify-between">
-            <span>Your Support Tickets</span>
-            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">{tickets.length}</span>
+        <div className="lg:col-span-1 bg-base-bright border border-stroke-muted overflow-hidden flex flex-col h-[60rem]">
+          <div className="px-4 py-3.5 border-b border-stroke-muted bg-base-tint font-bold text-[1.45rem] flex items-center justify-between">
+            <span>Your tickets</span>
+            <span className="badge badge-accent">{tickets.length}</span>
           </div>
 
-          <div className="divide-y divide-gray-100 overflow-y-auto flex-1">
+          <div className="overflow-y-auto flex-1">
             {loading ? (
-              <div className="p-8 text-center text-gray-500 text-sm">Loading tickets...</div>
+              <div className="p-8 text-center text-muted text-[1.35rem]">Loading tickets...</div>
             ) : tickets.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">
-                No tickets submitted yet. Need help? Click "Raise New Support Ticket".
+              <div className="p-8 text-center text-muted text-[1.35rem]">
+                No tickets yet. Need help? Click &quot;New Support Ticket&quot;.
               </div>
             ) : (
               tickets.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => openTicketDetail(t.id)}
-                  className={`w-full text-left p-4 hover:bg-blue-50 transition flex flex-col space-y-1.5 ${
-                    selectedTicket?.id === t.id ? "bg-blue-50 border-l-4 border-blue-600" : ""
+                  className={`w-full text-left px-4 py-3.5 border-b border-stroke-muted border-l-4 transition-colors flex flex-col gap-1.5 ${
+                    selectedTicket?.id === t.id ? "bg-accent-subtle border-l-accent" : "border-l-transparent hover:bg-base-tint"
                   }`}
                 >
-                  <div className="flex justify-between items-center text-xs text-gray-500">
-                    <span className="font-mono font-bold text-blue-600">{t.ticketNumber}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
-                        t.status === "open"
-                          ? "bg-amber-100 text-amber-800"
-                          : t.status === "in_progress"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-emerald-100 text-emerald-800"
-                      }`}
-                    >
-                      {t.status}
-                    </span>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="font-accent font-bold text-accent text-[1.2rem]">{t.ticketNumber}</span>
+                    <span className={`badge ${statusBadge(t.status)}`}>{t.status.replace("_", " ")}</span>
                   </div>
-                  <h4 className="font-bold text-gray-900 text-sm truncate">{t.subject}</h4>
-                  <div className="flex justify-between items-center text-xs text-gray-400">
+                  <h4 className="font-bold text-bright text-[1.4rem] truncate">{t.subject}</h4>
+                  <div className="flex justify-between items-center text-[1.2rem] text-muted">
                     <span>{new Date(t.updatedAt).toLocaleDateString()}</span>
-                    <span className="flex items-center space-x-1">
+                    <span className="flex items-center gap-1">
                       <MessageSquare className="w-3.5 h-3.5" />
-                      <span>{t.messageCount}</span>
+                      {t.messageCount}
                     </span>
                   </div>
                 </button>
@@ -190,52 +176,33 @@ export default function TenantSupportPage() {
         </div>
 
         {/* Ticket Conversation Detail Pane */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[600px] overflow-hidden">
+        <div className="lg:col-span-2 bg-base-bright border border-stroke-muted flex flex-col h-[60rem] overflow-hidden">
           {selectedTicket ? (
             <>
-              {/* Header */}
-              <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono font-bold text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                      {selectedTicket.ticketNumber}
-                    </span>
-                    <span className="text-xs text-gray-500 capitalize">Category: {selectedTicket.category}</span>
+              <div className="px-5 py-4 border-b border-stroke-muted bg-base-tint flex justify-between items-start gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-[1.2rem]">
+                    <span className="font-accent font-bold text-accent">{selectedTicket.ticketNumber}</span>
+                    <span className="text-muted capitalize">· {String(selectedTicket.category).replace("_", " ")}</span>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 mt-1">{selectedTicket.subject}</h3>
+                  <h3 className="text-[1.7rem] font-bold text-bright mt-1 truncate">{selectedTicket.subject}</h3>
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                    selectedTicket.status === "open"
-                      ? "bg-amber-100 text-amber-800"
-                      : selectedTicket.status === "in_progress"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}
-                >
-                  {selectedTicket.status}
-                </span>
+                <span className={`badge ${statusBadge(selectedTicket.status)}`}>{selectedTicket.status.replace("_", " ")}</span>
               </div>
 
-              {/* Messages Thread */}
-              <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-gray-50/50">
+              <div className="p-5 flex-1 overflow-y-auto space-y-4 bg-base-tint/50">
                 {selectedTicket.messages.map((m: any, idx: number) => {
                   const isStaff = m.senderRole === "super_admin" || m.senderRole === "platform_support";
                   return (
-                    <div
-                      key={idx}
-                      className={`flex flex-col ${isStaff ? "items-start" : "items-end"}`}
-                    >
+                    <div key={idx} className={`flex flex-col ${isStaff ? "items-start" : "items-end"}`}>
                       <div
-                        className={`max-w-lg p-4 rounded-xl shadow-sm text-sm space-y-1 ${
-                          isStaff
-                            ? "bg-white border border-gray-200 text-gray-900 rounded-tl-none"
-                            : "bg-blue-600 text-white rounded-tr-none"
+                        className={`max-w-[56rem] px-4 py-3 text-[1.4rem] space-y-1.5 border ${
+                          isStaff ? "bg-base-bright border-stroke-muted text-bright" : "bg-accent border-accent text-white"
                         }`}
                       >
-                        <div className="flex justify-between items-center text-xs opacity-75 border-b pb-1 mb-1 border-current">
-                          <span className="font-bold">{m.senderName} ({isStaff ? "Platform Support HQ" : "You"})</span>
-                          <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <div className="flex justify-between items-center gap-4 text-[1.15rem] opacity-75">
+                          <span className="font-bold">{m.senderName} ({isStaff ? "Platform support" : "You"})</span>
+                          <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         </div>
                         <p className="whitespace-pre-wrap">{m.content}</p>
                       </div>
@@ -244,30 +211,27 @@ export default function TenantSupportPage() {
                 })}
               </div>
 
-              {/* Reply Box */}
-              <form onSubmit={handleSendReply} className="p-4 border-t border-gray-200 bg-white flex space-x-3">
+              <form onSubmit={handleSendReply} className="p-4 border-t border-stroke-muted flex gap-3">
                 <input
                   type="text"
-                  placeholder="Type your reply to platform support..."
+                  placeholder="Type your reply..."
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="form-input flex-1"
                   required
                 />
-                <button
-                  type="submit"
-                  disabled={replying}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-lg flex items-center space-x-1.5 transition text-sm shadow-sm"
-                >
-                  <Send className="w-4 h-4" />
+                <button type="submit" disabled={replying} className="btn btn-primary py-2.5 px-5 text-[1.3rem] disabled:opacity-50">
+                  {replying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   <span>{replying ? "Sending..." : "Reply"}</span>
                 </button>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center space-y-3">
-              <MessageSquare className="w-12 h-12 text-gray-300" />
-              <p className="text-sm">Select a ticket from the left panel to view conversation thread and replies</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-muted p-8 text-center gap-3">
+              <div className="w-14 h-14 bg-base-tint border border-stroke-muted flex items-center justify-center">
+                <LifeBuoy className="w-6 h-6" />
+              </div>
+              <p className="text-[1.4rem]">Select a ticket on the left to see the conversation.</p>
             </div>
           )}
         </div>
@@ -275,43 +239,42 @@ export default function TenantSupportPage() {
 
       {/* New Ticket Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 border-b pb-3">Submit Support Ticket</h2>
-            <form onSubmit={handleCreateTicket} className="space-y-4">
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#171719] border border-[rgba(255,255,255,0.12)] max-w-[56rem] w-full text-white shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-[rgba(255,255,255,0.08)]">
+              <h2 className="font-accent font-extrabold text-[1.5rem] uppercase flex items-center gap-2">
+                <LifeBuoy className="w-5 h-5 text-[#819ffe]" /> New Support Ticket
+              </h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateTicket} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Subject</label>
+                <label className={darkLabel}>Subject</label>
                 <input
                   type="text"
-                  placeholder="Short summary of issue"
+                  placeholder="Short summary of the issue"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  className={darkField}
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white"
-                  >
-                    <option value="technical">Technical Bug</option>
-                    <option value="billing">Billing & Payment</option>
-                    <option value="feature_request">Feature Request</option>
-                    <option value="general">General Support</option>
+                  <label className={darkLabel}>Category</label>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} className={darkField}>
+                    <option value="technical">Technical bug</option>
+                    <option value="billing">Billing & payment</option>
+                    <option value="feature_request">Feature request</option>
+                    <option value="general">General support</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Priority</label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white"
-                  >
+                  <label className={darkLabel}>Priority</label>
+                  <select value={priority} onChange={(e) => setPriority(e.target.value)} className={darkField}>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
@@ -321,30 +284,27 @@ export default function TenantSupportPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Detailed Message</label>
+                <label className={darkLabel}>Message</label>
                 <textarea
-                  rows={4}
+                  rows={5}
                   placeholder="Describe your issue or request in detail..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  className={darkField}
                   required
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 pt-3 border-t">
+              <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50"
+                  className="btn bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-gray-300 hover:text-white py-2.5 px-4 text-[1.3rem]"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-sm"
-                >
+                <button type="submit" disabled={submitting} className="btn btn-primary py-2.5 px-5 text-[1.3rem] disabled:opacity-50">
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {submitting ? "Submitting..." : "Submit Ticket"}
                 </button>
               </div>

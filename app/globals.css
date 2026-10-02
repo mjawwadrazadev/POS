@@ -431,9 +431,9 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 2rem;
-  height: var(--topbar-h);
-  padding: 0 3.2rem;
+  gap: 1.2rem 2rem;
+  min-height: var(--topbar-h);
+  padding: 1rem 3.2rem;
   background: var(--base);
   border-bottom: 1px solid var(--st-muted);
   flex-shrink: 0;
@@ -454,8 +454,10 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
 
 .topbar__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1.2rem;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 
 /* ------------------------------------------------------------------ */

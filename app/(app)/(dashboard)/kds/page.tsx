@@ -13,6 +13,7 @@ import {
   Utensils,
   Inbox,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface KotItem {
   productId: string;
@@ -125,42 +126,30 @@ export default function KitchenDisplaySystemPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:h-[calc(100dvh-12.8rem)]">
-      {/* Header */}
-      <div className="bg-base-bright border border-stroke-muted px-5 py-4 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-[4.4rem] h-[4.4rem] flex items-center justify-center bg-orange-500/10 text-orange-600 border border-orange-500/30">
-            <ChefHat className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-[2rem] font-extrabold text-bright leading-tight">Kitchen Display</h1>
-            <p className="text-[1.3rem] text-muted">
-              {filteredTickets.length} active ticket{filteredTickets.length === 1 ? "" : "s"}
-              {lateCount > 0 && <span className="text-rose-600 font-semibold"> · {lateCount} running late</span>}
-              <span className="hidden sm:inline"> · updates every 10 seconds</span>
-            </p>
-          </div>
+      <PageActions>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-700 font-semibold text-[1.2rem]">
+          <ChefHat className="w-4 h-4" />
+          {filteredTickets.length} active ticket{filteredTickets.length === 1 ? "" : "s"}
+          {lateCount > 0 && <span className="text-rose-600"> · {lateCount} late</span>}
+        </span>
+        <div className="inline-flex bg-base-tint border border-stroke-muted p-1">
+          {STATIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setSelectedStation(s)}
+              className={`px-3.5 py-1.5 text-[1.3rem] font-semibold transition-colors ${
+                selectedStation === s ? "bg-orange-600 text-white" : "text-medium hover:text-bright"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex bg-base-tint border border-stroke-muted p-1">
-            {STATIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSelectedStation(s)}
-                className={`px-3.5 py-2 text-[1.3rem] font-semibold transition-colors ${
-                  selectedStation === s ? "bg-orange-600 text-white" : "text-medium hover:text-bright"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <button onClick={fetchTickets} className="btn btn-secondary py-2.5 px-3.5 text-[1.2rem]" title="Refresh now">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-        </div>
-      </div>
+        <button onClick={fetchTickets} className="btn btn-secondary py-2.5 px-3.5 text-[1.2rem]" title="Refresh now (updates every 10 seconds)">
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+      </PageActions>
 
       {/* Board */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">

@@ -11,7 +11,12 @@ import {
   AlertCircle,
   RefreshCw,
   Calendar,
+  UserCheck,
+  Timer,
+  X,
+  Loader2,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface AttendanceRecord {
   _id: string;
@@ -178,227 +183,241 @@ export default function HrPayrollPage() {
     }
   };
 
+  const onShiftCount = attendanceList.filter((log) => !log.clockOut).length;
+  const totalHoursLogged = attendanceList.reduce((sum, log) => sum + (log.totalHours || 0), 0);
+
+  const openClockModal = (action: "clock_in" | "clock_out") => {
+    setErrorMsg("");
+    setClockAction(action);
+    setStaffPin("");
+    setIsClockModalOpen(true);
+  };
+
+  const formatTime = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#0b0b0d] border border-gray-800 p-6 text-white shadow-xl">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-blue-400 uppercase tracking-widest mb-1">
-            <Users className="w-4 h-4" /> Human Resources & Workforce
+    <div className="space-y-6">
+      <PageActions>
+        <button onClick={fetchData} className="btn btn-secondary py-2.5 px-4 text-[1.2rem]" title="Refresh">
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+        <button onClick={() => openClockModal("clock_in")} className="btn btn-primary py-2.5 px-5 text-[1.3rem]">
+          <Clock className="w-4 h-4" /> Staff Clock-In / Out
+        </button>
+      </PageActions>
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="stat-card">
+          <div className="flex items-center justify-between">
+            <span className="stat-card__label">On shift now</span>
+            <div className="w-10 h-10 bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+              <UserCheck className="w-5 h-5" />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold font-mono tracking-tight text-white">
-            Staff Attendance & Payroll Engine
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Manage PIN clock-in/out attendance, shift durations, and monthly automated staff payroll.
-          </p>
+          <div className="stat-card__value">{onShiftCount}</div>
+          <span className="text-[1.2rem] text-muted">Clocked in and not yet out</span>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchData}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-mono px-3 py-2 border border-gray-700 transition"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </button>
-          <button
-            onClick={() => {
-              setErrorMsg("");
-              setClockAction("clock_in");
-              setIsClockModalOpen(true);
-            }}
-            className="flex items-center gap-2 bg-[#002bba] hover:bg-blue-700 text-white text-xs font-mono px-4 py-2 uppercase tracking-wider transition font-bold"
-          >
-            <Clock className="w-4 h-4" /> Staff Clock-In / Out
-          </button>
+        <div className="stat-card">
+          <div className="flex items-center justify-between">
+            <span className="stat-card__label">Attendance records</span>
+            <div className="w-10 h-10 bg-accent-subtle text-accent flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="stat-card__value">{attendanceList.length}</div>
+          <span className="text-[1.2rem] text-muted">Clock-ins in the log below</span>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center justify-between">
+            <span className="stat-card__label">Hours logged</span>
+            <div className="w-10 h-10 bg-amber-500/10 text-amber-600 flex items-center justify-center">
+              <Timer className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="stat-card__value">{Math.round(totalHoursLogged * 10) / 10}</div>
+          <span className="text-[1.2rem] text-muted">From completed shifts</span>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-gray-800 font-mono text-xs">
-        <button
-          onClick={() => setActiveTab("attendance")}
-          className={`px-5 py-3 font-bold uppercase transition flex items-center gap-2 border-b-2 ${
-            activeTab === "attendance"
-              ? "border-[#002bba] text-white bg-gray-900/60"
-              : "border-transparent text-gray-400 hover:text-white"
-          }`}
-        >
-          <Clock className="w-4 h-4" /> Attendance Logs ({attendanceList.length})
-        </button>
-        {canManagePayroll && (
-        <button
-          onClick={() => setActiveTab("payroll")}
-          className={`px-5 py-3 font-bold uppercase transition flex items-center gap-2 border-b-2 ${
-            activeTab === "payroll"
-              ? "border-[#002bba] text-white bg-gray-900/60"
-              : "border-transparent text-gray-400 hover:text-white"
-          }`}
-        >
-          <DollarSign className="w-4 h-4" /> Monthly Payroll Runner ({payrollList.length})
-        </button>
-        )}
-      </div>
+      {/* Tabs */}
+      {canManagePayroll && (
+        <div className="inline-flex bg-base-bright border border-stroke-muted p-1 font-accent text-[1.3rem]">
+          {([
+            ["attendance", "Attendance", Clock, attendanceList.length],
+            ["payroll", "Payroll", DollarSign, payrollList.length],
+          ] as const).map(([key, label, Icon, count]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`px-4 py-2 font-bold uppercase flex items-center gap-2 transition-colors ${
+                activeTab === key ? "bg-accent text-white" : "text-medium hover:text-bright"
+              }`}
+            >
+              <Icon className="w-4 h-4" /> {label}
+              <span className={activeTab === key ? "text-white/70" : "text-muted"}>{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Messages */}
       {successMsg && (
-        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-4 text-xs font-mono flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 px-4 py-3 text-[1.35rem]">
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
-      {errorMsg && (
-        <div className="bg-rose-950/80 border border-rose-500/50 text-rose-300 p-4 text-xs font-mono flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+      {errorMsg && !isClockModalOpen && (
+        <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/30 text-rose-600 px-4 py-3 text-[1.35rem]">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* TAB 1: ATTENDANCE LOGS */}
+      {/* ATTENDANCE LOG */}
       {activeTab === "attendance" && (
-        <div className="bg-[#0b0b0d] border border-gray-800 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-800">
-            <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">
-              Staff Attendance & Shift Duration Records
-            </h3>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse font-mono text-xs">
-              <thead>
-                <tr className="bg-gray-900/80 text-gray-400 uppercase tracking-wider border-b border-gray-800">
-                  <th className="p-4">Staff Name</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">Date</th>
-                  <th className="p-4">Clock In</th>
-                  <th className="p-4">Clock Out</th>
-                  <th className="p-4">Total Hours</th>
-                  <th className="p-4">Status</th>
+        <div className="data-table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th>Date</th>
+                <th>Clock in</th>
+                <th>Clock out</th>
+                <th>Hours</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {attendanceList.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="!py-16">
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      <div className="w-14 h-14 bg-base-tint border border-stroke-muted flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-muted" />
+                      </div>
+                      <p className="font-bold text-[1.5rem]">No attendance yet</p>
+                      <p className="text-muted text-[1.3rem] max-w-[40rem]">
+                        Staff clock in with their 4-digit PIN at the start of a shift and clock out at the end.
+                      </p>
+                      <button onClick={() => openClockModal("clock_in")} className="btn btn-primary py-2.5 px-5 text-[1.3rem] mt-1">
+                        <Clock className="w-4 h-4" /> Clock in a staff member
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/60">
-                {attendanceList.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
-                      No staff attendance records logged today. Click &quot;Staff Clock-In / Out&quot; to test.
+              ) : (
+                attendanceList.map((log) => (
+                  <tr key={log._id}>
+                    <td>
+                      <div className="font-bold">{log.userName}</div>
+                      <div className="text-[1.15rem] text-muted uppercase font-accent">{log.userRole}</div>
+                    </td>
+                    <td className="text-medium">{new Date(log.clockIn).toLocaleDateString()}</td>
+                    <td className="font-semibold text-emerald-700">{formatTime(log.clockIn)}</td>
+                    <td className="font-semibold">
+                      {log.clockOut ? <span className="text-rose-600">{formatTime(log.clockOut)}</span> : <span className="text-muted">—</span>}
+                    </td>
+                    <td className="font-bold">{log.totalHours ? `${log.totalHours} hrs` : "—"}</td>
+                    <td>
+                      {log.clockOut ? (
+                        <span className="badge bg-base-tint text-medium">Completed</span>
+                      ) : (
+                        <span className="badge badge-success">On shift</span>
+                      )}
                     </td>
                   </tr>
-                ) : (
-                  attendanceList.map((log) => (
-                    <tr key={log._id} className="hover:bg-gray-900/40 transition">
-                      <td className="p-4 font-bold text-white">{log.userName}</td>
-                      <td className="p-4 uppercase text-gray-300">{log.userRole}</td>
-                      <td className="p-4 text-gray-400">
-                        {new Date(log.clockIn).toLocaleDateString()}
-                      </td>
-                      <td className="p-4 text-emerald-400 font-bold">
-                        {new Date(log.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="p-4 text-rose-400 font-bold">
-                        {log.clockOut
-                          ? new Date(log.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : "IN SHIFT"}
-                      </td>
-                      <td className="p-4 text-white font-bold">
-                        {log.totalHours ? `${log.totalHours} hrs` : "—"}
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase">
-                          {log.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* TAB 2: PAYROLL RUNNER */}
+      {/* PAYROLL */}
       {canManagePayroll && activeTab === "payroll" && (
         <div className="space-y-6">
-          <div className="bg-[#0b0b0d] border border-gray-800 p-6 space-y-4 font-mono text-xs">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-400" /> Generate Monthly Staff Payroll
-            </h3>
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="bg-base-bright border border-stroke-muted p-5 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-[1.6rem] flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-accent" /> Generate monthly payroll
+              </h3>
+              <p className="text-muted text-[1.3rem] mt-1">
+                Builds a draft from each staff member&apos;s base salary, commission and deductions for the month.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
               <div>
-                <label className="block text-gray-400 mb-1">Select Payroll Month</label>
+                <label className="form-label">Month</label>
                 <input
                   type="month"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-gray-900 border border-gray-700 text-white p-2.5 outline-none font-bold"
+                  className="form-input py-2.5"
                 />
               </div>
-              <button
-                disabled={actionLoading}
-                onClick={handleGeneratePayroll}
-                className="mt-5 bg-[#002bba] hover:bg-blue-700 text-white px-5 py-2.5 uppercase font-bold tracking-wider"
-              >
-                {actionLoading ? "Generating..." : "Generate Payroll Draft"}
+              <button disabled={actionLoading} onClick={handleGeneratePayroll} className="btn btn-primary py-3 px-5 text-[1.3rem] disabled:opacity-50">
+                {actionLoading ? "Generating..." : "Generate Draft"}
               </button>
             </div>
           </div>
 
+          {payrollList.length === 0 && (
+            <div className="bg-base-bright border border-stroke-muted p-10 text-center text-muted text-[1.4rem]">
+              No payroll runs yet. Pick a month above and generate a draft.
+            </div>
+          )}
+
           {payrollList.map((run) => (
-            <div key={run._id} className="bg-[#0b0b0d] border border-gray-800 overflow-hidden font-mono text-xs">
-              <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/60">
+            <div key={run._id} className="data-table-wrapper">
+              <div className="px-5 py-4 border-b border-stroke-muted flex flex-wrap justify-between items-center gap-3 bg-base-tint">
                 <div>
-                  <h4 className="text-base font-bold text-white uppercase">
-                    Payroll Month: {run.month}
-                  </h4>
-                  <p className="text-gray-400 text-[11px] mt-0.5">
-                    Total Payroll Payout: <b className="text-emerald-400">PKR {run.totalPayroll.toLocaleString()}</b>
+                  <h4 className="text-[1.6rem] font-bold">Payroll · {run.month}</h4>
+                  <p className="text-muted text-[1.3rem] mt-0.5">
+                    Total payout <b className="text-emerald-700">PKR {run.totalPayroll.toLocaleString()}</b>
                   </p>
                 </div>
-                <div>
-                  {run.status === "paid" ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> PAID & LEDGER POSTED
-                    </span>
-                  ) : (
-                    <button
-                      disabled={actionLoading}
-                      onClick={() => handleMarkPayrollPaid(run._id)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 uppercase font-bold tracking-wider"
-                    >
-                      Approve & Mark Paid (Post Ledger)
-                    </button>
-                  )}
-                </div>
+                {run.status === "paid" ? (
+                  <span className="badge badge-success flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Paid · posted to ledger
+                  </span>
+                ) : (
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => handleMarkPayrollPaid(run._id)}
+                    className="btn btn-success py-2.5 px-4 text-[1.2rem] disabled:opacity-50"
+                  >
+                    Approve & mark paid
+                  </button>
+                )}
               </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-900 text-gray-400 uppercase tracking-wider border-b border-gray-800">
-                      <th className="p-4">Staff Member</th>
-                      <th className="p-4">Role</th>
-                      <th className="p-4">Base Salary</th>
-                      <th className="p-4">Commission</th>
-                      <th className="p-4">Deductions</th>
-                      <th className="p-4 text-right">Net Salary</th>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Staff member</th>
+                    <th>Base salary</th>
+                    <th>Commission</th>
+                    <th>Deductions</th>
+                    <th className="!text-right">Net salary</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {run.entries.map((entry, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <div className="font-bold">{entry.userName}</div>
+                        <div className="text-[1.15rem] text-muted uppercase font-accent">{entry.userRole}</div>
+                      </td>
+                      <td>PKR {entry.baseSalary.toLocaleString()}</td>
+                      <td className="text-emerald-700">+ PKR {entry.commissionEarned.toLocaleString()}</td>
+                      <td className="text-rose-600">− PKR {entry.deductions.toLocaleString()}</td>
+                      <td className="text-right font-extrabold">PKR {entry.netPay.toLocaleString()}</td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800/60">
-                    {run.entries.map((entry, idx) => (
-                      <tr key={idx} className="hover:bg-gray-900/40">
-                        <td className="p-4 font-bold text-white">{entry.userName}</td>
-                        <td className="p-4 uppercase text-gray-400">{entry.userRole}</td>
-                        <td className="p-4 text-gray-300">PKR {entry.baseSalary.toLocaleString()}</td>
-                        <td className="p-4 text-emerald-400">+ PKR {entry.commissionEarned.toLocaleString()}</td>
-                        <td className="p-4 text-rose-400">- PKR {entry.deductions.toLocaleString()}</td>
-                        <td className="p-4 text-right font-extrabold text-white text-sm">
-                          PKR {entry.netPay.toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ))}
         </div>
@@ -406,81 +425,92 @@ export default function HrPayrollPage() {
 
       {/* STAFF CLOCK-IN / OUT MODAL */}
       {isClockModalOpen && (
-        <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
-          <div className="bg-[#0b0b0d] border border-blue-500/50 w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="font-mono font-bold text-blue-400 text-sm uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-4 h-4" /> Staff Shift Kiosk Terminal
+        <div className="fixed inset-0 bg-black/70 z-[130] flex items-center justify-center p-4">
+          <div className="bg-[#171719] border border-[rgba(255,255,255,0.12)] w-full max-w-[44rem] text-white shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-[rgba(255,255,255,0.08)]">
+              <h3 className="font-accent font-extrabold text-[1.5rem] uppercase flex items-center gap-2">
+                <Clock className="w-5 h-5 text-[#819ffe]" /> Staff Clock-In / Out
               </h3>
-              <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-xs">
-                [Close]
+              <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white p-1" aria-label="Close">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleClockSubmit} className="space-y-4 font-mono text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleClockSubmit} className="p-5 space-y-5">
+              <div className="grid grid-cols-2 gap-3 font-accent text-[1.3rem]">
                 <button
                   type="button"
                   onClick={() => setClockAction("clock_in")}
-                  className={`py-2 font-bold uppercase border ${
+                  className={`py-3 font-bold uppercase border transition-colors ${
                     clockAction === "clock_in"
                       ? "bg-emerald-600 text-white border-emerald-500"
-                      : "bg-gray-900 text-gray-400 border-gray-800"
+                      : "bg-[#0b0b0d] text-gray-400 border-[rgba(255,255,255,0.12)] hover:text-white"
                   }`}
                 >
-                  Clock IN Shift
+                  Clock In
                 </button>
                 <button
                   type="button"
                   onClick={() => setClockAction("clock_out")}
-                  className={`py-2 font-bold uppercase border ${
+                  className={`py-3 font-bold uppercase border transition-colors ${
                     clockAction === "clock_out"
-                      ? "bg-rose-700 text-white border-rose-600"
-                      : "bg-gray-900 text-gray-400 border-gray-800"
+                      ? "bg-rose-600 text-white border-rose-500"
+                      : "bg-[#0b0b0d] text-gray-400 border-[rgba(255,255,255,0.12)] hover:text-white"
                   }`}
                 >
-                  Clock OUT Shift
+                  Clock Out
                 </button>
               </div>
 
+              {errorMsg && (
+                <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-300 px-3 py-2.5 text-[1.3rem]">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" /> {errorMsg}
+                </div>
+              )}
+
               <div>
-                <label className="block text-gray-300 uppercase tracking-wider mb-1">Enter 4-Digit Staff PIN</label>
+                <label className="block font-accent text-[1.2rem] uppercase text-gray-300 font-semibold mb-2">Staff PIN</label>
                 <input
                   type="password"
+                  inputMode="numeric"
+                  autoFocus
                   maxLength={4}
                   value={staffPin}
-                  onChange={(e) => setStaffPin(e.target.value)}
+                  onChange={(e) => setStaffPin(e.target.value.replace(/\D/g, ""))}
                   placeholder="••••"
-                  className="w-full bg-gray-900 border border-gray-700 text-blue-400 font-mono font-bold text-center text-2xl py-3 outline-none focus:border-blue-500"
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white font-bold text-center text-[2.8rem] tracking-[0.6em] py-3 outline-none focus:border-[#819ffe]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-gray-300 uppercase tracking-wider mb-1">Shift Notes (Optional)</label>
+                <label className="block font-accent text-[1.2rem] uppercase text-gray-300 font-semibold mb-2">Notes (optional)</label>
                 <input
                   type="text"
                   value={staffNotes}
                   onChange={(e) => setStaffNotes(e.target.value)}
-                  placeholder="e.g. On-time morning shift check in"
-                  className="w-full bg-gray-900 border border-gray-700 text-white p-2.5 outline-none"
+                  placeholder="e.g. Morning shift"
+                  className="w-full bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-white text-[1.4rem] px-3 py-2.5 outline-none focus:border-[#819ffe]"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setIsClockModalOpen(false)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 uppercase"
+                  className="btn bg-[#0b0b0d] border border-[rgba(255,255,255,0.18)] text-gray-300 hover:text-white py-2.5 px-4 text-[1.3rem]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="bg-[#002bba] hover:bg-blue-700 text-white px-5 py-2 uppercase font-bold"
+                  className={`btn py-2.5 px-5 text-[1.3rem] text-white disabled:opacity-50 ${
+                    clockAction === "clock_in" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-rose-600 hover:bg-rose-500"
+                  }`}
                 >
-                  {actionLoading ? "Processing..." : `Submit ${clockAction.replace("_", " ")}`}
+                  {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {actionLoading ? "Saving..." : clockAction === "clock_in" ? "Clock In" : "Clock Out"}
                 </button>
               </div>
             </form>

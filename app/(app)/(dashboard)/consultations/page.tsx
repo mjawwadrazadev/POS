@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, Receipt, AlertCircle } from "lucide-react";
 import { ThermalReceiptModal } from "@/components/pos/ThermalReceiptModal";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface DoctorOption {
   _id: string;
@@ -88,14 +89,6 @@ export default function ConsultationBillingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-base-tint border border-stroke-muted p-6">
-        <div className="flex items-center gap-2">
-          <Stethoscope className="w-5 h-5 text-cyan-400" />
-          <h2 className="font-extrabold text-[2.2rem] text-bright">Consultation Billing</h2>
-        </div>
-        <p className="text-medium text-[1.4rem] mt-1">Issue a patient token (perchi) and receipt for a doctor consultation.</p>
-      </div>
-
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 font-accent text-[1.3rem] flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />

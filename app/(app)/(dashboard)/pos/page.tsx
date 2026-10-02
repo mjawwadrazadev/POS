@@ -40,7 +40,6 @@ import {
   Unlock,
   Printer,
   Camera,
-  Store,
   UserRound,
   WifiOff,
   Armchair,
@@ -48,6 +47,7 @@ import {
   Percent,
 } from "lucide-react";
 import { ProductImage } from "@/components/products/ProductImage";
+import { PageActions } from "@/components/layout/PageActions";
 
 type PaymentMethod = "cash" | "card" | "wallet" | "split";
 
@@ -470,54 +470,48 @@ export default function PosBillingPage() {
   return (
     <>
       <div className="flex flex-col gap-4 lg:h-[calc(100dvh-12.8rem)]">
-        {/* Shift / counter status bar */}
-        <div className="bg-base-bright border border-stroke-muted px-4 py-3 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
-          <div className="flex flex-wrap items-center gap-2 text-[1.25rem]">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-base-tint border border-stroke-muted text-medium">
-              <Store className="w-4 h-4 text-accent" />
-              <b className="text-bright font-semibold">{branchLabel || "—"}</b>
+        {/* Shift status lives in the top bar, so the till gets the full height */}
+        <PageActions>
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-base-tint border border-stroke-muted text-medium text-[1.2rem]">
+            <UserRound className="w-4 h-4 text-accent" />
+            <b className="text-bright font-semibold">{userName || "—"}</b>
+          </span>
+          {offlineQueueCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-600 font-semibold text-[1.2rem]">
+              <WifiOff className="w-4 h-4" /> {offlineQueueCount} offline sale(s) waiting to sync
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-base-tint border border-stroke-muted text-medium">
-              <UserRound className="w-4 h-4 text-accent" />
-              <b className="text-bright font-semibold">{userName || "—"}</b>
-            </span>
-            {offlineQueueCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 font-semibold">
-                <WifiOff className="w-4 h-4" /> {offlineQueueCount} offline sale(s) waiting to sync
-              </span>
-            )}
-            {activeSession ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 font-semibold">
+          )}
+          {activeSession ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 font-semibold text-[1.2rem]">
                 <span className="avatar-round w-2 h-2 bg-emerald-500" />
                 Shift open · Float PKR {activeSession.openingFloat.toLocaleString()}
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-600 font-semibold">
+              <button
+                onClick={() => {
+                  setActualCashInput(activeSession.expectedCashInDrawer || activeSession.openingFloat);
+                  setIsCloseShiftModalOpen(true);
+                }}
+                className="btn btn-secondary py-2 px-4 text-[1.2rem] text-rose-600"
+              >
+                <Lock className="w-4 h-4" /> Close Shift (EOD)
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 font-semibold text-[1.2rem]">
                 <span className="avatar-round w-2 h-2 bg-rose-500" />
                 Shift closed
               </span>
-            )}
-          </div>
-
-          {!activeSession ? (
-            <button
-              onClick={() => setIsOpenShiftModalOpen(true)}
-              className="btn py-2 px-4 text-[1.2rem] bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              <Unlock className="w-4 h-4" /> Open Shift
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                setActualCashInput(activeSession.expectedCashInDrawer || activeSession.openingFloat);
-                setIsCloseShiftModalOpen(true);
-              }}
-              className="btn btn-secondary py-2 px-4 text-[1.2rem] text-rose-600"
-            >
-              <Lock className="w-4 h-4" /> Close Shift (EOD)
-            </button>
+              <button
+                onClick={() => setIsOpenShiftModalOpen(true)}
+                className="btn py-2 px-4 text-[1.2rem] bg-emerald-600 hover:bg-emerald-500 text-white"
+              >
+                <Unlock className="w-4 h-4" /> Open Shift
+              </button>
+            </>
           )}
-        </div>
+        </PageActions>
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_32rem] xl:grid-cols-[minmax(0,1fr)_38rem] 2xl:grid-cols-[minmax(0,1fr)_42rem] gap-4 flex-1 min-h-0">
           {/* LEFT — Product catalogue */}
@@ -921,48 +915,48 @@ export default function PosBillingPage() {
         <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
           <div className="bg-[#0b0b0d] border border-blue-500/50 w-full max-w-lg p-6 text-white space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <div className="flex items-center gap-2 font-mono font-bold text-[#002bba] text-base uppercase tracking-wider">
+              <div className="flex items-center gap-2 font-mono font-bold text-[#002bba] text-[1.6rem] uppercase tracking-wider">
                 <Split className="w-5 h-5 text-blue-400" />
                 <span>Split Payment Checkout</span>
               </div>
-              <button onClick={() => setIsSplitModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-xs">
+              <button onClick={() => setIsSplitModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-[1.3rem]">
                 [Close]
               </button>
             </div>
 
-            <div className="bg-blue-950/40 border border-blue-500/30 p-4 font-mono text-xs space-y-1">
+            <div className="bg-blue-950/40 border border-blue-500/30 p-4 font-mono text-[1.3rem] space-y-1">
               <div className="flex justify-between text-gray-300">
                 <span>Grand Order Total:</span>
-                <span className="font-bold text-white text-sm">PKR {grandTotal.toLocaleString()}</span>
+                <span className="font-bold text-white text-[1.5rem]">PKR {grandTotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-gray-300">
                 <span>Entered Payment Total:</span>
-                <span className="font-bold text-amber-400 text-sm">
+                <span className="font-bold text-amber-400 text-[1.5rem]">
                   PKR {(Number(splitCash) + Number(splitCard) + Number(splitWallet)).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between text-gray-300 pt-1 border-t border-blue-500/20">
                 <span>Remaining Balance:</span>
-                <span className={`font-bold text-sm ${grandTotal - (Number(splitCash) + Number(splitCard) + Number(splitWallet)) === 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                <span className={`font-bold text-[1.5rem] ${grandTotal - (Number(splitCash) + Number(splitCard) + Number(splitWallet)) === 0 ? "text-emerald-400" : "text-rose-400"}`}>
                   PKR {(grandTotal - (Number(splitCash) + Number(splitCard) + Number(splitWallet))).toLocaleString()}
                 </span>
               </div>
             </div>
 
             {splitError && (
-              <div className="bg-rose-950/80 border border-rose-500/50 text-rose-300 p-3 text-xs font-mono">
+              <div className="bg-rose-950/80 border border-rose-500/50 text-rose-300 p-3 text-[1.3rem] font-mono">
                 {splitError}
               </div>
             )}
 
-            <div className="space-y-3 font-mono text-xs">
+            <div className="space-y-3 font-mono text-[1.3rem]">
               <div>
                 <label className="block text-gray-300 uppercase tracking-wider mb-1">Cash Payment Amount (PKR)</label>
                 <input
                   type="number"
                   value={splitCash}
                   onChange={(e) => setSplitCash(Number(e.target.value))}
-                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-sm"
+                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-[1.5rem]"
                 />
               </div>
 
@@ -972,7 +966,7 @@ export default function PosBillingPage() {
                   type="number"
                   value={splitCard}
                   onChange={(e) => setSplitCard(Number(e.target.value))}
-                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-sm"
+                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-[1.5rem]"
                 />
               </div>
 
@@ -982,7 +976,7 @@ export default function PosBillingPage() {
                   type="number"
                   value={splitWallet}
                   onChange={(e) => setSplitWallet(Number(e.target.value))}
-                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-sm"
+                  className="w-full bg-gray-900 border border-gray-700 text-white font-bold p-2.5 outline-none focus:border-blue-500 text-[1.5rem]"
                 />
               </div>
             </div>
@@ -991,7 +985,7 @@ export default function PosBillingPage() {
               <button
                 type="button"
                 onClick={() => setIsSplitModalOpen(false)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-2.5 font-mono text-xs uppercase tracking-wider"
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-2.5 font-mono text-[1.3rem] uppercase tracking-wider"
               >
                 Cancel
               </button>
@@ -999,7 +993,7 @@ export default function PosBillingPage() {
                 type="button"
                 onClick={handleConfirmSplitPayment}
                 disabled={checkoutLoading}
-                className="flex-1 bg-[#002bba] hover:bg-blue-700 text-white py-2.5 font-mono text-xs uppercase tracking-wider font-bold"
+                className="flex-1 bg-[#002bba] hover:bg-blue-700 text-white py-2.5 font-mono text-[1.3rem] uppercase tracking-wider font-bold"
               >
                 {checkoutLoading ? "Processing..." : "Confirm & Complete Split Pay"}
               </button>
@@ -1013,15 +1007,15 @@ export default function PosBillingPage() {
         <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
           <div className="bg-[#0b0b0d] border border-emerald-500/50 w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="font-mono font-bold text-emerald-400 text-sm uppercase tracking-wider flex items-center gap-2">
+              <h3 className="font-mono font-bold text-emerald-400 text-[1.5rem] uppercase tracking-wider flex items-center gap-2">
                 <Unlock className="w-4 h-4" /> Open Counter Shift Float
               </h3>
-              <button onClick={() => setIsOpenShiftModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-xs">
+              <button onClick={() => setIsOpenShiftModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-[1.3rem]">
                 [Close]
               </button>
             </div>
 
-            <form onSubmit={handleOpenShiftSubmit} className="space-y-4 font-mono text-xs">
+            <form onSubmit={handleOpenShiftSubmit} className="space-y-4 font-mono text-[1.3rem]">
               <div>
                 <label className="block text-gray-300 uppercase tracking-wider mb-1">Opening Cash Float in Drawer (PKR)</label>
                 <input
@@ -1071,15 +1065,15 @@ export default function PosBillingPage() {
         <div className="fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
           <div className="bg-[#0b0b0d] border border-rose-500/50 w-full max-w-lg p-6 text-white space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="font-mono font-bold text-rose-400 text-sm uppercase tracking-wider flex items-center gap-2">
+              <h3 className="font-mono font-bold text-rose-400 text-[1.5rem] uppercase tracking-wider flex items-center gap-2">
                 <Lock className="w-4 h-4" /> End of Day (EOD) Shift Close
               </h3>
-              <button onClick={() => setIsCloseShiftModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-xs">
+              <button onClick={() => setIsCloseShiftModalOpen(false)} className="text-gray-400 hover:text-white font-mono text-[1.3rem]">
                 [Close]
               </button>
             </div>
 
-            <div className="bg-gray-900 border border-gray-800 p-4 font-mono text-xs space-y-2">
+            <div className="bg-gray-900 border border-gray-800 p-4 font-mono text-[1.3rem] space-y-2">
               <div className="flex justify-between text-gray-400">
                 <span>Opening Cash Float:</span>
                 <span className="text-white font-bold">PKR {activeSession.openingFloat.toLocaleString()}</span>
@@ -1090,11 +1084,11 @@ export default function PosBillingPage() {
               </div>
               <div className="flex justify-between text-gray-300 pt-2 border-t border-gray-800">
                 <span>Expected Cash in Drawer:</span>
-                <span className="text-blue-400 font-bold text-sm">PKR {activeSession.expectedCashInDrawer.toLocaleString()}</span>
+                <span className="text-blue-400 font-bold text-[1.5rem]">PKR {activeSession.expectedCashInDrawer.toLocaleString()}</span>
               </div>
             </div>
 
-            <form onSubmit={handleCloseShiftSubmit} className="space-y-4 font-mono text-xs">
+            <form onSubmit={handleCloseShiftSubmit} className="space-y-4 font-mono text-[1.3rem]">
               <div>
                 <label className="block text-gray-300 uppercase tracking-wider mb-1">Actual Physical Counted Cash (PKR)</label>
                 <input
@@ -1109,7 +1103,7 @@ export default function PosBillingPage() {
 
               <div className="p-3 bg-gray-950 border border-gray-800 flex justify-between items-center">
                 <span className="text-gray-400 uppercase">Calculated Shift Variance:</span>
-                <span className={`font-bold text-sm ${actualCashInput - activeSession.expectedCashInDrawer === 0 ? "text-emerald-400" : actualCashInput - activeSession.expectedCashInDrawer < 0 ? "text-rose-400" : "text-amber-400"}`}>
+                <span className={`font-bold text-[1.5rem] ${actualCashInput - activeSession.expectedCashInDrawer === 0 ? "text-emerald-400" : actualCashInput - activeSession.expectedCashInDrawer < 0 ? "text-rose-400" : "text-amber-400"}`}>
                   PKR {(actualCashInput - activeSession.expectedCashInDrawer).toLocaleString()}
                   {actualCashInput - activeSession.expectedCashInDrawer < 0 ? " (SHORTAGE)" : actualCashInput - activeSession.expectedCashInDrawer > 0 ? " (OVERAGE)" : " (EXACT)"}
                 </span>
@@ -1152,16 +1146,16 @@ export default function PosBillingPage() {
         <div className="fixed inset-0 bg-black/85 z-[140] flex items-center justify-center p-4">
           <div className="bg-[#0b0b0d] border border-blue-500/50 w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="font-mono font-bold text-blue-400 text-sm uppercase tracking-wider flex items-center gap-2">
+              <h3 className="font-mono font-bold text-blue-400 text-[1.5rem] uppercase tracking-wider flex items-center gap-2">
                 <Printer className="w-4 h-4" /> EOD Shift Closing Report
               </h3>
-              <button onClick={() => setEodSummaryReport(null)} className="text-gray-400 hover:text-white font-mono text-xs">
+              <button onClick={() => setEodSummaryReport(null)} className="text-gray-400 hover:text-white font-mono text-[1.3rem]">
                 [Close]
               </button>
             </div>
 
-            <div ref={eodSummaryRef} className="print-invert bg-gray-900 p-4 border border-gray-800 font-mono text-xs space-y-2">
-              <div className="text-center font-bold text-sm text-white uppercase tracking-widest border-b border-gray-800 pb-2">
+            <div ref={eodSummaryRef} className="print-invert bg-gray-900 p-4 border border-gray-800 font-mono text-[1.3rem] space-y-2">
+              <div className="text-center font-bold text-[1.5rem] text-white uppercase tracking-widest border-b border-gray-800 pb-2">
                 RST POS — End of Shift Summary
               </div>
               <div className="flex justify-between text-gray-400">
@@ -1194,7 +1188,7 @@ export default function PosBillingPage() {
                 <span className="text-white font-bold">PKR {eodSummaryReport.actualCountedCash.toLocaleString()}</span>
               </div>
               <hr className="border-gray-800" />
-              <div className="flex justify-between text-sm font-bold">
+              <div className="flex justify-between text-[1.5rem] font-bold">
                 <span>Variance:</span>
                 <span className={eodSummaryReport.variance === 0 ? "text-emerald-400" : eodSummaryReport.variance < 0 ? "text-rose-400" : "text-amber-400"}>
                   PKR {eodSummaryReport.variance.toLocaleString()}
@@ -1205,13 +1199,13 @@ export default function PosBillingPage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={printEodSummary}
-                className="flex-1 bg-[#002bba] hover:bg-blue-700 text-white py-2 font-mono text-xs uppercase font-bold flex items-center justify-center gap-2"
+                className="flex-1 bg-[#002bba] hover:bg-blue-700 text-white py-2 font-mono text-[1.3rem] uppercase font-bold flex items-center justify-center gap-2"
               >
                 <Printer className="w-4 h-4" /> Print Shift Summary
               </button>
               <button
                 onClick={() => setEodSummaryReport(null)}
-                className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 font-mono text-xs uppercase"
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 font-mono text-[1.3rem] uppercase"
               >
                 Done
               </button>

@@ -18,6 +18,7 @@ import {
   Building2,
   Boxes,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface BranchOption {
   id: string;
@@ -252,23 +253,14 @@ export default function StockTransferPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[2.4rem] font-extrabold text-bright leading-tight">Stock Transfers</h1>
-          <p className="text-[1.4rem] text-muted mt-1">
-            Move stock between your branches. Stock leaves the source when dispatched and is added at the destination once received.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={fetchData} className="btn btn-secondary py-2.5 px-3.5 text-[1.2rem]" title="Refresh">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <button onClick={openModal} disabled={needsBranches} className="btn btn-primary py-2.5 text-[1.25rem] disabled:opacity-40 disabled:cursor-not-allowed">
-            <Plus className="w-4 h-4" /> New Transfer
-          </button>
-        </div>
-      </div>
+      <PageActions>
+        <button onClick={fetchData} className="btn btn-secondary py-2.5 px-3.5 text-[1.2rem]" title="Refresh">
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
+        <button onClick={openModal} disabled={needsBranches} className="btn btn-primary py-2.5 text-[1.25rem] disabled:opacity-40 disabled:cursor-not-allowed">
+          <Plus className="w-4 h-4" /> New Transfer
+        </button>
+      </PageActions>
 
       {needsBranches && (
         <div className="flex flex-wrap items-center justify-between gap-3 bg-accent-subtle border border-[rgba(0,43,186,0.3)] px-4 py-3.5">

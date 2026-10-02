@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users, Building2, LayoutGrid, Plus, RefreshCw, CheckCircle2, AlertCircle, Trash2, KeyRound } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface StaffUser {
   _id: string;
@@ -223,18 +224,12 @@ export default function TeamSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-base-tint border border-stroke-muted p-6">
-        <div>
-          <h2 className="font-extrabold text-[2.2rem] text-bright">Team, Branches & Tables</h2>
-          <p className="text-medium text-[1.4rem] mt-1">
-            Manage staff logins, PINs and salaries, store branches, and the restaurant floor plan.
-          </p>
-        </div>
+      <PageActions>
         <button type="button" onClick={loadAll} className="btn btn-secondary py-2.5 px-4 text-[1.2rem] flex items-center gap-2">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           <span>Refresh</span>
         </button>
-      </div>
+      </PageActions>
 
       {message && (
         <div

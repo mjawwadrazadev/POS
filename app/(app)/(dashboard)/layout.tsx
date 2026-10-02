@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { TopBarSlotContext } from "@/components/layout/PageActions";
 import { SessionProvider } from "@/components/layout/SessionContext";
 import { ImpersonationBanner } from "@/components/super-admin/ImpersonationBanner";
 import { AnnouncementBanner } from "@/components/super-admin/AnnouncementBanner";
@@ -21,6 +22,30 @@ function superAdminTitle(pathname: string) {
   return "Platform Command Center";
 }
 
+// Same names as the sidebar, so the header always says which page is open
+const STORE_TITLES: [string, string][] = [
+  ["/dashboard", "Dashboard"],
+  ["/pos", "POS Billing"],
+  ["/orders", "Orders & Receipts"],
+  ["/kds", "Kitchen Display"],
+  ["/consultations", "Consultation Billing"],
+  ["/doctors", "Doctor Directory"],
+  ["/reports/doctors", "Doctor Revenue Reports"],
+  ["/reports", "EOD & Sales Reports"],
+  ["/products", "Products & SKUs"],
+  ["/inventory/stock", "Stock Transfers"],
+  ["/accounting/ledger", "Double-Entry Ledger"],
+  ["/hr", "Attendance & Payroll"],
+  ["/settings/team", "Team, Branches & Tables"],
+  ["/settings/printers", "Printers & Scanners"],
+  ["/support", "Support Desk"],
+];
+
+function storeTitle(pathname: string) {
+  const match = STORE_TITLES.find(([path]) => pathname === path || pathname.startsWith(path + "/"));
+  return match ? match[1] : "Dashboard";
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -31,6 +56,7 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [userSession, setUserSession] = useState<any>(null);
+  const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
@@ -81,7 +107,7 @@ export default function DashboardLayout({
   }
 
   const isSuperAdminRoute = pathname.startsWith("/super-admin");
-  const topBarTitle = isSuperAdminRoute ? superAdminTitle(pathname) : undefined;
+  const topBarTitle = isSuperAdminRoute ? superAdminTitle(pathname) : storeTitle(pathname);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -97,10 +123,12 @@ export default function DashboardLayout({
       <div className="pos-layout">
         <Sidebar session={userSession} />
         <div className="pos-main">
-          <TopBar title={topBarTitle} session={userSession} />
-          <main className="pos-main__content">
-            <SessionProvider value={userSession}>{children}</SessionProvider>
-          </main>
+          <TopBarSlotContext.Provider value={actionsSlot}>
+            <TopBar title={topBarTitle} session={userSession} actionsRef={setActionsSlot} />
+            <main className="pos-main__content">
+              <SessionProvider value={userSession}>{children}</SessionProvider>
+            </main>
+          </TopBarSlotContext.Provider>
         </div>
       </div>
     </div>

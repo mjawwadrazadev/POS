@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   ArrowUpRight,
@@ -10,6 +9,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
+import { PageActions } from "@/components/layout/PageActions";
 
 interface LedgerLine {
   accountCode: string;
@@ -103,39 +103,26 @@ export default function AccountingLedgerPage() {
 
   return (
     <div className="space-y-6">
-      {/* Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-base-tint border border-stroke-muted p-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-accent" />
-            <h2 className="font-extrabold text-[2.2rem] text-bright">Double-Entry General Ledger</h2>
-          </div>
-          <p className="text-medium text-[1.4rem] mt-1">
-            Journal entries posted automatically by sales, refunds, consultations and payroll.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={loadLedger}
-            className="btn btn-secondary py-2.5 px-4 text-[1.2rem] flex items-center gap-2"
-            disabled={loading}
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </button>
-          <button
-            type="button"
-            onClick={runAudit}
-            className="btn btn-primary py-2.5 px-4 text-[1.2rem] flex items-center gap-2"
-            disabled={auditing || !!error}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>{auditing ? "Auditing..." : "Run Balance Audit"}</span>
-          </button>
-        </div>
-      </div>
+      <PageActions>
+        <button
+          type="button"
+          onClick={loadLedger}
+          className="btn btn-secondary py-2.5 px-4 text-[1.2rem] flex items-center gap-2"
+          disabled={loading}
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <span>Refresh</span>
+        </button>
+        <button
+          type="button"
+          onClick={runAudit}
+          className="btn btn-primary py-2.5 px-4 text-[1.2rem] flex items-center gap-2"
+          disabled={auditing || !!error}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>{auditing ? "Auditing..." : "Run Balance Audit"}</span>
+        </button>
+      </PageActions>
 
       {audit && (
         <div
