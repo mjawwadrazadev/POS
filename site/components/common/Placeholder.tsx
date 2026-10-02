@@ -1,5 +1,5 @@
-// Temporary image used until real photography/screenshots are added.
-// Swap `src` for the real image path when it is ready.
+// Site image: falls back to a neutral placeholder when no `src` is given.
+// Marketing photos live in site/content/images.ts.
 
 export const PLACEHOLDER_SRC = "/site/placeholder.svg";
 

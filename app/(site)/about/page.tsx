@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import AboutHeadline from "@site/sections/pages/AboutHeadline";
 import ParallaxDivider from "@site/sections/ParallaxDivider";
+import { dividerImages } from "@site/content/images";
 import AboutProcess from "@site/sections/pages/AboutProcess";
 import DoubleMarquee from "@site/sections/DoubleMarquee";
 import AboutApproach from "@site/sections/pages/AboutApproach";
@@ -15,7 +16,7 @@ export default function AboutPage() {
   return (
     <>
       <AboutHeadline />
-      <ParallaxDivider />
+      <ParallaxDivider image={dividerImages.team} />
       <AboutProcess />
       <DoubleMarquee />
       <AboutApproach />

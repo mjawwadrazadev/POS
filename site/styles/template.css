@@ -37,17 +37,24 @@ body {
   font-size: 23cqw !important;
 }
 
-/* RST POS website: placeholder artwork until real images are added */
+/* RST POS website: fallback artwork; each section sets its own photo inline */
 .mxd-divider__image,
 .mxd-next-prj__image,
 .inner-headline__bg .site-bg-placeholder {
-  background-image: url("/site/placeholder.svg") !important;
+  background-image: url("/site/placeholder.svg");
   background-size: cover;
   background-position: center;
 }
 .site-bg-placeholder {
   position: absolute;
   inset: 0;
+}
+
+/* RST POS website: the template has no sizing for the next-industry image wrapper */
+.mxd-next-prj__bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
 /* RST POS website: contact form select, styled like the template's inputs */

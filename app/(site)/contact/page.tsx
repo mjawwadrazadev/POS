@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ContactHeadline from "@site/sections/pages/ContactHeadline";
 import ParallaxDivider from "@site/sections/ParallaxDivider";
+import { dividerImages } from "@site/content/images";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -11,7 +12,7 @@ export default function ContactPage() {
   return (
     <div className="mxd-page-content inner-page-content">
       <ContactHeadline />
-      <ParallaxDivider />
+      <ParallaxDivider image={dividerImages.owner} />
     </div>
   );
 }

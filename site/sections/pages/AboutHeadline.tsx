@@ -8,6 +8,7 @@ import { useHeroBannersHover, type HeroBannerGroupRefs } from "@site/hooks/useHe
 import TextScramble from "@site/components/animations/TextScramble";
 import SmoothAnchorLink from "@site/components/common/SmoothAnchorLink";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { aboutBanners } from "@site/content/images";
 import { socialLinks } from "@site/content/site";
 
 const BANNERS: { cls: string; w: number; h: number }[] = [
@@ -74,12 +75,12 @@ export default function AboutHeadline() {
                     </CommonLoadItem>
                     {BANNERS.map((b, i) => (
                       <div key={b.cls} ref={b1[i]} className={`headline-banner-01 ${b.cls}`}>
-                        <PlaceholderImage alt="RST POS in use" width={b.w} height={b.h} />
+                        <PlaceholderImage alt="Busy shop counter" width={b.w} height={b.h} src={aboutBanners[0][i]} />
                       </div>
                     ))}
                     {BANNERS_2.map((b, i) => (
                       <div key={b.cls} ref={b2[i]} className={`headline-banner-02 ${b.cls}`}>
-                        <PlaceholderImage alt="RST POS in use" width={b.w} height={b.h} />
+                        <PlaceholderImage alt="Growing small business" width={b.w} height={b.h} src={aboutBanners[1][i]} />
                       </div>
                     ))}
                   </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import PageHeadline from "@site/sections/PageHeadline";
 import ParallaxDivider from "@site/sections/ParallaxDivider";
+import { dividerImages, industryImages } from "@site/content/images";
 import IndustryOverview from "@site/sections/pages/IndustryOverview";
 import SplitList from "@site/sections/SplitList";
 import IndustryFaqs from "@site/sections/pages/IndustryFaqs";
@@ -39,7 +40,7 @@ export default async function IndustryPage({ params }: Params) {
         highlight={industry.highlight}
         tags={[...industry.tagsLeft, ...industry.tagsRight]}
       />
-      <ParallaxDivider />
+      <ParallaxDivider image={industryImages[industry.slug]} />
       <IndustryOverview industry={industry} />
       <SplitList
         leftTitle="/ Why it works"
@@ -53,7 +54,7 @@ export default async function IndustryPage({ params }: Params) {
         rightTitle="/ Your day on RST POS"
         items={industry.workflow}
       />
-      <ParallaxDivider />
+      <ParallaxDivider image={dividerImages.storePos} />
       <IndustryFaqs name={industry.name} items={industry.faqs} />
       <NextIndustryLink currentSlug={industry.slug} />
       <PageCTA heading={`Get RST POS for your ${industry.name.toLowerCase()}`} />

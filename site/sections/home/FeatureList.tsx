@@ -5,6 +5,7 @@ import Link from "next/link";
 import BlurSection from "@site/components/animations/BlurSection";
 import TextScramble from "@site/components/animations/TextScramble";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { featureImages } from "@site/content/images";
 import usePerspectiveListAnimation from "@site/hooks/usePerspectiveListAnimation";
 import SectionTitle from "@site/sections/SectionTitle";
 import { features } from "@site/content/marketing";
@@ -63,7 +64,7 @@ export default function FeatureList({ number = "C/02" }: { number?: string }) {
                           <p className="mxd-cpb-list__name">{item.name}</p>
                         </div>
                         <div className="col-12 col-md-6 col-xl-4 mxd-grid-item mxd-cpb-list__image">
-                          <PlaceholderImage alt={`${item.name} screen`} width={1200} height={980} />
+                          <PlaceholderImage alt={item.name} width={1200} height={980} src={featureImages[item.number]} />
                         </div>
                         <div className="col-12 col-md-6 col-xl-4 mxd-cpb-list__data">
                           <div className="mxd-cpb-list__descr mxd-grid-item">

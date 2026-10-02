@@ -3,6 +3,7 @@ import UkiyoParallax from "@site/components/animations/UkiyoParallax";
 import BlurSection from "@site/components/animations/BlurSection";
 import CommonAnimatedText from "@site/components/animations/CommonAnimatedText";
 import { industries } from "@site/content/industries";
+import { industryImages } from "@site/content/images";
 
 /** Large link to the next business type (template "Next project"). */
 export default function NextIndustryLink({ currentSlug }: { currentSlug: string }) {
@@ -39,7 +40,13 @@ export default function NextIndustryLink({ currentSlug }: { currentSlug: string 
             </Link>
             <Link className="mxd-next-prj__media active-cursor-permanent" data-cursor-text="Next" href={href}>
               <div className="mxd-next-prj__bg">
-                <UkiyoParallax className="mxd-next-prj__image parallax-img" scale={1.4} speed={1.5} externalRAF={false} />
+                <UkiyoParallax
+                  className="mxd-next-prj__image parallax-img"
+                  style={{ backgroundImage: `url(${industryImages[next.slug]})` }}
+                  scale={1.4}
+                  speed={1.5}
+                  externalRAF={false}
+                />
                 <div className="mxd-next-prj__cover" />
               </div>
             </Link>

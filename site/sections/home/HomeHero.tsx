@@ -10,6 +10,7 @@ import CommonHeroVideoScale, {
   CommonHeroVideoScaleWrapper,
 } from "@site/components/animations/CommonHeroVideoScale";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { heroImage } from "@site/content/images";
 import { industries } from "@site/content/industries";
 import { siteConfig } from "@site/content/site";
 
@@ -33,7 +34,13 @@ export default function HomeHero() {
                     <CommonHeroVideoScaleTarget>
                       <div className="mxd-hero-media__scaling-media">
                         {/* TODO: replace with a product video or screenshot of the POS till */}
-                        <PlaceholderImage className="scaling-media__video" width={1280} height={720} alt="RST POS till screen" />
+                        <PlaceholderImage
+                          className="scaling-media__video"
+                          width={1280}
+                          height={720}
+                          alt="Customer paying by card at the counter"
+                          src={heroImage}
+                        />
                       </div>
                     </CommonHeroVideoScaleTarget>
                   </div>

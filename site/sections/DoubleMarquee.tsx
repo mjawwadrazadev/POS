@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef } from "react";
 import BlurSection from "@site/components/animations/BlurSection";
 import { initCtaMarqueeToLeft, initCtaMarqueeToRight } from "@site/lib/template/ctaMarqueeEffects";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { galleryImages } from "@site/content/images";
 
 const SIZES: [number, number][] = [
   [1200, 1200],
@@ -22,7 +23,12 @@ function Track({ reverse }: { reverse?: boolean }) {
       {items.map(([w, h], i) => (
         <div key={i} className="marquee__item item-imageblock">
           <div className="marquee__image">
-            <PlaceholderImage alt="RST POS gallery" width={w} height={h} />
+            <PlaceholderImage
+              alt="Businesses running on RST POS"
+              width={w}
+              height={h}
+              src={galleryImages[(reverse ? i + 7 : i) % galleryImages.length]}
+            />
           </div>
         </div>
       ))}
@@ -30,7 +36,7 @@ function Track({ reverse }: { reverse?: boolean }) {
   );
 }
 
-/** Two image rows scrolling in opposite directions (gallery placeholders for now). */
+/** Two image rows scrolling in opposite directions (business photography). */
 export default function DoubleMarquee() {
   const leftRef = useRef<HTMLDivElement | null>(null);
   const rightRef = useRef<HTMLDivElement | null>(null);

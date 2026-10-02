@@ -10,6 +10,7 @@ import {
 import TextScramble from "@site/components/animations/TextScramble";
 import MxdImgAnim from "@site/components/animations/MxdImgAnim";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { industryImages, solutionsOverviewImage } from "@site/content/images";
 import SectionTitle from "@site/sections/SectionTitle";
 import { industries } from "@site/content/industries";
 
@@ -70,7 +71,8 @@ export default function IndustriesGrid({ limit, number = "S/03", showTitle = tru
                           <MxdImgAnim
                             main={
                               <PlaceholderImage
-                                alt={`${industry.name} POS`}
+                                alt={industry.name}
+                                src={industryImages[industry.slug]}
                                 width={width}
                                 height={height}
                                 style={{ width: "100%", height: "100%" }}
@@ -127,7 +129,7 @@ export default function IndustriesGrid({ limit, number = "S/03", showTitle = tru
                                 animation="inUp"
                               >
                                 <MxdImgAnim
-                                  main={<PlaceholderImage className="centered-y" alt="All solutions" width={800} height={450} />}
+                                  main={<PlaceholderImage className="centered-y" alt="All solutions" width={800} height={450} src={solutionsOverviewImage} />}
                                   absolutes={[]}
                                 />
                               </CommonScrollAnimatedLink>

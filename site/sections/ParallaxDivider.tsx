@@ -6,6 +6,8 @@ import { CommonScrollAnimated } from "@site/components/animations/CommonScrollAn
 import TextScramble from "@site/components/animations/TextScramble";
 
 type ParallaxDividerProps = {
+  /** Background photo (see site/content/images.ts) */
+  image: string;
   /** Optional overlay headline with a button */
   caption?: string;
   href?: string;
@@ -13,13 +15,19 @@ type ParallaxDividerProps = {
   cursorText?: string;
 };
 
-/** Full-width parallax image divider. The image is a placeholder (see site/styles/template.css). */
-export default function ParallaxDivider({ caption, href, buttonText, cursorText }: ParallaxDividerProps) {
+/** Full-width parallax image divider. */
+export default function ParallaxDivider({ image, caption, href, buttonText, cursorText }: ParallaxDividerProps) {
   return (
     <BlurSection className="mxd-section">
       <div className="mxd-container fullwidth-container">
         <div className="mxd-divider">
-          <UkiyoParallax className="mxd-divider__image parallax-img" scale={1.4} speed={1.5} externalRAF={false} />
+          <UkiyoParallax
+            className="mxd-divider__image parallax-img"
+            style={{ backgroundImage: `url(${image})` }}
+            scale={1.4}
+            speed={1.5}
+            externalRAF={false}
+          />
           {caption && href && (
             <>
               <div className="mxd-divider__cover cover-04" />

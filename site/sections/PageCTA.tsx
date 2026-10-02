@@ -8,9 +8,10 @@ import { CommonScrollAnimated } from "@site/components/animations/CommonScrollAn
 import CommonAnimatedText from "@site/components/animations/CommonAnimatedText";
 import TextScramble from "@site/components/animations/TextScramble";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { industryImageByTag } from "@site/content/images";
 import { marqueeTags } from "@site/content/marketing";
 
-// Alternate the placeholder shapes so the marquee keeps the template's rhythm
+// Alternate the image shapes so the marquee keeps the template's rhythm
 const SIZES = [
   [1200, 1200],
   [1200, 685],
@@ -69,7 +70,7 @@ export default function PageCTA({
                             <TextScramble className="tag tag-s tag-medium-opposite mxd-scramble">{tag}</TextScramble>
                           </div>
                           <div className="marquee__image">
-                            <PlaceholderImage width={w} height={h} alt={`${tag} point of sale`} />
+                            <PlaceholderImage width={w} height={h} alt={tag} src={industryImageByTag(tag)} />
                           </div>
                         </div>
                       );

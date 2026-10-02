@@ -3,6 +3,7 @@ import BlurSection from "@site/components/animations/BlurSection";
 import { CommonCardBatchAnimated } from "@site/components/animations/CommonScrollAnimated";
 import TextScramble from "@site/components/animations/TextScramble";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { industryCardImages } from "@site/content/images";
 import { getIndustry, type Industry } from "@site/content/industries";
 
 function Tags({ industry, tagClass }: { industry: Industry; tagClass: string }) {
@@ -51,7 +52,7 @@ export default function IndustryCards() {
                         </p>
                       </div>
                       <div className="mxd-niche-cards__image absolute-desktop-bottom">
-                        <PlaceholderImage alt={`${restaurant.name} POS`} width={1200} height={1611} />
+                        <PlaceholderImage alt={restaurant.name} width={1200} height={1611} src={industryCardImages.restaurant} />
                       </div>
                     </div>
                   </Link>
@@ -79,7 +80,7 @@ export default function IndustryCards() {
                               </p>
                             </div>
                             <div className="mxd-niche-cards__image absolute-desktop-full">
-                              <PlaceholderImage alt={`${pharmacy.name} POS`} width={1320} height={800} />
+                              <PlaceholderImage alt={pharmacy.name} width={1320} height={800} src={industryCardImages.pharmacy} />
                               <div className="mxd-niche-cards__gradient gradient-linear" />
                             </div>
                           </div>
@@ -100,7 +101,7 @@ export default function IndustryCards() {
                               </p>
                             </div>
                             <div className="mxd-niche-cards__image absolute-desktop-full">
-                              <PlaceholderImage alt={`${retail.name} POS`} width={1200} height={974} />
+                              <PlaceholderImage alt={retail.name} width={1200} height={974} src={industryCardImages.retail} />
                               <div className="mxd-niche-cards__gradient gradient-radial" />
                             </div>
                           </div>
@@ -121,7 +122,7 @@ export default function IndustryCards() {
                               </p>
                             </div>
                             <div className="mxd-niche-cards__image absolute-desktop-aside">
-                              <PlaceholderImage alt={`${cafe.name} POS`} width={800} height={1040} />
+                              <PlaceholderImage alt={cafe.name} width={800} height={1040} src={industryCardImages.cafe} />
                             </div>
                           </div>
                         </Link>

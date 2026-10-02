@@ -3,6 +3,7 @@
 import TextScramble from "@site/components/animations/TextScramble";
 import CommonServicesStack, { ServicesStackSlot } from "@site/components/animations/CommonServicesStack";
 import PlaceholderImage from "@site/components/common/Placeholder";
+import { featureImages } from "@site/content/images";
 import { features, type Feature } from "@site/content/marketing";
 
 function Tag({ children }: { children: string }) {
@@ -48,7 +49,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
             </div>
             <ServicesStackSlot part="image" index={index}>
               <div className="services-card__image">
-                <PlaceholderImage width={1200} height={1300} alt={`${feature.name} screen`} />
+                <PlaceholderImage width={1200} height={1300} alt={feature.name} src={featureImages[feature.number]} />
                 <div className="services-card__cover" />
               </div>
             </ServicesStackSlot>

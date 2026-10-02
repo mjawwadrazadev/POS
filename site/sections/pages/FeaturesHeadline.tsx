@@ -6,6 +6,7 @@ import CommonLoadAnimation, { CommonLoadFade } from "@site/components/animations
 import CommonAnimatedText from "@site/components/animations/CommonAnimatedText";
 import TextScramble from "@site/components/animations/TextScramble";
 import SmoothAnchorLink from "@site/components/common/SmoothAnchorLink";
+import { featuresHeadlineImage } from "@site/content/images";
 
 /** Full-height pinned headline over a background image (template "Inner Headline v03"). */
 export default function FeaturesHeadline() {
@@ -17,8 +18,7 @@ export default function FeaturesHeadline() {
             <div className="mxd-block loading-wrap">
               <div className="inner-headline fullheight">
                 <div className="inner-headline__bg">
-                  {/* TODO: replace with a product video or a photo of the till in use */}
-                  <div className="site-bg-placeholder" />
+                  <div className="site-bg-placeholder" style={{ backgroundImage: `url(${featuresHeadlineImage})` }} />
                   <div className="inner-headline__cover" />
                 </div>
                 <div className="mxd-container grid-l-container">
