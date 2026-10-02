@@ -258,7 +258,12 @@ async function processApprovedRefund(refund: IRefund, session: SessionPayload) {
 
     await Order.updateOne(
       { _id: refund.originalOrderId },
-      { $inc: { "items.$[it].refundedQuantity": item.quantity } },
+      {
+        $inc: {
+          "items.$[it].refundedQuantity": item.quantity,
+          ...(item.restockFlag ? { "items.$[it].restockedQuantity": item.quantity } : {}),
+        },
+      },
       { arrayFilters: [{ "it.productId": item.productId }] }
     );
   }

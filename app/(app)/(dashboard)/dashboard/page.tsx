@@ -39,6 +39,8 @@ export default function DashboardPage() {
     openingFloat: 0,
   });
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  // null until loaded; then the open shift's float, or false when no shift is open
+  const [shift, setShift] = useState<{ openingFloat: number } | false | null>(null);
 
   const isPlatformStaff = isPlatformRole(userSession?.role) && !userSession?.isImpersonating;
 
@@ -60,11 +62,16 @@ export default function DashboardPage() {
         // "Today" starts at local midnight; the report defaults to 30 days otherwise
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        const [summaryData, ordersData, prodData] = await Promise.all([
+        const [summaryData, ordersData, prodData, shiftData] = await Promise.all([
           getJson(`/api/reports/sales-summary?startDate=${encodeURIComponent(todayStart.toISOString())}`),
           getJson("/api/orders?limit=5"),
           getJson("/api/products?lowStockBelow=10"),
+          getJson("/api/counter-session"),
         ]);
+
+        if (shiftData?.success) {
+          setShift(shiftData.activeSession ? { openingFloat: shiftData.activeSession.openingFloat || 0 } : false);
+        }
 
         if (summaryData?.success && summaryData.summary) {
           setStats((prev) => ({
@@ -175,14 +182,20 @@ export default function DashboardPage() {
         {/* Stat 4: Shift Status */}
         <div className="stat-card">
           <div className="flex items-center justify-between">
-            <span className="stat-card__label">Active Shift Status</span>
-            <div className="w-10 h-10 bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+            <span className="stat-card__label">Counter Shift</span>
+            <div
+              className={`w-10 h-10 flex items-center justify-center ${
+                shift ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+              }`}
+            >
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
-          <div className="stat-card__value text-emerald-400 text-[1.8rem]">Terminal Ready</div>
+          <div className={`stat-card__value text-[1.8rem] ${shift ? "text-emerald-600" : "text-rose-600"}`}>
+            {shift === null ? "—" : shift ? "Shift Open" : "Shift Closed"}
+          </div>
           <div className="font-accent text-[1.2rem] text-muted">
-            Shift Ready for Billing
+            {shift ? `Opening float PKR ${shift.openingFloat.toLocaleString()}` : "Open a shift from POS Billing to start selling"}
           </div>
         </div>
       </div>

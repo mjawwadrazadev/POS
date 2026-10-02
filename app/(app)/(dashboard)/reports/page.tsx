@@ -90,13 +90,15 @@ export default function ReportsPage() {
   // Real month-by-month history from the sales-summary API (newest first)
   const breakdown: any[] = reportData?.monthlyBreakdown || [];
   const monthlyHistory = breakdown.map((m, idx) => {
-    const revenue = m.monthlyRevenue || 0;
-    const tax = m.monthlyTax || 0;
+    // Net of refunds completed that month, the same way the totals above are
+    const revenue = (m.monthlyRevenue || 0) - (m.monthlyRefunds || 0);
+    const tax = (m.monthlyTax || 0) - (m.monthlyRefundTax || 0);
     const profit = revenue - tax - (m.monthlyCogs || 0);
     const previous = breakdown[idx + 1];
+    const previousRevenue = previous ? (previous.monthlyRevenue || 0) - (previous.monthlyRefunds || 0) : 0;
     const growth =
-      previous && previous.monthlyRevenue > 0
-        ? `${revenue >= previous.monthlyRevenue ? "+" : ""}${(((revenue - previous.monthlyRevenue) / previous.monthlyRevenue) * 100).toFixed(1)}%`
+      previousRevenue > 0
+        ? `${revenue >= previousRevenue ? "+" : ""}${(((revenue - previousRevenue) / previousRevenue) * 100).toFixed(1)}%`
         : "—";
     return {
       month: `${MONTHS[(m._id?.month || 1) - 1]} ${m._id?.year}`,

@@ -44,12 +44,18 @@ export async function GET(req: Request) {
       matchQuery.branchId = new mongoose.Types.ObjectId(branchId);
     }
 
-    // Cost of goods sold from the per-item cost snapshot
+    // Cost of goods sold from the per-item cost snapshot. Refunded units that were restocked are
+    // back in inventory, so their cost is taken out; damaged returns stay in as a loss.
     const cogsExpr = {
       $sum: {
         $map: {
           input: "$items",
-          in: { $multiply: [{ $ifNull: ["$$this.unitCost", 0] }, "$$this.quantity"] },
+          in: {
+            $multiply: [
+              { $ifNull: ["$$this.unitCost", 0] },
+              { $subtract: ["$$this.quantity", { $ifNull: ["$$this.restockedQuantity", 0] }] },
+            ],
+          },
         },
       },
     };
@@ -111,14 +117,34 @@ export async function GET(req: Request) {
       ]),
       Refund.aggregate([
         { $match: refundMatch },
-        { $group: { _id: null, totalRefunds: { $sum: "$totalRefundAmount" }, refundTax: { $sum: "$taxAmount" }, count: { $sum: 1 } } },
-      ]),
+        {
+          $facet: {
+            totals: [{ $group: { _id: null, totalRefunds: { $sum: "$totalRefundAmount" }, refundTax: { $sum: "$taxAmount" }, count: { $sum: 1 } } }],
+            monthly: [
+              {
+                $group: {
+                  _id: { year: { $year: "$updatedAt" }, month: { $month: "$updatedAt" } },
+                  refunds: { $sum: "$totalRefundAmount" },
+                  refundTax: { $sum: "$taxAmount" },
+                },
+              },
+            ],
+          },
+        },
+      ]).then(([r]) => r),
     ]);
 
     const { totalCogs = 0, ...salesTotals } = facets.totals[0] || {};
     const salesStats = facets.totals.length ? [salesTotals] : [];
     const cogsStats = [{ totalCogs }];
-    const monthlyBreakdown = facets.monthly;
+    // Each month carries the refunds completed in it, so monthly profit matches the totals
+    const refundsByMonth = new Map<string, { refunds: number; refundTax: number }>(
+      refundStats.monthly.map((m: any) => [`${m._id.year}-${m._id.month}`, m])
+    );
+    const monthlyBreakdown = facets.monthly.map((m: any) => {
+      const r = refundsByMonth.get(`${m._id.year}-${m._id.month}`);
+      return { ...m, monthlyRefunds: r?.refunds || 0, monthlyRefundTax: r?.refundTax || 0 };
+    });
     const typeBreakdown = facets.types;
 
     const base = salesStats[0] || {
@@ -128,13 +154,14 @@ export async function GET(req: Request) {
       totalDiscounts: 0,
       totalRevenue: 0,
     };
-    const totalRefunds = refundStats[0]?.totalRefunds || 0;
+    const refundTotals = refundStats.totals[0];
+    const totalRefunds = refundTotals?.totalRefunds || 0;
     const resultStats = {
       ...base,
       totalRefunds,
-      refundCount: refundStats[0]?.count || 0,
+      refundCount: refundTotals?.count || 0,
       netRevenue: base.totalRevenue - totalRefunds,
-      netTax: base.totalTax - (refundStats[0]?.refundTax || 0),
+      netTax: base.totalTax - (refundTotals?.refundTax || 0),
       totalCogs: cogsStats[0]?.totalCogs || 0,
     };
 

@@ -29,6 +29,10 @@ interface ThermalReceiptModalProps {
   paymentMethod: string;
   branchName: string;
   taxRate?: number;
+  // e.g. "Dine In · Table 01"
+  orderLabel?: string;
+  // Each part of a split payment
+  payments?: { method: string; amount: number }[];
   // FBR fiscal invoice (stores reporting to FBR only)
   fbrStatus?: "pending" | "reported" | "failed";
   fbrInvoiceNumber?: string;
@@ -60,6 +64,8 @@ export function ThermalReceiptModal({
   paymentMethod,
   branchName,
   taxRate,
+  orderLabel,
+  payments,
   fbrStatus,
   fbrInvoiceNumber,
   fbrSandbox,
@@ -198,7 +204,9 @@ export function ThermalReceiptModal({
             <h2 className="font-bold text-[1.6rem] uppercase tracking-wider">
               {storeName}
             </h2>
-            <p className="text-[1.1rem]">{branchName}</p>
+            {branchName && branchName.trim().toLowerCase() !== String(storeName).trim().toLowerCase() && (
+              <p className="text-[1.1rem]">{branchName}</p>
+            )}
             <div className="border-b border-dashed border-black my-2" />
           </div>
 
@@ -297,6 +305,12 @@ export function ThermalReceiptModal({
                   <span>Customer:</span>
                   <span>{customerName}</span>
                 </div>
+                {orderLabel && (
+                  <div className="flex justify-between">
+                    <span>Order:</span>
+                    <span className="font-bold">{orderLabel}</span>
+                  </div>
+                )}
                 <div className="border-b border-dashed border-black my-2" />
               </div>
 
@@ -346,6 +360,13 @@ export function ThermalReceiptModal({
                   <span>Payment Mode:</span>
                   <span className="font-bold uppercase">{paymentMethod}</span>
                 </div>
+                {paymentMethod === "split" &&
+                  payments?.map((p, i) => (
+                    <div key={i} className="flex justify-between text-[1.1rem] pl-3">
+                      <span className="capitalize">{p.method}:</span>
+                      <span>PKR {p.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
               </div>
 
               <div className="border-b border-dashed border-black my-2" />
@@ -395,7 +416,7 @@ export function ThermalReceiptModal({
             className="btn btn-secondary py-3 text-[1.2rem] flex items-center justify-center gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
           >
             <Share2 className="w-4 h-4" />
-            <span>{isHospitalBill ? "WhatsApp Perchi" : "WhatsApp Receipt"}</span>
+            <span>WhatsApp</span>
           </a>
 
           <button
@@ -405,7 +426,7 @@ export function ThermalReceiptModal({
             className="btn btn-primary py-3 text-[1.2rem] flex items-center justify-center gap-2"
           >
             <Printer className="w-4 h-4" />
-            <span>{printing ? "Printing..." : isHospitalBill ? "Print Perchi" : "Print Receipt"}</span>
+            <span>{printing ? "Printing..." : isHospitalBill ? "Print Perchi" : "Print"}</span>
           </button>
         </div>
       </div>

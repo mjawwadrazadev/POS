@@ -52,11 +52,29 @@ import { useSessionUser } from "@/components/layout/SessionContext";
 
 type PaymentMethod = "cash" | "card" | "wallet" | "split";
 
+type OrderType = "dine_in" | "takeaway" | "retail_sale" | "prescription";
+
+// Only the order types that make sense for each kind of business; the first is the default
+const ORDER_TYPES_BY_VERTICAL: Partial<Record<string, OrderType[]>> = {
+  restaurant: ["dine_in", "takeaway"],
+  cafe: ["dine_in", "takeaway"],
+  bakery: ["retail_sale", "takeaway", "dine_in"],
+  pharmacy: ["retail_sale", "prescription"],
+  hospital: ["retail_sale", "prescription"],
+};
+const ORDER_TYPE_LABELS: Record<OrderType, string> = {
+  dine_in: "Dine In",
+  takeaway: "Takeaway",
+  retail_sale: "Counter Sale",
+  prescription: "Prescription",
+};
+
 interface CounterSessionData {
   _id: string;
   openingFloat: number;
   openedAt: string;
   cashSalesTotal: number;
+  cashRefundTotal: number;
   expectedCashInDrawer: number;
   orderCount: number;
 }
@@ -85,6 +103,12 @@ export default function PosBillingPage() {
 
   const { items: inventoryItems, adjustStock, fetchFromApi } = useInventoryStore();
   const config = VERTICAL_CONFIGS[currentVertical];
+
+  const orderTypes = ORDER_TYPES_BY_VERTICAL[currentVertical] || (["retail_sale"] as OrderType[]);
+  // Switch to a valid order type when the store's business type does not offer the current one
+  useEffect(() => {
+    if (!orderTypes.includes(orderType as OrderType)) setOrderType(orderTypes[0]);
+  }, [orderTypes, orderType, setOrderType]);
 
   useEffect(() => {
     fetchFromApi();
@@ -562,8 +586,9 @@ export default function PosBillingPage() {
 
             {/* Order type + table */}
             <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+              {orderTypes.length > 1 && (
               <div className="inline-flex flex-wrap bg-base-bright border border-stroke-muted p-1">
-                {(["retail_sale", "dine_in", "takeaway", "prescription"] as const).map((type) => (
+                {orderTypes.map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -572,12 +597,13 @@ export default function PosBillingPage() {
                       orderType === type ? "bg-accent text-white" : "text-medium hover:text-bright hover:bg-accent-subtle"
                     }`}
                   >
-                    {type.replace("_", " ")}
+                    {ORDER_TYPE_LABELS[type]}
                   </button>
                 ))}
               </div>
+              )}
 
-              {(currentVertical === "restaurant" || orderType === "dine_in") && (
+              {orderType === "dine_in" && (
                 <label className="inline-flex items-center gap-2 bg-base-bright border border-stroke-muted px-3 py-1 text-[1.25rem] ml-auto">
                   <Armchair className="w-4 h-4 text-accent" />
                   <span className="text-muted">Table</span>
@@ -1082,6 +1108,11 @@ export default function PosBillingPage() {
                 <span>Shift Cash Sales:</span>
                 <span className="text-emerald-400 font-bold">PKR {activeSession.cashSalesTotal.toLocaleString()}</span>
               </div>
+              {/* Cash handed back for refunds leaves the drawer, so it is part of the expected figure */}
+              <div className="flex justify-between text-gray-400">
+                <span>Cash Refunds Paid:</span>
+                <span className="text-rose-400 font-bold">- PKR {(activeSession.cashRefundTotal || 0).toLocaleString()}</span>
+              </div>
               <div className="flex justify-between text-gray-300 pt-2 border-t border-gray-800">
                 <span>Expected Cash in Drawer:</span>
                 <span className="text-blue-400 font-bold text-[1.5rem]">PKR {activeSession.expectedCashInDrawer.toLocaleString()}</span>
@@ -1180,6 +1211,10 @@ export default function PosBillingPage() {
                 <span className="text-emerald-400 font-bold">PKR {eodSummaryReport.cashSalesTotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-gray-300">
+                <span>Cash Refunds Paid:</span>
+                <span className="text-rose-400 font-bold">- PKR {(eodSummaryReport.cashRefundTotal || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-300">
                 <span>Expected Cash:</span>
                 <span className="text-blue-400 font-bold">PKR {eodSummaryReport.expectedCashInDrawer.toLocaleString()}</span>
               </div>
@@ -1251,7 +1286,7 @@ export default function PosBillingPage() {
                 className="w-full bg-[#0b0b0d] border border-amber-500/40 text-amber-300 font-mono font-bold text-center text-[2.2rem] py-3 outline-none focus:border-amber-400"
               />
               <p className="text-[1.1rem] font-accent text-gray-400 mt-1">
-                Manager PIN: 1234, 2222, 3333, or 9999
+                Ask a manager or the store admin to enter their own PIN.
               </p>
             </div>
 
@@ -1298,6 +1333,12 @@ export default function PosBillingPage() {
         paymentMethod={lastOrder?.paymentMethod || selectedPayment}
         branchName={branchLabel}
         taxRate={lastOrder?.taxRate}
+        orderLabel={
+          lastOrder?.orderType
+            ? `${ORDER_TYPE_LABELS[lastOrder.orderType as OrderType] || lastOrder.orderType}${lastOrder.tableNumber ? ` · ${lastOrder.tableNumber}` : ""}`
+            : undefined
+        }
+        payments={lastOrder?.payments}
         fbrStatus={lastOrder?.fbr?.status}
         fbrInvoiceNumber={lastOrder?.fbr?.invoiceNumber}
         fbrSandbox={lastOrder?.fbr?.environment === "sandbox"}

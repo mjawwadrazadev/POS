@@ -11,6 +11,8 @@ export interface IOrderItem {
   total: number;
   batchNumber?: string;
   refundedQuantity: number;
+  // Refunded units that went back on the shelf; their cost is no longer a cost of a sale
+  restockedQuantity?: number;
 }
 
 export interface IOrderFbr {
@@ -68,6 +70,7 @@ const OrderItemSchema = new Schema({
   total: { type: Number, required: true },
   batchNumber: { type: String },
   refundedQuantity: { type: Number, default: 0, min: 0 },
+  restockedQuantity: { type: Number, default: 0, min: 0 },
 });
 
 const PaymentDetailSchema = new Schema({

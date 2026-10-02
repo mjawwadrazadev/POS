@@ -135,6 +135,8 @@ body {
 
 .pos-main {
   flex: 1;
+  /* Let wide tables scroll inside their own wrapper instead of stretching the page past the screen */
+  min-width: 0;
   margin-left: var(--sidebar-w);
   display: flex;
   flex-direction: column;
