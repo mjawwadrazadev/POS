@@ -393,12 +393,12 @@ export default function TeamSettingsPage() {
               <tbody>
                 {users.map((u) => (
                   <tr key={u._id} className="border-t border-stroke-muted">
-                    <td className="p-3 font-bold text-bright">{u.fullName}</td>
-                    <td className="p-3 text-muted">{u.email}</td>
+                    <td className="p-3 font-bold text-bright min-w-[16rem]">{u.fullName}</td>
+                    <td className="p-3 text-muted whitespace-nowrap">{u.email}</td>
                     <td className="p-3">
                       {isAdmin ? (
                         <select
-                          className="form-select py-1"
+                          className="form-select min-w-[13rem]"
                           value={u.role}
                           onChange={(e) => updateStaff(u._id, { role: e.target.value })}
                         >
@@ -410,11 +410,11 @@ export default function TeamSettingsPage() {
                         <span className="uppercase">{u.role}</span>
                       )}
                     </td>
-                    <td className="p-3 text-muted">{branchName(u.branchId)}</td>
+                    <td className="p-3 text-muted min-w-[16rem]">{branchName(u.branchId)}</td>
                     <td className="p-3">
                       {isAdmin ? (
                         <input
-                          className="form-input py-1 w-32"
+                          className="form-input w-[13rem]"
                           type="number"
                           min={0}
                           defaultValue={u.baseSalary ?? ""}

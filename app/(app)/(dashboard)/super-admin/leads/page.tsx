@@ -137,7 +137,7 @@ export default function WebsiteLeadsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Leads list */}
-        <div className="lg:col-span-1 bg-base-tint border border-stroke-muted rounded-2xl overflow-hidden flex flex-col h-[600px]">
+        <div className="lg:col-span-1 bg-base-tint border border-stroke-muted rounded-2xl overflow-hidden flex flex-col max-h-[360px] lg:max-h-none lg:h-[600px]">
           <div className="p-4 bg-base border-b border-stroke-muted font-bold text-[1.4rem] text-medium">Incoming Leads</div>
           <div className="divide-y divide-stroke-muted overflow-y-auto flex-1">
             {loading && leads.length === 0 ? (
@@ -174,7 +174,7 @@ export default function WebsiteLeadsPage() {
         </div>
 
         {/* Lead detail */}
-        <div className="lg:col-span-2 bg-base-tint border border-stroke-muted rounded-2xl flex flex-col h-[600px] overflow-hidden">
+        <div className="lg:col-span-2 bg-base-tint border border-stroke-muted rounded-2xl flex flex-col h-[520px] lg:h-[600px] overflow-hidden">
           {selected ? (
             <>
               <div className="p-4 bg-base border-b border-stroke-muted flex flex-col sm:flex-row justify-between sm:items-center gap-3">

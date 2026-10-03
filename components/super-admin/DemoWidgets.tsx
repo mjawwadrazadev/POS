@@ -212,8 +212,8 @@ function ReportModal({ demo, onClose, onSaved }: { demo: DemoRecord; onClose: ()
               {demo.clientBusinessName} · {demo.clientName}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 text-muted hover:text-bright">
-            <X className="w-5 h-5" />
+          <button type="button" onClick={onClose} className="icon-btn text-muted hover:text-bright">
+            <X className="w-[1.8rem] h-[1.8rem]" />
           </button>
         </div>
 

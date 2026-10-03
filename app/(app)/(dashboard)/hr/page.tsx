@@ -428,8 +428,8 @@ export default function HrPayrollPage() {
               <h3 className="font-accent font-extrabold text-[1.5rem] uppercase flex items-center gap-2">
                 <Clock className="w-5 h-5 text-[#819ffe]" /> Staff Clock-In / Out
               </h3>
-              <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white p-1" aria-label="Close">
-                <X className="w-5 h-5" />
+              <button onClick={() => setIsClockModalOpen(false)} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10" aria-label="Close">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

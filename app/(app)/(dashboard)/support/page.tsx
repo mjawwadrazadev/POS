@@ -135,7 +135,7 @@ export default function TenantSupportPage() {
       {/* Tickets & Detail Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Ticket List */}
-        <div className="lg:col-span-1 bg-base-bright border border-stroke-muted overflow-hidden flex flex-col h-[60rem]">
+        <div className="lg:col-span-1 bg-base-bright border border-stroke-muted overflow-hidden flex flex-col max-h-[36rem] lg:max-h-none lg:h-[60rem]">
           <div className="px-4 py-3.5 border-b border-stroke-muted bg-base-tint font-bold text-[1.45rem] flex items-center justify-between">
             <span>Your tickets</span>
             <span className="badge badge-accent">{tickets.length}</span>
@@ -176,7 +176,7 @@ export default function TenantSupportPage() {
         </div>
 
         {/* Ticket Conversation Detail Pane */}
-        <div className="lg:col-span-2 bg-base-bright border border-stroke-muted flex flex-col h-[60rem] overflow-hidden">
+        <div className="lg:col-span-2 bg-base-bright border border-stroke-muted flex flex-col h-[52rem] lg:h-[60rem] overflow-hidden">
           {selectedTicket ? (
             <>
               <div className="px-5 py-4 border-b border-stroke-muted bg-base-tint flex justify-between items-start gap-3">
@@ -245,8 +245,8 @@ export default function TenantSupportPage() {
               <h2 className="font-accent font-extrabold text-[1.5rem] uppercase flex items-center gap-2">
                 <LifeBuoy className="w-5 h-5 text-[#819ffe]" /> New Support Ticket
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1" aria-label="Close">
-                <X className="w-5 h-5" />
+              <button onClick={() => setShowModal(false)} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10" aria-label="Close">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
             <form onSubmit={handleCreateTicket} className="p-5 space-y-4">

@@ -195,8 +195,8 @@ export default function UserManagementPage() {
             >
               <Copy className="w-3.5 h-3.5" /> Copy
             </button>
-            <button onClick={() => setCredential(null)} className="p-1.5 text-muted hover:text-bright">
-              <X className="w-4 h-4" />
+            <button onClick={() => setCredential(null)} className="icon-btn text-muted hover:text-bright">
+              <X className="w-[1.6rem] h-[1.6rem]" />
             </button>
           </div>
         </div>
@@ -325,8 +325,8 @@ export default function UserManagementPage() {
           >
             <div className="flex justify-between items-center border-b border-stroke-muted pb-3">
               <h2 className="text-[2rem] font-bold text-bright">{editing ? "Edit User" : "Add Platform User"}</h2>
-              <button type="button" onClick={() => setShowForm(false)} className="p-2 text-muted hover:text-bright">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setShowForm(false)} className="icon-btn text-muted hover:text-bright">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

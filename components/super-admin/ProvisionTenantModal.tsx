@@ -102,8 +102,8 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
               <p className="text-[1.2rem] text-muted">Configure business identity, plan limits, and owner admin credentials</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-muted hover:text-gray-600 rounded-lg hover:bg-gray-100">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="icon-btn text-muted hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <X className="w-[1.8rem] h-[1.8rem]" />
           </button>
         </div>
 

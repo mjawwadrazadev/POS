@@ -254,8 +254,8 @@ export default function OrdersPage() {
               <tr key={order.id} className={order.status === "refunded" ? "bg-red-500/5 opacity-70" : ""}>
                 <td className="font-accent font-bold text-accent">{order.orderNumber}</td>
                 <td className="font-accent text-muted">{order.date}</td>
-                <td className="font-medium">{order.type}</td>
-                <td>{order.customer}</td>
+                <td className="font-medium whitespace-nowrap">{order.type}</td>
+                <td className="whitespace-nowrap">{order.customer}</td>
                 <td className="font-accent text-bright">{order.payment}</td>
                 <td className="font-accent text-center font-bold">{order.itemsCount}</td>
                 <td className="font-accent font-extrabold text-bright">
@@ -296,10 +296,10 @@ export default function OrdersPage() {
                             type="button"
                             onClick={() => resendToFbr(order.id)}
                             disabled={!!fbrBusy}
-                            className="p-1.5 text-accent hover:bg-accent-subtle border border-stroke-muted"
+                            className="icon-btn text-accent hover:bg-accent-subtle border border-stroke-muted"
                             title={`Resend to FBR${order.fbr.error ? ` — last error: ${order.fbr.error}` : ""}`}
                           >
-                            <RefreshCw className={`w-4 h-4 ${fbrBusy === order.id ? "animate-spin" : ""}`} />
+                            <RefreshCw className={`w-[1.6rem] h-[1.6rem] ${fbrBusy === order.id ? "animate-spin" : ""}`} />
                           </button>
                         )}
                       </div>
@@ -314,10 +314,10 @@ export default function OrdersPage() {
                       <button
                         type="button"
                         onClick={() => setRefundOrder(order)}
-                        className="p-1.5 text-error hover:bg-red-500/10 border border-red-500/30 transition-colors"
+                        className="icon-btn text-error hover:bg-red-500/10 border border-red-500/30 transition-colors"
                         title="Refund Order"
                       >
-                        <RotateCcw className="w-4 h-4" />
+                        <RotateCcw className="w-[1.6rem] h-[1.6rem]" />
                       </button>
                     )}
                   </div>
@@ -337,8 +337,8 @@ export default function OrdersPage() {
                 <RotateCcw className="w-5 h-5" />
                 <span>Process Order Refund — #{refundOrder.orderNumber}</span>
               </div>
-              <button onClick={() => setRefundOrder(null)} className="text-gray-400 hover:text-white">
-                <X className="w-5 h-5" />
+              <button aria-label="Close" onClick={() => setRefundOrder(null)} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

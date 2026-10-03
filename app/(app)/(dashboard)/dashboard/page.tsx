@@ -233,14 +233,14 @@ export default function DashboardPage() {
               <tbody>
                 {recentTransactions.map((tx) => (
                   <tr key={tx.id}>
-                    <td className="font-bold text-accent">{tx.orderNumber}</td>
-                    <td>{tx.customer}</td>
-                    <td className="uppercase text-[1.2rem] font-accent">{tx.type}</td>
-                    <td className="font-bold text-emerald-400">PKR {tx.amount.toLocaleString()}</td>
+                    <td className="font-bold text-accent whitespace-nowrap">{tx.orderNumber}</td>
+                    <td className="whitespace-nowrap">{tx.customer}</td>
+                    <td className="uppercase text-[1.2rem] font-accent whitespace-nowrap">{tx.type}</td>
+                    <td className="font-bold text-emerald-600 whitespace-nowrap">PKR {tx.amount.toLocaleString()}</td>
                     <td>
                       <span className="badge badge-success uppercase">{tx.status}</span>
                     </td>
-                    <td className="text-muted font-accent text-[1.2rem]">{tx.time}</td>
+                    <td className="text-muted font-accent text-[1.2rem] whitespace-nowrap">{tx.time}</td>
                   </tr>
                 ))}
               </tbody>

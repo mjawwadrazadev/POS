@@ -124,13 +124,13 @@ export default function TenantsListPage() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted" />
               <select
                 value={selectedVertical}
                 onChange={(e) => setSelectedVertical(e.target.value)}
-                className="bg-base border border-stroke-muted text-bright text-[1.4rem] rounded-xl px-3 py-2 focus:outline-none"
+                className="flex-1 sm:flex-none min-w-0 bg-base border border-stroke-muted text-bright text-[1.4rem] rounded-xl px-3 py-2 focus:outline-none"
               >
                 <option value="all">All Verticals</option>
                 {Object.entries(VERTICAL_CONFIGS).map(([key, config]) => (
@@ -144,7 +144,7 @@ export default function TenantsListPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-base border border-stroke-muted text-bright text-[1.4rem] rounded-xl px-3 py-2 focus:outline-none"
+              className="flex-1 sm:flex-none min-w-0 bg-base border border-stroke-muted text-bright text-[1.4rem] rounded-xl px-3 py-2 focus:outline-none"
             >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
@@ -154,12 +154,12 @@ export default function TenantsListPage() {
               <option value="terminated">Terminated</option>
             </select>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <ArrowUpDown className="w-4 h-4 text-muted" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-base border border-stroke-muted text-bright text-[1.4rem] rounded-xl px-3 py-2 focus:outline-none"
+                className="flex-1 sm:flex-none min-w-0 bg-base border border-stroke-muted text-bright text-[1.4rem] rounded-xl px-3 py-2 focus:outline-none"
               >
                 <option value="expiry">Sort: Expiry Soonest</option>
                 <option value="name">Sort: Business Name</option>
@@ -239,15 +239,15 @@ export default function TenantsListPage() {
                         </td>
 
                         <td className="p-4">
-                          {health === "active" && <span className="text-[1.2rem] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">🟢 Actively Used</span>}
-                          {health === "slowing" && <span className="text-[1.2rem] font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">🟡 Slowing Down</span>}
-                          {health === "dormant" && <span className="text-[1.2rem] font-bold text-rose-600 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔴 Dormant</span>}
+                          {health === "active" && <span className="inline-block whitespace-nowrap text-[1.2rem] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">🟢 Actively Used</span>}
+                          {health === "slowing" && <span className="inline-block whitespace-nowrap text-[1.2rem] font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">🟡 Slowing Down</span>}
+                          {health === "dormant" && <span className="inline-block whitespace-nowrap text-[1.2rem] font-bold text-rose-600 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔴 Dormant</span>}
                           {!health && <span className="text-[1.2rem] text-muted">—</span>}
                         </td>
 
                         <td className="p-4 text-right">
-                          <button className="text-muted group-hover:text-bright transition p-1.5 hover:bg-accent-subtle rounded-lg">
-                            <ChevronRight className="w-5 h-5" />
+                          <button aria-label="Open tenant" className="icon-btn text-muted group-hover:text-bright transition hover:bg-accent-subtle rounded-lg">
+                            <ChevronRight className="w-[1.8rem] h-[1.8rem]" />
                           </button>
                         </td>
                       </tr>

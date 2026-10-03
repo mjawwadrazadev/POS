@@ -124,8 +124,8 @@ export function ProductFormModal({ mode, editItem, onClose }: ProductFormModalPr
               {mode === "add" ? `Add New ${config.terminology.item || "Product"}` : `Edit ${config.terminology.item || "Product"}`}
             </h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-1">
-            <X className="w-5 h-5" />
+          <button aria-label="Close" onClick={onClose} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10">
+            <X className="w-[1.8rem] h-[1.8rem]" />
           </button>
         </div>
 

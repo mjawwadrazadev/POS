@@ -159,10 +159,10 @@ export default function ProductsPage() {
             {filtered.map((item) => (
               <tr key={item.id}>
                 <td className="font-accent font-bold text-accent">{item.sku}</td>
-                <td className="font-bold text-bright max-w-[22rem]">
+                <td className="font-bold text-bright min-w-[24rem] max-w-[36rem]">
                   <div className="flex items-center gap-3">
                     <ProductImage name={item.name} src={item.imageUrl} className="w-14 h-14 flex-shrink-0" textClassName="text-[1.3rem]" />
-                    <span className="line-clamp-1">{item.name}</span>
+                    <span className="line-clamp-2 min-w-0" title={item.name}>{item.name}</span>
                   </div>
                 </td>
                 <td className="font-accent text-medium">{item.category}</td>
@@ -192,7 +192,7 @@ export default function ProductsPage() {
                   ) : (
                     <button
                       onClick={() => setStockAdjustId(item.id)}
-                      className="flex items-center gap-1 text-accent font-accent text-[1.2rem] hover:underline"
+                      className="flex items-center gap-1 text-accent font-accent text-[1.2rem] hover:underline whitespace-nowrap py-1.5"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>Adjust</span>
@@ -209,25 +209,25 @@ export default function ProductsPage() {
                     </div>
                   )}
                   {item.serialNumber && (
-                    <div className="flex items-center gap-1 text-purple-500">
+                    <div className="flex items-center gap-1 text-purple-600">
                       <Tv className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate">SN: {item.serialNumber}{item.warrantyMonths ? ` (${item.warrantyMonths}m)` : ""}</span>
                     </div>
                   )}
                   {item.flavour && (
-                    <div className="flex items-center gap-1 text-amber-500">
+                    <div className="flex items-center gap-1 text-amber-700">
                       <Cake className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate">{item.flavour}{item.weightGrams ? ` · ${item.weightGrams}g` : ""}{item.expiryTime ? ` · ${item.expiryTime}` : ""}</span>
                     </div>
                   )}
                   {item.preparationTime && (
-                    <div className="flex items-center gap-1 text-emerald-500">
+                    <div className="flex items-center gap-1 text-emerald-700">
                       <Utensils className="w-3 h-3 flex-shrink-0" />
                       <span>Prep: {item.preparationTime} min</span>
                     </div>
                   )}
                   {item.size && (
-                    <span className="text-pink-400">Size: {item.size} / {item.color}</span>
+                    <span className="text-pink-600">Size: {item.size} / {item.color}</span>
                   )}
                   {!item.batchNumber && !item.serialNumber && !item.flavour && !item.preparationTime && !item.size && (
                     <span className="text-stroke-medium">Standard</span>
@@ -239,24 +239,24 @@ export default function ProductsPage() {
                   <div className="flex items-center justify-end gap-1.5">
                     <button
                       onClick={() => setBarcodeItem(item)}
-                      className="p-1.5 text-muted hover:text-accent hover:bg-accent-subtle transition-colors"
+                      className="icon-btn text-muted hover:text-accent hover:bg-accent-subtle transition-colors"
                       title="Print Barcode Label"
                     >
-                      <Barcode className="w-4 h-4" />
+                      <Barcode className="w-[1.6rem] h-[1.6rem]" />
                     </button>
                     <button
                       onClick={() => setEditItem(item)}
-                      className="p-1.5 text-muted hover:text-accent hover:bg-accent-subtle transition-colors"
+                      className="icon-btn text-muted hover:text-accent hover:bg-accent-subtle transition-colors"
                       title="Edit"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-[1.6rem] h-[1.6rem]" />
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(item.id)}
-                      className="p-1.5 text-muted hover:text-error hover:bg-red-500/10 transition-colors"
+                      className="icon-btn text-muted hover:text-error hover:bg-red-500/10 transition-colors"
                       title="Delete"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-[1.6rem] h-[1.6rem]" />
                     </button>
                   </div>
                 </td>

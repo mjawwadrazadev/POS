@@ -355,50 +355,49 @@ export default function PrinterSettingsPage() {
         </div>
       )}
 
-      {/* Printers */}
-      <div className="data-table-wrapper">
+      {/* Printers. The empty state sits outside the table so it never scrolls sideways on phones. */}
+      <div className="bg-base-bright border border-stroke-muted">
         <div className="px-5 py-4 border-b border-stroke-muted bg-base-tint">
           <h3 className="font-bold text-[1.6rem] flex items-center gap-2">
             <Printer className="w-5 h-5 text-accent" /> Printers
             <span className="text-muted font-semibold">{printers.length}</span>
           </h3>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Printer</th>
-              <th>Connection</th>
-              <th>Used for</th>
-              <th>Paper / Label</th>
-              <th className="!text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {printers.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="!py-14">
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <div className="w-14 h-14 bg-base-tint border border-stroke-muted flex items-center justify-center">
-                      <Printer className="w-6 h-6 text-muted" />
-                    </div>
-                    <p className="font-bold text-[1.5rem]">No printers added yet</p>
-                    <p className="text-muted text-[1.3rem] max-w-[44rem]">
-                      Receipts and labels use the system print dialog until you add one.
-                    </p>
-                    <button
-                      onClick={() => {
-                        say("");
-                        setDraft({ ...EMPTY_DRAFT });
-                      }}
-                      className="btn btn-primary py-2.5 px-5 text-[1.3rem] mt-1"
-                    >
-                      <Plus className="w-4 h-4" /> Add printer
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              printers.map((p) => {
+        {printers.length === 0 ? (
+          <div className="py-14 px-5">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="w-14 h-14 bg-base-tint border border-stroke-muted flex items-center justify-center">
+                <Printer className="w-6 h-6 text-muted" />
+              </div>
+              <p className="font-bold text-[1.5rem]">No printers added yet</p>
+              <p className="text-muted text-[1.3rem] max-w-[44rem]">
+                Receipts and labels use the system print dialog until you add one.
+              </p>
+              <button
+                onClick={() => {
+                  say("");
+                  setDraft({ ...EMPTY_DRAFT });
+                }}
+                className="btn btn-primary py-2.5 px-5 text-[1.3rem] mt-1"
+              >
+                <Plus className="w-4 h-4" /> Add printer
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Printer</th>
+                  <th>Connection</th>
+                  <th>Used for</th>
+                  <th>Paper / Label</th>
+                  <th className="!text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {printers.map((p) => {
                 const Icon = TRANSPORT_ICONS[p.transport] ?? Monitor;
                 return (
                   <tr key={p.id}>
@@ -450,10 +449,11 @@ export default function PrinterSettingsPage() {
                     </td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
+              })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Scanners */}
@@ -573,8 +573,8 @@ export default function PrinterSettingsPage() {
               <h3 className="font-accent font-extrabold text-[1.5rem] uppercase flex items-center gap-2">
                 <Printer className="w-5 h-5 text-[#819ffe]" /> Add printer
               </h3>
-              <button type="button" onClick={() => setDraft(null)} className="text-gray-400 hover:text-white p-1" aria-label="Close">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setDraft(null)} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10" aria-label="Close">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

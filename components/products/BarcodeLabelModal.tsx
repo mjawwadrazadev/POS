@@ -152,8 +152,8 @@ export function BarcodeLabelModal({
             <Tag className="w-5 h-5 text-[#819ffe]" />
             <h3 className="font-accent font-extrabold text-[1.4rem] uppercase">Barcode Label</h3>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white p-1">
-            <X className="w-5 h-5" />
+          <button aria-label="Close" type="button" onClick={onClose} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10">
+            <X className="w-[1.8rem] h-[1.8rem]" />
           </button>
         </div>
 

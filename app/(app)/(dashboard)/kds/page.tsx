@@ -134,7 +134,7 @@ export default function KitchenDisplaySystemPage() {
   const lateCount = filteredTickets.filter((t) => t.status !== "ready" && elapsedMinutes(t.createdAt, now) >= 15).length;
 
   return (
-    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-12.8rem)]">
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh_-_12.8rem_-_var(--banner-h,0px))]">
       <PageActions>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-700 font-semibold text-[1.2rem]">
           <ChefHat className="w-4 h-4" />
@@ -146,7 +146,7 @@ export default function KitchenDisplaySystemPage() {
             <button
               key={s}
               onClick={() => setSelectedStation(s)}
-              className={`px-3.5 py-1.5 text-[1.3rem] font-semibold transition-colors ${
+              className={`px-3.5 py-1.5 min-h-[3.6rem] text-[1.3rem] font-semibold transition-colors ${
                 selectedStation === s ? "bg-orange-600 text-white" : "text-medium hover:text-bright"
               }`}
             >
@@ -156,7 +156,7 @@ export default function KitchenDisplaySystemPage() {
         </div>
         <button onClick={fetchTickets} className="btn btn-secondary py-2.5 px-3.5 text-[1.2rem]" title="Refresh now (updates every 10 seconds)">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          <span className="hidden sm:inline">Refresh</span>
+          <span>Refresh</span>
         </button>
       </PageActions>
 

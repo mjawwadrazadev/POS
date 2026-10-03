@@ -85,6 +85,10 @@ body {
   --st-medium: #949291;
   --base-opp: #0f0f0f;
   --t-opp-bright: #ffffff;
+  /* Status colours for text on light surfaces (the bright ones are for dark surfaces and fills) */
+  --success-text: #2f7d0a;
+  --warning-text: #a35f00;
+  --error-text: #d62424;
 }
 
 /* — DARK THEME — */
@@ -103,6 +107,9 @@ body {
   --st-medium: #313336;
   --base-opp: #eeeae8;
   --t-opp-bright: #161616;
+  --success-text: var(--success);
+  --warning-text: var(--warning);
+  --error-text: var(--error);
 }
 
 /* ------------------------------------------------------------------ */
@@ -119,9 +126,9 @@ body {
 .text-medium  { color: var(--t-medium); }
 .text-muted   { color: var(--t-muted); }
 .text-accent  { color: var(--accent); }
-.text-success { color: var(--success); }
-.text-error   { color: var(--error); }
-.text-warning { color: var(--warning); }
+.text-success { color: var(--success-text); }
+.text-error   { color: var(--error-text); }
+.text-warning { color: var(--warning-text); }
 
 /* ------------------------------------------------------------------ */
 /*  4. MAIN LAYOUT STRUCTURE                                           */
@@ -157,7 +164,8 @@ body {
 
 .sidebar {
   position: fixed;
-  top: 0;
+  /* Below the impersonation banner when one is shown */
+  top: var(--banner-h, 0px);
   left: 0;
   bottom: 0;
   width: var(--sidebar-w);
@@ -226,6 +234,36 @@ body {
 
   .sidebar__close {
     display: inline-flex;
+  }
+}
+
+/* POS "View order" bar (phones / tablets, where the cart sits below the products) */
+.pos-cart-bar {
+  position: fixed;
+  bottom: 1.6rem;
+  left: 1.6rem;
+  right: 1.6rem;
+  z-index: 35;
+}
+
+.btn.pos-cart-bar {
+  justify-content: space-between;
+}
+
+@media (min-width: 768px) {
+  .pos-cart-bar {
+    left: calc(var(--sidebar-w) + 2.4rem);
+    right: 2.4rem;
+  }
+
+  .pos-layout--collapsed .pos-cart-bar {
+    left: 2.4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .pos-cart-bar {
+    display: none;
   }
 }
 
@@ -509,12 +547,14 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
 
 .topbar {
   position: sticky;
-  top: 0;
+  top: var(--banner-h, 0px);
   z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1.2rem 2rem;
+  /* When page buttons don't fit beside the title they drop to their own row */
+  flex-wrap: wrap;
   min-height: var(--topbar-h);
   padding: 1rem 3.2rem;
   background: var(--base);
@@ -526,6 +566,8 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
   display: flex;
   align-items: center;
   gap: 1.2rem;
+  /* Title keeps at least this much room before the actions wrap below it */
+  flex: 1 1 26rem;
 }
 
 .topbar__menu {
@@ -547,25 +589,6 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
   background: var(--accent-subtle);
 }
 
-@media (max-width: 767.98px) {
-  .topbar {
-    padding: 0.8rem 1.6rem;
-  }
-
-  .topbar__title {
-    font-size: 1.7rem;
-  }
-
-  /* Store / vertical line is in the drawer already; keeps the bar to one row on phones */
-  .topbar__meta {
-    display: none;
-  }
-
-  .pos-main__content {
-    padding: 1.6rem;
-  }
-}
-
 .topbar__title {
   font-size: 2rem;
   font-weight: 800;
@@ -579,6 +602,47 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
   align-items: center;
   justify-content: flex-end;
   gap: 1rem;
+  margin-left: auto;
+}
+
+.topbar__actions:empty {
+  display: none;
+}
+
+/* Phones. Kept after the base .topbar rules above so these overrides win. */
+@media (max-width: 767.98px) {
+  /* Scrolls away with the page: two rows of header would cover a sixth of a phone screen */
+  .topbar {
+    position: relative;
+    top: 0;
+    padding: 0.8rem 1.6rem;
+  }
+
+  .topbar__title {
+    font-size: 1.7rem;
+  }
+
+  /* Store / vertical line is in the drawer already; keeps the bar to one row on phones */
+  .topbar__meta {
+    display: none;
+  }
+
+  /* Page buttons get their own full-width row under the title, left-aligned;
+     the last button (the page's main action) fills what is left of its line */
+  .topbar__actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+    gap: 0.8rem;
+  }
+
+  .topbar__actions > .btn:last-child {
+    flex: 1 1 auto;
+  }
+
+  .pos-main__content {
+    padding: 1.6rem;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -641,7 +705,7 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--t-muted);
-  padding: 1.4rem 1.6rem;
+  padding: 1.4rem 1.4rem;
   text-align: left;
   border-bottom: 1px solid var(--st-muted);
   white-space: nowrap;
@@ -650,13 +714,46 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
 .data-table td {
   font-size: 1.4rem;
   color: var(--t-bright);
-  padding: 1.4rem 1.6rem;
+  padding: 1.4rem 1.4rem;
   border-bottom: 1px solid var(--st-muted);
   vertical-align: middle;
 }
 
+/* IDs, SKUs, dates and amounts (mono font) stay on one line */
+.data-table td.font-accent {
+  white-space: nowrap;
+}
+
 .data-table tbody tr:hover {
   background: var(--accent-subtle);
+}
+
+/* Tables in a sideways scroller keep readable columns on tablets and phones and scroll,
+   instead of squeezing names and IDs onto three lines. An empty / loading table (one
+   full-width row) is left alone so its message stays on screen. */
+@media (max-width: 1279.98px) {
+  .overflow-x-auto > table:not(:has(tbody > tr:only-child > td[colspan])),
+  .data-table-wrapper > table:not(:has(tbody > tr:only-child > td[colspan])) {
+    min-width: 72rem;
+  }
+}
+
+/* Icon-only buttons (edit, delete, close…): a real tap target, not just the icon */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  flex-shrink: 0;
+  transition: background var(--_transition), color var(--_transition);
+}
+
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 4.4rem;
+    height: 4.4rem;
+  }
 }
 
 /* Buttons */
@@ -664,6 +761,8 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Same height with or without text, so icon-only buttons line up with labelled ones */
+  min-height: 4.5rem;
   gap: 0.8rem;
   padding: 1.1rem 2rem;
   font-family: var(--_font-accent);
@@ -745,6 +844,7 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
 .badge {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
   padding: 0.4rem 0.8rem;
   font-family: var(--_font-accent);
   font-size: 1.1rem;

@@ -115,7 +115,7 @@ export default function SuperAdminDashboardPage() {
               <CheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="text-[3rem] font-black text-emerald-600">{activeTenants}</div>
-            <div className="text-[1.2rem] text-emerald-500/80 font-medium">Valid active access</div>
+            <div className="text-[1.2rem] text-emerald-700 font-medium">Valid active access</div>
           </div>
 
           <div className="bg-base-tint border border-stroke-muted rounded-2xl p-5 shadow-sm space-y-2">
@@ -124,7 +124,7 @@ export default function SuperAdminDashboardPage() {
               <AlertTriangle className="w-5 h-5 text-amber-600" />
             </div>
             <div className="text-[3rem] font-black text-amber-600">{expiringSoonTenants}</div>
-            <div className="text-[1.2rem] text-amber-500/80 font-medium">Requires renewal outreach</div>
+            <div className="text-[1.2rem] text-amber-700 font-medium">Requires renewal outreach</div>
           </div>
 
           <div className="bg-base-tint border border-stroke-muted rounded-2xl p-5 shadow-sm space-y-2">
@@ -193,28 +193,28 @@ export default function SuperAdminDashboardPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-base rounded-xl border border-stroke-medium">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                  <span className="text-[1.4rem] font-semibold text-bright">🟢 Actively Used (Sales ≤ 3d)</span>
+              <div className="flex items-center justify-between gap-3 p-3 bg-base rounded-xl border border-stroke-medium">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-3 h-3 flex-shrink-0 rounded-full bg-emerald-500"></div>
+                  <span className="text-[1.4rem] font-semibold text-bright">Actively Used (Sales ≤ 3d)</span>
                 </div>
-                <span className="font-bold text-emerald-600">{activeHealth} tenants</span>
+                <span className="font-bold text-emerald-600 whitespace-nowrap flex-shrink-0">{activeHealth} tenants</span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-base rounded-xl border border-stroke-medium">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                  <span className="text-[1.4rem] font-semibold text-bright">🟡 Slowing Down (Sales 4-14d)</span>
+              <div className="flex items-center justify-between gap-3 p-3 bg-base rounded-xl border border-stroke-medium">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-3 h-3 flex-shrink-0 rounded-full bg-amber-500"></div>
+                  <span className="text-[1.4rem] font-semibold text-bright">Slowing Down (Sales 4-14d)</span>
                 </div>
-                <span className="font-bold text-amber-600">{slowingHealth} tenants</span>
+                <span className="font-bold text-amber-600 whitespace-nowrap flex-shrink-0">{slowingHealth} tenants</span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-base rounded-xl border border-stroke-medium">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-                  <span className="text-[1.4rem] font-semibold text-bright">🔴 Dormant (No sales &gt; 14d)</span>
+              <div className="flex items-center justify-between gap-3 p-3 bg-base rounded-xl border border-stroke-medium">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-3 h-3 flex-shrink-0 rounded-full bg-rose-500"></div>
+                  <span className="text-[1.4rem] font-semibold text-bright">Dormant (No sales &gt; 14d)</span>
                 </div>
-                <span className="font-bold text-rose-600">{dormantHealth} tenants</span>
+                <span className="font-bold text-rose-600 whitespace-nowrap flex-shrink-0">{dormantHealth} tenants</span>
               </div>
             </div>
 

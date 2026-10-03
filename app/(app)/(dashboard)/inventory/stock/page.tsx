@@ -328,7 +328,7 @@ export default function StockTransferPage() {
               <button
                 key={key}
                 onClick={() => setStatusFilter(key)}
-                className={`px-3.5 py-1.5 text-[1.3rem] font-semibold transition-colors ${
+                className={`px-3.5 py-1.5 min-h-[3.6rem] text-[1.3rem] font-semibold transition-colors ${
                   statusFilter === key ? "bg-accent text-white" : "text-medium hover:text-bright"
                 }`}
               >
@@ -449,8 +449,8 @@ export default function StockTransferPage() {
               <h3 className="text-[1.8rem] font-bold text-bright flex items-center gap-2">
                 <Truck className="w-5 h-5 text-accent" /> New Stock Transfer
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-bright p-1" aria-label="Close">
-                <X className="w-5 h-5" />
+              <button onClick={() => setIsModalOpen(false)} className="icon-btn text-muted hover:text-bright hover:bg-accent-subtle" aria-label="Close">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

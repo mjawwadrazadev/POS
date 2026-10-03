@@ -215,6 +215,19 @@ export default function PosBillingPage() {
   const taxAmount = getTaxTotal();
   const discountTotal = getDiscountTotal();
   const grandTotal = getGrandTotal();
+  const cartCount = cart.reduce((n, c) => n + c.quantity, 0);
+
+  // Phones and tablets stack the cart under the products; a bottom bar jumps to it while it is off screen
+  const cartRef = useRef<HTMLElement>(null);
+  const [cartInView, setCartInView] = useState(false);
+  useEffect(() => {
+    const el = cartRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setCartInView(entry.isIntersecting), { threshold: 0.15 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const showCartBar = cart.length > 0 && !cartInView;
 
   function handleBarcodeScanned(barcode: string) {
     const match = inventoryItems.find(
@@ -493,7 +506,7 @@ export default function PosBillingPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-4 lg:h-[calc(100dvh-12.8rem)]">
+      <div className={`flex flex-col gap-4 lg:h-[calc(100dvh_-_12.8rem_-_var(--banner-h,0px))] ${cart.length > 0 ? "pb-[8rem] lg:pb-0" : ""}`}>
         {/* Shift status lives in the top bar, so the till gets the full height */}
         <PageActions>
           <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-base-tint border border-stroke-muted text-medium text-[1.2rem]">
@@ -739,14 +752,18 @@ export default function PosBillingPage() {
           </section>
 
           {/* RIGHT — Cart & checkout */}
-          <aside className="flex flex-col bg-base-bright border border-stroke-muted min-h-[48rem] lg:min-h-0">
+          <aside
+            ref={cartRef}
+            id="pos-cart"
+            className="flex flex-col bg-base-bright border border-stroke-muted min-h-[48rem] lg:min-h-0 scroll-mt-[8rem]"
+          >
             <div className="px-4 py-3.5 border-b border-stroke-muted flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-accent" />
                 <h3 className="font-bold text-[1.6rem] text-bright">Current Order</h3>
                 {cart.length > 0 && (
                   <span className="bg-accent text-white text-[1.15rem] font-bold px-2 py-0.5">
-                    {cart.reduce((n, c) => n + c.quantity, 0)} items
+                    {cartCount} items
                   </span>
                 )}
               </div>
@@ -935,6 +952,21 @@ export default function PosBillingPage() {
           </aside>
         </div>
       </div>
+
+      {/* Phones / tablets: jump to the order while it is scrolled out of view */}
+      {showCartBar && (
+        <button
+          type="button"
+          onClick={() => cartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="pos-cart-bar btn btn-primary justify-between py-4 px-5 text-[1.4rem] shadow-2xl"
+        >
+          <span className="flex items-center gap-2">
+            <ShoppingCart className="w-[1.8rem] h-[1.8rem]" />
+            View order · {cartCount} {cartCount === 1 ? "item" : "items"}
+          </span>
+          <span>PKR {grandTotal.toLocaleString()}</span>
+        </button>
+      )}
 
       {/* SPLIT PAYMENT MODAL */}
       {isSplitModalOpen && (
@@ -1258,8 +1290,8 @@ export default function PosBillingPage() {
                 <ShieldCheck className="w-5 h-5" />
                 <span>Manager PIN Required</span>
               </div>
-              <button onClick={() => setPendingDiscountVal(null)} className="text-gray-400 hover:text-white">
-                <X className="w-5 h-5" />
+              <button aria-label="Close" onClick={() => setPendingDiscountVal(null)} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

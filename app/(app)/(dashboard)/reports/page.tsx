@@ -185,7 +185,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Custom Date Inputs */}
-        <div className="flex items-center gap-3 font-accent text-[1.2rem]">
+        <div className="flex flex-wrap items-center gap-3 font-accent text-[1.2rem]">
           <div className="flex items-center gap-1">
             <span className="text-muted">From:</span>
             <input
@@ -246,7 +246,7 @@ export default function ReportsPage() {
             <ArrowUpRight className="w-5 h-5 text-emerald-500" />
           </div>
           <div className="stat-card__value text-emerald-500">{fmt(grossProfit)}</div>
-          <div className="font-accent text-[1.2rem] text-emerald-500 font-bold">
+          <div className="font-accent text-[1.2rem] text-emerald-600 font-bold">
             {margin.toFixed(1)}% Gross Margin
           </div>
         </div>

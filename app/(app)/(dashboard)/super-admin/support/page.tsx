@@ -148,7 +148,7 @@ export default function SuperAdminSupportPage() {
         {activeTab === "tickets" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Tickets Table Column */}
-            <div className="lg:col-span-1 bg-base-tint border border-stroke-muted rounded-2xl overflow-hidden flex flex-col h-[600px]">
+            <div className="lg:col-span-1 bg-base-tint border border-stroke-muted rounded-2xl overflow-hidden flex flex-col max-h-[360px] lg:max-h-none lg:h-[600px]">
               <div className="p-4 bg-base border-b border-stroke-muted font-bold text-[1.4rem] text-medium">
                 Incoming Tenant Tickets
               </div>
@@ -182,7 +182,7 @@ export default function SuperAdminSupportPage() {
             </div>
 
             {/* Conversation Detail Column */}
-            <div className="lg:col-span-2 bg-base-tint border border-stroke-muted rounded-2xl flex flex-col h-[600px] overflow-hidden">
+            <div className="lg:col-span-2 bg-base-tint border border-stroke-muted rounded-2xl flex flex-col h-[520px] lg:h-[600px] overflow-hidden">
               {selectedTicket ? (
                 <>
                   <div className="p-4 bg-base border-b border-stroke-muted flex justify-between items-center">

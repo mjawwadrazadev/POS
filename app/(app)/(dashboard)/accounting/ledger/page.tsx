@@ -175,7 +175,7 @@ export default function AccountingLedgerPage() {
             <div className="stat-card">
               <span className="stat-card__label">Sales Tax Payable (2020)</span>
               <div className="stat-card__value">{fmt(tax.credit - tax.debit)}</div>
-              <div className="flex items-center gap-1 text-amber-500 text-[1.2rem] font-accent">
+              <div className="flex items-center gap-1 text-amber-600 text-[1.2rem] font-accent">
                 <span>Liability</span>
               </div>
             </div>
@@ -218,13 +218,13 @@ export default function AccountingLedgerPage() {
                     {entry.lines.map((line, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between text-[1.3rem] font-accent py-1 px-3 bg-base-tint"
+                        className="flex items-center justify-between gap-3 text-[1.3rem] font-accent py-1 px-3 bg-base-tint"
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-accent w-40">{line.accountCode}</span>
-                          <span className="text-bright">{line.accountName}</span>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="font-bold text-accent w-[12rem] flex-shrink-0 whitespace-nowrap">{line.accountCode}</span>
+                          <span className="text-bright min-w-0">{line.accountName}</span>
                         </div>
-                        <span className={`font-bold w-40 text-right ${line.type === "debit" ? "text-emerald-500" : "text-blue-500"}`}>
+                        <span className={`font-bold min-w-[14rem] flex-shrink-0 whitespace-nowrap text-right ${line.type === "debit" ? "text-emerald-600" : "text-blue-600"}`}>
                           {line.type === "debit" ? "DR" : "CR"} {fmt(line.amount)}
                         </span>
                       </div>

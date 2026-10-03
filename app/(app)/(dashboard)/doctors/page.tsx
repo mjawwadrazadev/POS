@@ -256,7 +256,7 @@ export default function DoctorManagementPage() {
             ) : (
               filteredDoctors.map((doc) => (
                 <tr key={doc._id} className={doc.status === "inactive" ? "opacity-60 bg-red-500/5" : ""}>
-                  <td className="font-bold text-bright">
+                  <td className="font-bold text-bright min-w-[24rem]">
                     <div className="flex items-center gap-3">
                       {doc.photo ? (
                         <Image
@@ -289,31 +289,31 @@ export default function DoctorManagementPage() {
 
                   <td className="font-accent text-bright font-semibold">
                     {doc.registrationNumber ? (
-                      <span className="text-blue-300 font-mono">PMDC: {doc.registrationNumber}</span>
+                      <span className="text-accent font-mono whitespace-nowrap">PMDC: {doc.registrationNumber}</span>
                     ) : (
                       <span className="text-muted italic">N/A</span>
                     )}
                   </td>
 
                   <td>
-                    <div className="font-accent text-[1.2rem] space-y-0.5">
-                      <div className="text-emerald-400 font-bold">
+                    <div className="font-accent text-[1.2rem] space-y-0.5 whitespace-nowrap">
+                      <div className="text-emerald-600 font-bold">
                         New Patient: PKR {doc.fees.newPatient.toLocaleString()}
                       </div>
-                      <div className="text-gray-300">
+                      <div className="text-medium">
                         Follow-up: PKR {doc.fees.followUp.toLocaleString()}
                       </div>
                     </div>
                   </td>
 
-                  <td className="font-accent font-bold text-amber-400">
+                  <td className="font-accent font-bold text-amber-600">
                     {doc.hospitalCommissionPercent}% Commission
                   </td>
 
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {doc.availableDays?.map((day) => (
-                        <span key={day} className="text-[1rem] bg-base-bright border border-stroke-muted px-1.5 py-0.5 text-gray-300 font-accent font-semibold">
+                        <span key={day} className="text-[1rem] bg-base-bright border border-stroke-muted px-1.5 py-0.5 text-medium font-accent font-semibold">
                           {day}
                         </span>
                       ))}
@@ -336,22 +336,22 @@ export default function DoctorManagementPage() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleOpenEditModal(doc)}
-                        className="p-1.5 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30"
+                        className="icon-btn text-accent hover:bg-accent-subtle border border-accent/30"
                         title="Edit Doctor Profile"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit className="w-[1.6rem] h-[1.6rem]" />
                       </button>
 
                       <button
                         onClick={() => handleToggleStatus(doc)}
-                        className={`p-1.5 border transition-colors ${
+                        className={`icon-btn border transition-colors ${
                           doc.status === "active"
-                            ? "text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
-                            : "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                            ? "text-rose-600 border-rose-500/30 hover:bg-rose-500/10"
+                            : "text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10"
                         }`}
                         title={doc.status === "active" ? "Deactivate Doctor" : "Activate Doctor"}
                       >
-                        {doc.status === "active" ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                        {doc.status === "active" ? <UserX className="w-[1.6rem] h-[1.6rem]" /> : <UserCheck className="w-[1.6rem] h-[1.6rem]" />}
                       </button>
                     </div>
                   </td>
@@ -371,8 +371,8 @@ export default function DoctorManagementPage() {
                 <Stethoscope className="w-5 h-5 text-blue-400" />
                 <span>{editingDoctor ? "Edit Doctor Profile" : "Register New Doctor"}</span>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-white">
-                <X className="w-5 h-5" />
+              <button aria-label="Close" onClick={() => setShowAddModal(false)} className="icon-btn text-gray-400 hover:text-white hover:bg-white/10">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

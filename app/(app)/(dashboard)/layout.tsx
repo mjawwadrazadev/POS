@@ -83,6 +83,25 @@ export default function DashboardLayout({
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  // The impersonation banner stays pinned at the top; the fixed sidebar and sticky top bar start below it
+  const impersonating = !!userSession?.isImpersonating;
+  useEffect(() => {
+    const root = document.documentElement;
+    const banner = impersonating ? document.getElementById("impersonation-banner") : null;
+    if (!banner) {
+      root.style.removeProperty("--banner-h");
+      return;
+    }
+    const sync = () => root.style.setProperty("--banner-h", `${banner.offsetHeight}px`);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(banner);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--banner-h");
+    };
+  }, [impersonating, loading]);
+
   // Close the drawer after navigating, and on Escape
   useEffect(() => {
     setDrawerOpen(false);
@@ -172,9 +191,6 @@ export default function DashboardLayout({
         <ImpersonationBanner tenantName={userSession.targetOrgName || userSession.orgName || "Tenant"} />
       )}
 
-      {/* Announcement Banner for tenant view */}
-      {!isSuperAdminRoute && <AnnouncementBanner />}
-
       {/* Main App Layout */}
       <div
         className={`pos-layout ${collapsed ? "pos-layout--collapsed" : ""} ${drawerOpen ? "pos-layout--drawer-open" : ""}`}
@@ -197,6 +213,8 @@ export default function DashboardLayout({
               sidebarOpen={!sidebarHidden}
               onMenuClick={toggleSidebar}
             />
+            {/* Platform announcements for stores, inside the content column so the sidebar never covers them */}
+            {!isSuperAdminRoute && <AnnouncementBanner />}
             <main className="pos-main__content">
               <SessionProvider value={userSession}>{children}</SessionProvider>
             </main>

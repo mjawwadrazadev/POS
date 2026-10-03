@@ -125,8 +125,8 @@ export default function DemoDeskPage() {
               <h2 className="text-[2rem] font-bold text-bright flex items-center gap-2">
                 <Store className="w-5 h-5 text-accent" /> New 24-Hour Demo
               </h2>
-              <button type="button" onClick={() => setShowForm(false)} className="p-2 text-muted hover:text-bright">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setShowForm(false)} className="icon-btn text-muted hover:text-bright">
+                <X className="w-[1.8rem] h-[1.8rem]" />
               </button>
             </div>
 

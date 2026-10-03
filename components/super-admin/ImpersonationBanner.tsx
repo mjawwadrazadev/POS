@@ -28,7 +28,7 @@ export function ImpersonationBanner({ tenantName }: ImpersonationBannerProps) {
   };
 
   return (
-    <div className="bg-amber-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between font-medium text-sm sticky top-0 z-50 animate-pulse border-b border-amber-700">
+    <div id="impersonation-banner" className="bg-amber-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between gap-3 font-medium text-sm sticky top-0 z-50 animate-pulse border-b border-amber-700">
       <div className="flex items-center space-x-2">
         <Eye className="w-5 h-5 text-amber-200" />
         <span>
