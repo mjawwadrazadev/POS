@@ -142,6 +142,7 @@ body {
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
+  transition: margin-left var(--_duration) ease;
 }
 
 .pos-main__content {
@@ -168,6 +169,69 @@ body {
   /* Brand and user footer stay put; only the menu scrolls */
   overflow: hidden;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+  transition: transform var(--_duration) ease, visibility var(--_duration);
+}
+
+/* Close button inside the brand header: phone drawer only */
+.sidebar__close {
+  display: none;
+  margin-left: auto;
+  padding: 0.6rem;
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.sidebar__close:hover {
+  color: #ffffff;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(0, 0, 0, 0.5);
+  overscroll-behavior: contain;
+}
+
+/* Tablet & desktop: the sidebar is open by default and can be collapsed from the top bar */
+@media (min-width: 768px) {
+  .pos-layout--collapsed .sidebar {
+    transform: translateX(-100%);
+    visibility: hidden;
+  }
+
+  .pos-layout--collapsed .pos-main {
+    margin-left: 0;
+  }
+}
+
+/* Phones: the sidebar becomes a drawer over the page, opened from the top bar */
+@media (max-width: 767.98px) {
+  .pos-main {
+    margin-left: 0;
+  }
+
+  .sidebar {
+    width: min(var(--sidebar-w), 85vw);
+    z-index: 50;
+    transform: translateX(-100%);
+    visibility: hidden;
+  }
+
+  .pos-layout--drawer-open .sidebar {
+    transform: none;
+    visibility: visible;
+    box-shadow: 0 0 4rem rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar__close {
+    display: inline-flex;
+  }
+}
+
+/* Lock page scroll behind the open drawer */
+html:has(.pos-layout--drawer-open .sidebar-backdrop) {
+  overflow: hidden;
 }
 
 /* Brand header: logo mark + product name + context (store or platform) */
@@ -196,6 +260,20 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* Uploaded store logo: white tile so dark and transparent logos stay readable on the dark sidebar */
+.sidebar__brand-logo--image {
+  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+  padding: 0.3rem;
+  overflow: hidden;
+}
+
+.sidebar__brand-logo--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .sidebar__brand-text {
   min-width: 0; /* lets long store names truncate instead of pushing the layout */
 }
@@ -205,6 +283,9 @@ body {
   font-weight: 800;
   line-height: 1.2;
   color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar__brand-sub {
@@ -444,7 +525,45 @@ html:has(.fixed.inset-0[class*="bg-black/"]) {
 .topbar__left {
   display: flex;
   align-items: center;
-  gap: 1.6rem;
+  gap: 1.2rem;
+}
+
+.topbar__menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  flex-shrink: 0;
+  color: var(--t-bright);
+  border: 1px solid var(--st-muted);
+  background: var(--base-bright);
+  cursor: pointer;
+  transition: border-color var(--_transition), background var(--_transition);
+}
+
+.topbar__menu:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+@media (max-width: 767.98px) {
+  .topbar {
+    padding: 0.8rem 1.6rem;
+  }
+
+  .topbar__title {
+    font-size: 1.7rem;
+  }
+
+  /* Store / vertical line is in the drawer already; keeps the bar to one row on phones */
+  .topbar__meta {
+    display: none;
+  }
+
+  .pos-main__content {
+    padding: 1.6rem;
+  }
 }
 
 .topbar__title {

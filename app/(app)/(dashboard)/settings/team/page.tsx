@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Building2, LayoutGrid, Plus, RefreshCw, CheckCircle2, AlertCircle, Trash2, KeyRound } from "lucide-react";
+import { Users, Building2, LayoutGrid, Plus, RefreshCw, CheckCircle2, AlertCircle, Trash2, KeyRound, ImageIcon } from "lucide-react";
 import { PageActions } from "@/components/layout/PageActions";
 import { useSessionUser } from "@/components/layout/SessionContext";
+import { LogoPicker } from "@/components/branding/LogoPicker";
 
 interface StaffUser {
   _id: string;
@@ -42,7 +43,7 @@ interface ResetRequest {
 /** Who is being reset, and (when it came from the forgot-password page) which request it answers */
 type ResetTarget = { userId: string; name: string; requestId?: string };
 
-type Tab = "team" | "branches" | "tables";
+type Tab = "team" | "branches" | "tables" | "logo";
 
 async function api(url: string, method = "GET", body?: unknown) {
   const res = await fetch(url, {
@@ -57,7 +58,8 @@ async function api(url: string, method = "GET", body?: unknown) {
 
 export default function TeamSettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
-  const sessionRole: string = useSessionUser()?.role || "";
+  const sessionUser = useSessionUser();
+  const sessionRole: string = sessionUser?.role || "";
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [tables, setTables] = useState<TableRow[]>([]);
@@ -76,6 +78,22 @@ export default function TeamSettingsPage() {
   const [tableForm, setTableForm] = useState({ label: "", capacity: 4 });
 
   const isAdmin = sessionRole === "admin";
+
+  // Store logo (owner only); the sidebar picks it up on the next page load
+  const savedLogo: string = sessionUser?.organizationLogo || "";
+  const [logoDraft, setLogoDraft] = useState(savedLogo);
+  const [savingLogo, setSavingLogo] = useState(false);
+
+  async function handleSaveLogo() {
+    setSavingLogo(true);
+    try {
+      await api("/api/settings/branding", "PUT", { logoUrl: logoDraft });
+      window.location.reload();
+    } catch (err: any) {
+      setMessage({ type: "err", text: err.message });
+      setSavingLogo(false);
+    }
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -283,6 +301,7 @@ export default function TeamSettingsPage() {
           ["team", "Team", Users],
           ["branches", "Branches", Building2],
           ["tables", "Tables", LayoutGrid],
+          ...(isAdmin ? ([["logo", "Store Logo", ImageIcon]] as const) : []),
         ] as const).map(([key, label, Icon]) => (
           <button
             key={key}
@@ -487,6 +506,29 @@ export default function TeamSettingsPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ─── STORE LOGO ─── */}
+      {tab === "logo" && isAdmin && (
+        <div className="bg-base-bright border border-stroke-muted p-5 space-y-4 max-w-[64rem]">
+          <div>
+            <h3 className="font-extrabold text-[1.6rem] text-bright">Store Logo</h3>
+            <p className="text-[1.3rem] text-muted">Shown at the top of the menu for everyone in your store.</p>
+          </div>
+          <LogoPicker
+            value={logoDraft}
+            onChange={setLogoDraft}
+            name={sessionUser?.organizationName || "Store"}
+            disabled={savingLogo}
+          />
+          {logoDraft !== savedLogo && (
+            <div className="flex justify-end">
+              <button type="button" onClick={handleSaveLogo} disabled={savingLogo} className="btn btn-primary py-2.5 px-6 text-[1.3rem]">
+                {savingLogo ? "Saving..." : "Save Logo"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

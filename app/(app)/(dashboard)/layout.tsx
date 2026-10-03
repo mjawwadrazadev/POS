@@ -46,6 +46,9 @@ function storeTitle(pathname: string) {
   return match ? match[1] : "Dashboard";
 }
 
+const MOBILE_QUERY = "(max-width: 767.98px)";
+const SIDEBAR_COLLAPSED_KEY = "rst_pos_sidebar_collapsed";
+
 export default function DashboardLayout({
   children,
 }: {
@@ -57,6 +60,57 @@ export default function DashboardLayout({
   const [authenticated, setAuthenticated] = useState(false);
   const [userSession, setUserSession] = useState<any>(null);
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
+
+  // Phones get the sidebar as a slide-in drawer (closed by default). Tablets and desktops keep it
+  // open, with the same menu button to collapse it; that choice is remembered on the device.
+  const [isMobile, setIsMobile] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const sync = () => {
+      setIsMobile(mq.matches);
+      setDrawerOpen(false);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    try {
+      setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
+    } catch {
+      // storage unavailable — sidebar just starts open
+    }
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // Close the drawer after navigating, and on Escape
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
+
+  function toggleSidebar() {
+    if (isMobile) {
+      setDrawerOpen((open) => !open);
+      return;
+    }
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, c ? "0" : "1");
+      } catch {
+        // ignore
+      }
+      return !c;
+    });
+  }
 
   // Load the session once. Moving between pages keeps it: middleware re-checks the token on every
   // navigation and every API call re-verifies against the database, so refetching here only adds a round trip.
@@ -109,6 +163,7 @@ export default function DashboardLayout({
 
   const isSuperAdminRoute = pathname.startsWith("/super-admin");
   const topBarTitle = isSuperAdminRoute ? superAdminTitle(pathname) : storeTitle(pathname);
+  const sidebarHidden = isMobile ? !drawerOpen : collapsed;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -121,11 +176,27 @@ export default function DashboardLayout({
       {!isSuperAdminRoute && <AnnouncementBanner />}
 
       {/* Main App Layout */}
-      <div className="pos-layout">
-        <Sidebar session={userSession} />
+      <div
+        className={`pos-layout ${collapsed ? "pos-layout--collapsed" : ""} ${drawerOpen ? "pos-layout--drawer-open" : ""}`}
+      >
+        <Sidebar
+          session={userSession}
+          hidden={sidebarHidden}
+          onClose={() => setDrawerOpen(false)}
+          onNavigate={() => setDrawerOpen(false)}
+        />
+        {isMobile && drawerOpen && (
+          <div className="sidebar-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
+        )}
         <div className="pos-main">
           <TopBarSlotContext.Provider value={actionsSlot}>
-            <TopBar title={topBarTitle} session={userSession} actionsRef={setActionsSlot} />
+            <TopBar
+              title={topBarTitle}
+              session={userSession}
+              actionsRef={setActionsSlot}
+              sidebarOpen={!sidebarHidden}
+              onMenuClick={toggleSidebar}
+            />
             <main className="pos-main__content">
               <SessionProvider value={userSession}>{children}</SessionProvider>
             </main>

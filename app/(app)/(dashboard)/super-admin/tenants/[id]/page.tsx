@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, use } from "react";
 import { TenantFbrPanel } from "@/components/super-admin/TenantFbrPanel";
+import { LogoPicker } from "@/components/branding/LogoPicker";
 import { useSessionUser } from "@/components/layout/SessionContext";
 import { canPerformPlatformAction } from "@/lib/auth/permissions";
 import Link from "next/link";
@@ -25,6 +26,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const canImpersonate = canPerformPlatformAction(sessionUser?.role, "impersonate_tenant");
   const canTerminate = canPerformPlatformAction(sessionUser?.role, "terminate_tenant");
   const canManageFbr = canPerformPlatformAction(sessionUser?.role, "manage_fbr");
+  const canEditBranding = canPerformPlatformAction(sessionUser?.role, "manage_pricing");
   const { id } = use(params);
   const router = useRouter();
 
@@ -47,6 +49,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const [newPin, setNewPin] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [staffUsers, setStaffUsers] = useState<any[]>([]);
+
+  // Store logo: loaded on its own because the tenant list leaves the image out
+  const [savedLogo, setSavedLogo] = useState("");
+  const [logoDraft, setLogoDraft] = useState("");
+  const [savingLogo, setSavingLogo] = useState(false);
 
   const [showTerminateModal, setShowTerminateModal] = useState(false);
   const [confirmName, setConfirmName] = useState("");
@@ -75,6 +82,41 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     fetchTenantDetail();
   }, [fetchTenantDetail]);
+
+  useEffect(() => {
+    fetch(`/api/super-admin/tenants/${id}/branding`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setSavedLogo(data.logoUrl || "");
+          setLogoDraft(data.logoUrl || "");
+        }
+      })
+      .catch(() => {});
+  }, [id]);
+
+  const handleSaveLogo = async () => {
+    setSavingLogo(true);
+    try {
+      const res = await fetch(`/api/super-admin/tenants/${id}/branding`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: logoDraft }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSavedLogo(data.logoUrl || "");
+        setLogoDraft(data.logoUrl || "");
+        alert(data.logoUrl ? "Store logo saved" : "Store logo removed — the store's initials are shown instead");
+      } else {
+        alert(data.error || "Failed to save logo");
+      }
+    } catch {
+      alert("Error saving logo");
+    } finally {
+      setSavingLogo(false);
+    }
+  };
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -411,6 +453,23 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                   <span className="text-muted">Data Retention:</span>
                   <span className="font-bold text-medium">{tenant.dataRetentionMonths} Months</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-base-tint border border-stroke-muted rounded-2xl p-6 space-y-4 md:col-span-2">
+              <h3 className="font-bold text-bright text-[1.6rem] border-b border-stroke-muted pb-3">Store Logo</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <LogoPicker value={logoDraft} onChange={setLogoDraft} name={tenant.name} disabled={!canEditBranding || savingLogo} />
+                {canEditBranding && logoDraft !== savedLogo && (
+                  <button
+                    type="button"
+                    onClick={handleSaveLogo}
+                    disabled={savingLogo}
+                    className="btn btn-primary py-2.5 px-5 text-[1.2rem] self-start sm:self-center disabled:opacity-50"
+                  >
+                    {savingLogo ? "Saving…" : "Save Logo"}
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -35,6 +35,8 @@ export interface IOrganization extends Document {
   phone?: string;
   email?: string;
   address?: string;
+  // Store logo shown in the app sidebar: a small base64 image uploaded from the browser
+  logoUrl?: string;
   // Plan Tier & Retention Fields
   planTier: "billing_only" | "billing_accounting";
   accountingEnabled: boolean;
@@ -74,6 +76,8 @@ const OrganizationSchema: Schema<IOrganization> = new Schema(
     phone: { type: String },
     email: { type: String },
     address: { type: String },
+    // Not loaded by default (it can be tens of KB); read it with .select("+logoUrl")
+    logoUrl: { type: String, select: false },
     // Plan Tier & Retention
     planTier: {
       type: String,

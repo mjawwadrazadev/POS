@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Building2, UserCheck, CreditCard, Landmark } from "lucide-react";
 import { EMPTY_FBR_FORM, FbrFormValue, FbrSettingsFields } from "@/components/super-admin/FbrSettingsFields";
 import { VERTICAL_CONFIGS } from "@/lib/config/verticals";
+import { LogoPicker } from "@/components/branding/LogoPicker";
 
 interface ProvisionTenantModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPin, setAdminPin] = useState("");
   const [phone, setPhone] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   // Not editable in this form yet — sent with their defaults
   const address = "";
   const dataRetentionMonths = 6;
@@ -59,6 +61,7 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
           subscriptionFee,
           durationMonths,
           createSampleMenu,
+          logoUrl: logoUrl || undefined,
           // Only businesses registered with FBR send their FBR details
           fbr: fbr.enabled ? fbr : { enabled: false },
         }),
@@ -158,6 +161,11 @@ export function ProvisionTenantModal({ isOpen, onClose, onSuccess }: ProvisionTe
                   onChange={(e) => setTaxRate(Number(e.target.value))}
                   className="w-full px-3.5 py-2.5 border rounded-lg text-[1.4rem]"
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-[1.2rem] font-bold text-gray-700 uppercase mb-2">Store Logo (Optional)</label>
+                <LogoPicker value={logoUrl} onChange={setLogoUrl} name={name || "Store"} disabled={submitting} />
               </div>
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
   ROLE_LABELS as ROLE_NAMES,
 } from "@/lib/auth/permissions";
 import { BusinessType, VERTICAL_CONFIGS } from "@/lib/config/verticals";
+import { brandInitials } from "@/lib/branding/storeBrand";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -42,14 +43,20 @@ import {
   UserCog,
   Presentation,
   Trophy,
+  X,
 } from "lucide-react";
 
 interface SidebarProps {
   // Session loaded once by the dashboard layout, so the menu renders for the right role from the first paint
   session: any;
+  // Off screen (closed drawer on phones, collapsed on larger screens): taken out of tab order too
+  hidden: boolean;
+  onClose: () => void;
+  // Called when a menu link is clicked, so the phone drawer closes even on the current page
+  onNavigate: () => void;
 }
 
-export function Sidebar({ session: userSession }: SidebarProps) {
+export function Sidebar({ session: userSession, hidden, onClose, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { currentVertical, setVertical } = usePosStore();
 
@@ -94,22 +101,40 @@ export function Sidebar({ session: userSession }: SidebarProps) {
   // Platform staff (super admin / admin / support / agent) see the platform menu unless they are impersonating a store
   const isSuperAdmin = isPlatformRole(userSession?.role) && !userSession?.isImpersonating;
   const canPlatform = (path: string) => canAccessPlatformPage(userSession?.role, path);
-  const brandContext = isSuperAdmin ? "Platform HQ" : userSession?.organizationName || "Store POS";
+  // Stores see their own name and logo (or its initials); the platform keeps the RST POS brand
+  const storeName = userSession?.organizationName || "Store POS";
+  const brandName = isSuperAdmin ? "RST POS" : storeName;
+  const brandContext = isSuperAdmin ? "Platform HQ" : "RST POS";
+  const storeLogo = isSuperAdmin ? "" : userSession?.organizationLogo || "";
+  const [logoFailed, setLogoFailed] = useState(false);
+  const showLogo = !!storeLogo && !logoFailed;
   const isStoreManager = userSession?.role === "admin" || userSession?.role === "manager";
   const isAccountingEnabled = userSession?.planTier === "billing_accounting" && isStoreManager;
   const hasKitchen = currentVertical === "restaurant" || currentVertical === "cafe" || currentVertical === "bakery";
 
   return (
-    <aside className="sidebar">
+    <aside id="app-sidebar" className="sidebar" inert={hidden}>
       {/* Brand Header */}
       <div className="sidebar__brand">
-        <div className="sidebar__brand-logo">RST</div>
+        <div className={`sidebar__brand-logo ${showLogo ? "sidebar__brand-logo--image" : ""}`}>
+          {showLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={storeLogo} alt={`${storeName} logo`} onError={() => setLogoFailed(true)} />
+          ) : (
+            <span aria-hidden="true">{isSuperAdmin ? "RST" : brandInitials(storeName)}</span>
+          )}
+        </div>
         <div className="sidebar__brand-text">
-          <div className="sidebar__brand-name">RST POS</div>
+          <div className="sidebar__brand-name" title={brandName}>
+            {brandName}
+          </div>
           <div className="sidebar__brand-sub" title={brandContext}>
             {brandContext}
           </div>
         </div>
+        <button type="button" onClick={onClose} className="sidebar__close" aria-label="Close menu">
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Active Engine Badge (Only for Client Store) */}
@@ -130,7 +155,12 @@ export function Sidebar({ session: userSession }: SidebarProps) {
       )}
 
       {/* Main Navigation */}
-      <nav className="sidebar__nav">
+      <nav
+        className="sidebar__nav"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("a")) onNavigate();
+        }}
+      >
         {/* ─── 1. PLATFORM MODE (super admin / platform support) ─── */}
         {isSuperAdmin ? (
           <>

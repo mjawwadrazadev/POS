@@ -114,27 +114,28 @@ export default function LoginPage() {
         ← Back to website
       </Link>
       {/* Container Box */}
-      <div className="w-full max-w-7xl bg-[#141417] border border-[rgba(255,255,255,0.12)] shadow-2xl grid grid-cols-1 lg:grid-cols-12 overflow-hidden min-h-[640px]">
+      <div className="w-full max-w-7xl bg-[#141417] border border-[rgba(255,255,255,0.12)] shadow-2xl grid grid-cols-1 lg:grid-cols-12 overflow-hidden lg:min-h-[640px]">
 
-        {/* LEFT SIDE — Brand Showcase & Quick Access (6 cols) */}
-        <div className="lg:col-span-6 bg-gradient-to-br from-[#001f88] via-[#002bba] to-[#070b1e] p-8 sm:p-12 lg:p-14 flex flex-col justify-between text-white relative overflow-hidden">
+        {/* LEFT SIDE — Brand Showcase & Quick Access (6 cols). Below lg it sits under the login form,
+            trimmed, so the PIN pad is on screen without scrolling on tablets. */}
+        <div className="lg:col-span-6 bg-gradient-to-br from-[#001f88] via-[#002bba] to-[#070b1e] p-8 sm:p-10 lg:p-14 flex flex-col justify-between text-white relative overflow-hidden">
           {/* Subtle overlay lines */}
           <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
 
           <div>
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 border border-white/20 text-[1.2rem] font-accent uppercase tracking-wider mb-8">
+            <div className="hidden lg:inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 border border-white/20 text-[1.2rem] font-accent uppercase tracking-wider mb-8">
               <Sparkles className="w-4 h-4 text-amber-300" />
               <span>NIB IT Enterprise Platform</span>
             </div>
 
-            <h1 className="text-[3.8rem] font-extrabold tracking-tight leading-tight">
+            <h1 className="text-[2.8rem] lg:text-[3.8rem] font-extrabold tracking-tight leading-tight">
               RST <span className="text-[#819ffe]">POS</span>
             </h1>
             <p className="text-[1.4rem] text-blue-100/90 mt-3 leading-relaxed">
               Universal Multi-Tenant Point of Sale & Inventory Platform with 9 Dedicated Business Vertical Engines.
             </p>
 
-            <div className="mt-10 space-y-3.5 font-accent text-[1.3rem]">
+            <div className="hidden lg:block mt-10 space-y-3.5 font-accent text-[1.3rem]">
               <div className="flex items-center gap-3 text-blue-100">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <span>Isolated Multi-Tenant Security & Role Control</span>
@@ -156,7 +157,7 @@ export default function LoginPage() {
 
           {/* Seeded demo accounts — local development only, never shown in production */}
           {process.env.NODE_ENV !== "production" && (
-            <div className="mt-12 pt-6 border-t border-white/15">
+            <div className="mt-6 lg:mt-12 pt-6 border-t border-white/15">
               <p className="font-accent text-[1.2rem] uppercase text-blue-200/80 mb-3 font-bold tracking-wider">
                 Seeded Demo Stores (Click to Fill Store Code / Email):
               </p>
@@ -194,7 +195,7 @@ export default function LoginPage() {
         </div>
 
         {/* RIGHT SIDE — Authentication Terminal Form (6 cols) */}
-        <div className="lg:col-span-6 p-8 sm:p-12 lg:p-14 flex flex-col justify-center space-y-8 bg-[#171719]">
+        <div className="order-first lg:order-none lg:col-span-6 p-6 sm:p-10 lg:p-14 flex flex-col justify-center space-y-6 lg:space-y-8 bg-[#171719]">
 
           <div className="space-y-2">
             <h2 className="font-extrabold text-[2.4rem] text-white">

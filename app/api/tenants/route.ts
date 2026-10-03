@@ -13,6 +13,7 @@ import { logAudit } from "@/lib/audit/logger";
 import { PLATFORM_ROLES } from "@/lib/auth/permissions";
 import { generateTempPassword, isValidPin } from "@/lib/utils/server";
 import { TENANT_TEMPLATE_ITEMS, HOSPITAL_TEMPLATE_DOCTORS } from "@/lib/config/tenantTemplates";
+import { toStoredLogo } from "@/lib/branding/logoImage";
 
 const BUSINESS_TYPES = Object.keys(VERTICAL_CONFIGS);
 const PLAN_TIERS = ["billing_only", "billing_accounting"];
@@ -159,6 +160,7 @@ export async function POST(req: Request) {
       durationMonths = 1,
       createSampleMenu = true,
       fbr,
+      logoUrl,
     } = body;
 
     // ─── Validation ───
@@ -190,6 +192,10 @@ export async function POST(req: Request) {
     const fbrResult = normalizeFbrSettings(fbr);
     if (fbrResult.error) return NextResponse.json({ error: `FBR: ${fbrResult.error}`, field: "fbr" }, { status: 400 });
 
+    // Optional store logo file, saved as a small WebP; without one the sidebar shows the store's initials
+    const logo = await toStoredLogo(logoUrl);
+    if (logo.error) return NextResponse.json({ error: logo.error, field: "logoUrl" }, { status: 400 });
+
     const normalizedEmail = String(adminEmail).toLowerCase().trim();
     if (await User.exists({ email: normalizedEmail })) {
       return NextResponse.json({ error: `An account with email '${normalizedEmail}' already exists` }, { status: 400 });
@@ -211,6 +217,7 @@ export async function POST(req: Request) {
       phone,
       email: normalizedEmail,
       address,
+      ...(logo.value ? { logoUrl: logo.value } : {}),
       planTier,
       accountingEnabled: planTier === "billing_accounting",
       dataRetentionMonths: Number(dataRetentionMonths),

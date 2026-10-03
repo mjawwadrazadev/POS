@@ -41,6 +41,8 @@ export interface SessionPayload {
   role: SessionRole;
   organizationId: string;
   organizationName?: string;
+  // Added by /api/auth/me only (never stored in the token)
+  organizationLogo?: string;
   orgName?: string;
   orgCode?: string;
   businessType?: BusinessType;
